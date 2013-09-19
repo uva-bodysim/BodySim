@@ -10,7 +10,7 @@ def plot_file(filename):
     data = []
     try:
         f = open(filename, 'r').read().strip().split('\n')
-        values = [[float(a) for a in k] for k in f.split(',')]
+        values = [[float(a) for a in k.split(',')] for k in f]
         data = zip(*values)
         if len(data) != 8:
             print("Bad file format! Make sure each line has 8 values!")
@@ -20,8 +20,6 @@ def plot_file(filename):
     except:
         print("Bad file format! Make sure each line has 8 values!")
         return
-    finally:
-        f.close()
     
     for i in range(1, 8):
         pylab.plot(data[0], data[i], label=labels[i])
