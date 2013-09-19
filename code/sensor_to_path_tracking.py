@@ -100,7 +100,7 @@ def track_cubes():
             rz = rotation_vector[3]
 
             # Buffer to file
-            output = "{0},{1},{2},{3},{4},{5},{6}\n".format(x,y,z,w,rx,ry,rz)
+            output = "{0},{1},{2},{3},{4},{5},{6},{7}\n".format(current_frame,x,y,z,w,rx,ry,rz)
             data_files[j].write(output)
 
     # Close files
