@@ -2,7 +2,10 @@
 To use this file: look at blender caller.
 '''
 
-import pylab
+import matplotlib.pyplot as plt
+from matplotlib.widgets import MultiCursor
+import weakref
+import math
 import sys
 
 def plot_file(filename):
@@ -20,16 +23,56 @@ def plot_file(filename):
     except:
         print("Bad file format! Make sure each line has 8 values!")
         return
-    
-    for i in range(1, 8):
-        pylab.plot(data[0], data[i], label=labels[i])
 
-    pylab.xlabel('time (s)')
-    pylab.ylabel('location (?)')
-    pylab.title('Coordinates')
-    pylab.grid(True)
-    pylab.legend()
-    pylab.show()
+    ax1 = plt.subplot(211)
+    plt.title('Plot')
+
+    for i in range(1, 4):
+        ax1.plot(data[0], data[i], label=labels[i])
+
+    plt.ylabel('location (cm)')
+    plt.grid(True)
+    plt.legend()
+
+    ax2 = plt.subplot(212, sharex = ax1)
+
+    for i in range(4, 8):
+        ax2.plot(data[0], data[i], label=labels[i])
+
+    plt.xlabel('time (s)')
+    plt.ylabel('heading (rad)')
+    plt.grid(True)
+    plt.legend()
+
+    fig = plt.gcf()
+    multi = MultiCursor(fig.canvas, (ax1, ax2), color='r', lw=1, horizOn=False, vertOn=True)
+
+    limits = ax1.axis()
+    lcontainer = {'l1': None, 'l2': None}
+
+    def onclick(event):
+        if event.inaxes is not None:
+            if lcontainer['l1'] != None:
+                l = lcontainer['l1'].pop(0)
+                wl = weakref.ref(l)
+                l.remove()
+                del l
+                l = lcontainer['l2'].pop(0)
+                wl = weakref.ref(l)
+                l.remove()
+                del l
+            lcontainer['l1']= ax1.plot([event.xdata]*2, [limits[2], limits[3]], c="black")
+            lcontainer['l2']= ax2.plot([event.xdata]*2, [-math.pi, math.pi], c="black")
+            #print 'button=%d, x=%d, y=%d, xdata=%f, ydata=%f'%(
+            #        event.button, event.x, event.y, event.xdata, event.ydata)
+            fig.canvas.draw()
+            print event.xdata
+            sys.stdout.flush()
+
+    cid = fig.canvas.mpl_connect('button_press_event', onclick)
+
+    plt.show()
+
 
 if __name__=="__main__":
     plot_file(sys.argv[1])
