@@ -15,4 +15,5 @@ if __name__ == "__main__":
     proc = plot_csv(sys.argv[1])
     while True:
         line = proc.stdout.readline()
-        print line
+        if line != '':
+            print line
