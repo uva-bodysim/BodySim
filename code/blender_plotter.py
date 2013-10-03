@@ -43,6 +43,7 @@ def plot_file(filename):
     plt.ylabel('heading (rad)')
     plt.grid(True)
     plt.legend()
+    ax2.autoscale(enable=False, axis='both')
 
     fig = plt.gcf()
     multi = MultiCursor(fig.canvas, (ax1, ax2), color='r', lw=1, horizOn=False, vertOn=True)
