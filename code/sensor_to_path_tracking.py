@@ -6,7 +6,7 @@ sensor_to_path_tracking.blend file. See wiki for more details.
 
 import bpy
 import os
-import "../../blender_caller"
+import sys
 
 SCENE_NAME = bpy.context.scene.name
 FRAME_START = 1
@@ -22,6 +22,11 @@ scene.frame_end = 101
 # Save in the same directory as the blend file
 file_name = 'test'
 dirname = os.path.dirname
+
+#Imports blender_caller.py
+sys.path.insert(0, dirname(dirname(__file__)))
+
+import blender_caller
 
 # List of objects and files to write to
 cube_objects = []
@@ -75,6 +80,8 @@ def track_cubes():
     for i in range(cubes):
         data_files.append(open(dirname(dirname(os.path.realpath(__file__))) +
             os.sep + file_name + '_' + str(i) + '.csv', 'w'))
+            
+        print(os.path.realpath(data_files[i].name))
 
     for i in range(FRAME_END - FRAME_START + 1):
         current_frame = FRAME_START + i
@@ -103,12 +110,12 @@ def track_cubes():
             # Buffer to file
             output = "{0},{1},{2},{3},{4},{5},{6},{7}\n".format(current_frame,x,y,z,w,rx,ry,rz)
             data_files[j].write(output)
-            blender_caller.plot_csv(data_files[j])
-
+            
     # Close files
     for i in range(cubes):
         data_files[i].flush()
         data_files[i].close()
-
+        blender_caller.plot_csv(os.path.realpath(data_files[i].name))
+        
 if __name__ == '__main__':
     main()
