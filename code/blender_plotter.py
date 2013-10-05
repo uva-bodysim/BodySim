@@ -46,7 +46,8 @@ def plot_file(filename):
     ax2.autoscale(enable=False, axis='both')
 
     fig = plt.gcf()
-    multi = MultiCursor(fig.canvas, (ax1, ax2), color='r', lw=1, horizOn=False, vertOn=True)
+    # Does not work on all systems...
+    # multi = MultiCursor(fig.canvas, (ax1, ax2), color='r', lw=1, horizOn=False, vertOn=True)
 
     limits = ax1.axis()
     lcontainer = {'l1': None, 'l2': None}
