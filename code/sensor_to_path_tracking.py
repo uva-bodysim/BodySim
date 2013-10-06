@@ -114,7 +114,7 @@ def track_cubes():
     for i in range(cubes):
         data_files[i].flush()
         data_files[i].close()
-        blender_caller.plot_csv(os.path.realpath(data_files[i].name))
+    blender_caller.plot_csv([os.path.realpath(i.name) for i in data_files])
         
 if __name__ == '__main__':
     main()

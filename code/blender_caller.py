@@ -5,9 +5,9 @@ import subprocess
 import sys
 import os
 
-def plot_csv(filename):
+def plot_csv(filenames):
     plotter_file_path = os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/blender_plotter.py")
-    pipe = subprocess.Popen(["python", plotter_file_path, filename],
+    pipe = subprocess.Popen(["python", plotter_file_path] + filenames,
             stdout=subprocess.PIPE, bufsize=1)
     return pipe
 
