@@ -33,3 +33,9 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+# Extraneous blender files (.blend1, blend2, etc)
+*.blend?
+
+# Log Files
+*.csv
