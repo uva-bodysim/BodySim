@@ -23,11 +23,6 @@ scene.frame_end = 101
 file_name = 'test'
 dirname = os.path.dirname
 
-#Imports blender_caller.py
-sys.path.insert(0, dirname(dirname(__file__)))
-
-import blender_caller
-
 # List of objects and files to write to
 cube_objects = []
 path_objects = []
@@ -114,7 +109,6 @@ def track_cubes():
     for i in range(cubes):
         data_files[i].flush()
         data_files[i].close()
-    blender_caller.plot_csv([os.path.realpath(i.name) for i in data_files])
         
 if __name__ == '__main__':
     main()
