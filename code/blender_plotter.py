@@ -39,7 +39,7 @@ class PlotNotebook(wx.Panel):
         sizer = wx.BoxSizer()
         sizer.Add(self.nb, 1, wx.EXPAND)
         self.SetSizer(sizer)
-
+        
         self.plots = []
         self.lines = []
         self.figures = {}
@@ -52,6 +52,7 @@ class PlotNotebook(wx.Panel):
        return page.figure
 
     def plot_file(self, filename, fig):
+
         labels = ['t','x','y','z','quat_w','quat_x','quat_y','quat_z']
         data = []
         try:
@@ -122,17 +123,28 @@ class PlotNotebook(wx.Panel):
 
         cid = fig.canvas.mpl_connect('button_press_event', onclick)
 
+class PlotFrame(wx.Frame):
+    """Subclass of wx.Frame that adds an onclose event handler."""
 
+    def __init__(self):
+        super(PlotFrame, self).__init__(None, -1, 'Plotter')
+        self.Bind(wx.EVT_CLOSE, self.onclose)
+
+    def onclose(self, event):
+        """Prints "quit" to the pipe to let the blender operator know to stop running."""
+        print("quit")
+        sys.stdout.flush()
+        self.Destroy()
+   
 def plot_file(filenames):
     app = wx.PySimpleApp()
-    frame = wx.Frame(None,-1,'Plotter')
+    frame = PlotFrame() 
     plotter = PlotNotebook(frame)
     for filename in filenames:
         fig = plotter.add(os.path.splitext(os.path.basename(filename))[0])
         plotter.plot_file(filename, fig)
     frame.Show()
     app.MainLoop()
-
 
 if __name__=="__main__":
     plot_file(sys.argv[1:])
