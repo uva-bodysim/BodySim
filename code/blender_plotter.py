@@ -51,21 +51,29 @@ class PlotNotebook(wx.Panel):
        self.figures[page.figure] = page.toolbar
        return page.figure
 
-    def plot_file(self, filename, fig):
+    def plot_file(self, filename, fig, plot_type, fps):
 
-        labels = ['t','x','y','z','quat_w','quat_x','quat_y','quat_z']
+        labels = {'-raw': ['t','x','y','z','quat_w','quat_x','quat_y','quat_z'],
+                    '-imu': ['t','x','y','z','x','y','z']}
+        lengths = {'-raw': 8, '-imu': 7}
+
+        ranges = {'-raw': [range(1,4), range(4,8)], '-imu': [range(1,4), range(4,7)]}
+        ylabels = {'-raw': ['location (cm)', 'heading (rad)'], 
+                    '-imu': ['acceleration (m/s^2)', 'angular velocity (deg/s)']}
+        xlabel = {'-raw': 'frame no.', '-imu': 'time (s)'}
+
         data = []
         try:
             f = open(filename, 'r').read().strip().split('\n')
             values = [[float(a) for a in k.split(',')] for k in f]
             data = zip(*values)
-            if len(data) != 8:
-                print("Bad file format! Make sure each line has 8 values!")
+            if len(data) != lengths[plot_type]:
+                print("Bad file format! Make sure each line has {0} values!".format(lengths[plot_type]))
         except IOError:
             print("Bad file name!")
             return
         except:
-            print("Bad file format! Make sure each line has 8 values!")
+            print("Bad file format! Make sure each line has {0} values!".format(lengths[plot_type]))
             return
 
         share = None
@@ -74,18 +82,19 @@ class PlotNotebook(wx.Panel):
 
         ax1 = fig.add_subplot(211, sharex=share)
         ax1.set_title('Plot')
-        for i in range(1, 4):
-            ax1.plot(data[0], data[i], label=labels[i])
-        ax1.set_ylabel('location (cm)')
+        for i in ranges[plot_type][0]:
+            ax1.plot(data[0], data[i], label=labels[plot_type][i])
+        ax1.set_xlabel(xlabel[plot_type])
+        ax1.set_ylabel(ylabels[plot_type][0])
         ax1.grid(True)
         ax1.legend()
         ax1.autoscale(enable=False, axis='both')
 
         ax2 = fig.add_subplot(212, sharex = ax1)
-        for i in range(4, 8):
-            ax2.plot(data[0], data[i], label=labels[i])
-        ax2.set_xlabel('time (s)')
-        ax2.set_ylabel('heading (rad)')
+        for i in ranges[plot_type][1]:
+            ax2.plot(data[0], data[i], label=labels[plot_type][i])
+        ax2.set_xlabel(xlabel[plot_type])
+        ax2.set_ylabel(ylabels[plot_type][1])
         ax2.grid(True)
         ax2.legend()
         ax2.autoscale(enable=False, axis='both')
@@ -118,8 +127,13 @@ class PlotNotebook(wx.Panel):
                 #        event.button, event.x, event.y, event.xdata, event.ydata)
                 for figure in self.figures:
                     fig.canvas.draw()
-                print event.xdata
-                sys.stdout.flush()
+                if (plot_type == '-raw'):
+                    print event.xdata
+                    sys.stdout.flush()
+
+                if (plot_type == '-imu'):
+                    print (event.xdata * fps) + 1
+                    sys.stdout.flush()
 
         cid = fig.canvas.mpl_connect('button_press_event', onclick)
 
@@ -136,15 +150,15 @@ class PlotFrame(wx.Frame):
         sys.stdout.flush()
         self.Destroy()
    
-def plot_file(filenames):
+def plot_file(plot_type, fps, filenames):
     app = wx.PySimpleApp()
     frame = PlotFrame() 
     plotter = PlotNotebook(frame)
     for filename in filenames:
         fig = plotter.add(os.path.splitext(os.path.basename(filename))[0])
-        plotter.plot_file(filename, fig)
+        plotter.plot_file(filename, fig, plot_type, fps,)
     frame.Show()
     app.MainLoop()
 
 if __name__=="__main__":
-    plot_file(sys.argv[1:])
+    plot_file(sys.argv[1], float(sys.argv[2]), sys.argv[3:])

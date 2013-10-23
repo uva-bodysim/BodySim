@@ -18,6 +18,12 @@ q = Queue()
 sys.path.insert(0, dirname(dirname(__file__)))
 import blender_caller
 
+def read_most_recent_run():
+    f = open(dirname(dirname(__file__)) + os.sep +'mmr', 'r')
+    mmr = f.read() + os.sep
+    f.close()
+    return mmr
+
 scene = bpy.context.scene
 
 class ModalOperator(bpy.types.Operator):
@@ -54,8 +60,18 @@ class ModalOperator(bpy.types.Operator):
 
     def execute(self, context):
         # Get the files ending with .csv extension.
-        sensor_files = [dirname(dirname(os.path.realpath(__file__))) + os.sep + files for files in glob.glob("*.csv")]
-        self._pipe = blender_caller.plot_csv(sensor_files)
+        plot_type = '-imu'
+        most_recent_run = read_most_recent_run()
+        print ("MRR: " + most_recent_run)
+        sensor_files = []
+
+        if (plot_type == '-imu'):
+            sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'sim' + os.sep + '*csv')
+
+        if (plot_type == '-raw'):
+            sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'raw' + os.sep + '*csv')
+
+        self._pipe = blender_caller.plot_csv(plot_type, str(30), sensor_files)
         
         # A separate thread must be started to keep track of the blocking pipe
         # so the script does not freeze blender.
