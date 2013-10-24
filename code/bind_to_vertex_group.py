@@ -13,6 +13,17 @@ def list_vertex_group():
     """Returns a list of names to vertex groups"""
     return bpy.data.objects["model"].vertex_groups.keys()
 
+
+def parse_vertex_group(groups):
+    """Takes in the list of vertex groups and splits them by body part"""
+    categories = {}
+    for i in groups:
+        body_part = i.split("-")[0]
+        if body_part not in categories: categories[body_part] = []
+        categories[body_part].append(i)
+    return categories
+
+
 def select_vertex_group(vg_name):
     """Given a vertex group name, selects and displays it on the screen"""
     bpy.ops.object.mode_set(mode="OBJECT")
@@ -47,5 +58,6 @@ if __name__ == "__main__":
     body_obj = bpy.data.objects['model']
     print("Vertex groups: ")
     print(list_vertex_group())
-    select_vertex_group("Neck")
+    print(parse_vertex_group(list_vertex_group()))
+    select_vertex_group("Neck-0")
     bind_to_vertex_group(cube_obj)
