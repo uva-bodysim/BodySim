@@ -68,20 +68,24 @@ def bind_to_path():
         bpy.data.curves['NurbsPath_' + str(i)].keyframe_insert(data_path =
             'eval_time')
 
+
+def save_run_time():
+    sim_out_dir =  path_to_this_file + os.sep + time.strftime('simout-%Y%m%d%H%M%S')
+    f = open(path_to_this_file + os.sep + 'mmr', 'w')
+    f.write(sim_out_dir)
+    f.close()
+    tracking_out_dir = sim_out_dir + os.sep + 'raw'
+    os.mkdir(sim_out_dir)
+    os.mkdir(tracking_out_dir)
+    return tracking_out_dir
+
 def track_cubes():
     """Print location and rotation of cubes along respective paths.
 
     Rotation in quaternions.
 
     """
-
-    # create the directory for 
-    sim_out_dir =  path_to_this_file + os.sep + time.strftime('simout-%Y%m%d%H%M%S')
-    save_run_time(sim_out_dir)
-    tracking_out_dir = sim_out_dir + os.sep + 'raw'
-
-    os.mkdir(sim_out_dir)
-    os.mkdir(tracking_out_dir)
+    tracking_out_dir = save_run_time()
 
     for i in range(cubes):
         data_files.append(open(tracking_out_dir +
@@ -121,10 +125,6 @@ def track_cubes():
         data_files[i].flush()
         data_files[i].close()
 
-def save_run_time(most_recent_run):
-    f = open(path_to_this_file + os.sep + 'mmr', 'w')
-    f.write(most_recent_run)
-    f.close()
 
 if __name__ == '__main__':
     main()
