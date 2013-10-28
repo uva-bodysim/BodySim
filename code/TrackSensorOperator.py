@@ -29,11 +29,11 @@ class TrackSensorOperator(bpy.types.Operator):
 
 
 def register():
-    bpy.utils.register_class(SimpleOperator)
+    bpy.utils.register_class(TrackSensorOperator)
 
 
 def unregister():
-    bpy.utils.unregister_class(SimpleOperator)
+    bpy.utils.unregister_class(TrackSensorOperator)
     
 def populate_sensor_list(num_sensors):
     """ Get all the sensors in the scene."""
