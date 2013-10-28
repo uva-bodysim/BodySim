@@ -7,6 +7,7 @@ sensor_to_path_tracking.blend file. See wiki for more details.
 import bpy
 import os
 import sys
+import time
 
 SCENE_NAME = bpy.context.scene.name
 FRAME_START = 1
@@ -22,6 +23,8 @@ scene.frame_end = 101
 # Save in the same directory as the blend file
 file_name = 'test'
 dirname = os.path.dirname
+
+path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
 
 # List of objects and files to write to
 cube_objects = []
@@ -65,15 +68,27 @@ def bind_to_path():
         bpy.data.curves['NurbsPath_' + str(i)].keyframe_insert(data_path =
             'eval_time')
 
+
+def save_run_time():
+    sim_out_dir =  path_to_this_file + os.sep + time.strftime('simout-%Y%m%d%H%M%S')
+    f = open(path_to_this_file + os.sep + 'mmr', 'w')
+    f.write(sim_out_dir)
+    f.close()
+    tracking_out_dir = sim_out_dir + os.sep + 'raw'
+    os.mkdir(sim_out_dir)
+    os.mkdir(tracking_out_dir)
+    return tracking_out_dir
+
 def track_cubes():
     """Print location and rotation of cubes along respective paths.
 
     Rotation in quaternions.
 
     """
+    tracking_out_dir = save_run_time()
 
     for i in range(cubes):
-        data_files.append(open(dirname(dirname(os.path.realpath(__file__))) +
+        data_files.append(open(tracking_out_dir +
             os.sep + file_name + '_' + str(i) + '.csv', 'w'))
             
         print(os.path.realpath(data_files[i].name))
@@ -109,6 +124,7 @@ def track_cubes():
     for i in range(cubes):
         data_files[i].flush()
         data_files[i].close()
-        
+
+
 if __name__ == '__main__':
     main()

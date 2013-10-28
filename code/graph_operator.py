@@ -18,13 +18,19 @@ q = Queue()
 sys.path.insert(0, dirname(dirname(__file__)))
 import blender_caller
 
+def read_most_recent_run():
+    f = open(dirname(dirname(__file__)) + os.sep +'mmr', 'r')
+    mmr = f.read() + os.sep
+    f.close()
+    return mmr
+
 scene = bpy.context.scene
 
-class ModalOperator(bpy.types.Operator):
+class GraphOperator(bpy.types.Operator):
     """Get input from graph."""
-    bl_idname = "object.graph_modal_operator"
+    bl_idname = "bodysim.plot_motion"
     bl_label = "Graph Modal Operator"
-        
+    plot_type = bpy.props.StringProperty()    
     _timer = None
     _pipe = None
     _thread = None
@@ -53,9 +59,18 @@ class ModalOperator(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        # Get the files ending with .csv extension.
-        sensor_files = [dirname(dirname(os.path.realpath(__file__))) + os.sep + files for files in glob.glob("*.csv")]
-        self._pipe = blender_caller.plot_csv(sensor_files)
+        # Get the files ending with .csv extension.'
+        most_recent_run = read_most_recent_run()
+        print ("MRR: " + most_recent_run)
+        sensor_files = []
+
+        if (self.plot_type == '-imu'):
+            sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'sim' + os.sep + '*csv')
+
+        if (self.plot_type == '-raw'):
+            sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'raw' + os.sep + '*csv')
+
+        self._pipe = blender_caller.plot_csv(self.plot_type, str(30), sensor_files)
         
         # A separate thread must be started to keep track of the blocking pipe
         # so the script does not freeze blender.
@@ -71,10 +86,10 @@ class ModalOperator(bpy.types.Operator):
         return {'CANCELLED'}
 
 def register():
-    bpy.utils.register_class(ModalOperator)
+    bpy.utils.register_class(GraphOperator)
 
 def unregister():
-    bpy.utils.unregister_class(ModalOperator)
+    bpy.utils.unregister_class(GraphOperator)
 
 def enqueue_output(out, queue):
     for line in iter(out.readline, b''):
@@ -84,4 +99,3 @@ def enqueue_output(out, queue):
 
 if __name__ == "__main__":
     register()
-
