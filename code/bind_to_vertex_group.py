@@ -45,7 +45,7 @@ def bind_to_vertex_group(obj, context):
 
     # Bind the obj to a vertex group
     if len(obj.constraints.items()) != 0: 
-        print "WARNING: object already has constraint, constraint removed!"
+        print("WARNING: object already has constraint, constraint removed!")
         obj.constraints.clear()
     obj_const = obj.constraints.new(type="CHILD_OF")
     obj_const.target = body_obj
@@ -101,13 +101,13 @@ class BodySim_SELECT_BODY_PART(bpy.types.Operator):
     part = bpy.props.StringProperty()
     
     def execute(self, context):
-        select_vertex_group(part, context)
+        select_vertex_group(self.part, context)
             
         return {'FINISHED'}
 
 class BodySim_BIND_SENSOR(bpy.types.Operator):
     bl_idname = "bodysim.bind_sensor"
-    bl.label = "BodySim Bind Sensor"
+    bl_label = "BodySim Bind Sensor"
 
     def execute(self, context):
         sensor = bpy.ops.mesh.primitive_cube_add(location=(0,0,0))
@@ -116,12 +116,54 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class BodySim_DESELECT_BODY_PART(bpy.types.Operator):
+    bl_idname = "bodysim.deselect_body_part"
+    bl_label = "BodySim Deselect Body Part"
+
+    def execute(self, context):
+        bpy.ops.object.mode_set(mode="OBJECT")
+
+        return {'FINISHED'}
+
+
+global classlist
+classlist = []
+v_list = parse_vertex_group(list_vertex_group())
+for bodypart in v_list:
+    exec(
+'''
+class TempCustomPanel%s(bpy.types.Panel):
+    """A Custom Panel in the Viewport Toolbar"""
+    bl_label = "Custom Panel %s"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'TOOLS'
+
+    def draw(self, context):
+        layout = self.layout
+
+        row = layout.row()
+        row.label(text=bodypart)
+        
+        for _part in v_list[bodypart]:
+            layout.operator("bodysim.select_body_part", text=_part).part = _part
+
+classlist.append(TempCustomPanel%s)
+'''%(bodypart, bodypart, bodypart)
+    )
+
 def register():
-    bpy.utils.register_class(CustomPanel)
+    global classlist
+    bpy.utils.register_class(BodySim_SELECT_BODY_PART)
+    bpy.utils.register_class(BodySim_BIND_SENSOR)
+    bpy.utils.register_class(BodySim_DESELECT_BODY_PART)
+
+    for c in classlist:
+        bpy.utils.register_class(c)
+
 
 def unregister():
     bpy.utils.unregister_class(CustomPanel)
 
 if __name__ == "__main__":
-    #register()
-    bpy.utils.register_module(__name__)
+    register()
+    #bpy.utils.register_module(__name__)
