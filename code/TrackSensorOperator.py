@@ -20,11 +20,11 @@ class TrackSensorOperator(bpy.types.Operator):
         return context.active_object is not None
 
     def execute(self, context):
-        num_sensors = 1
-        file_name = 'test'
+        num_sensors = context.scene.objects['model']['sensors']
+        file_name = 'Sensor'
         scene = bpy.context.scene
         sensor_objects = populate_sensor_list(num_sensors)
-        track_sensors(1, 100, 1, 'test', sensor_objects, scene)       
+        track_sensors(1, 100, num_sensors, file_name, sensor_objects, scene)       
         return {'FINISHED'}
 
 

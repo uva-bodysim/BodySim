@@ -122,13 +122,21 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
     def execute(self, context):
         object_mode()
         
+        model = context.scene.objects['model']
+        
+        if('sensors' not in model.keys()):
+            model['sensors'] = 0
+        
         context.scene.objects.active = None
         # add cube and scale
         bpy.ops.mesh.primitive_cube_add(location=(0,0,0))
         
         sensor = context.active_object
         sensor.scale = Vector((0.05, 0.05, 0.05))
-        bpy.context.scene.objects.active = bpy.data.objects['model']
+        sensor.name = 'Sensor_' + str(model['sensors'])
+        
+        model['sensors'] += 1
+        bpy.context.scene.objects.active = model
         edit_mode()
         bind_to_vertex_group(sensor, context)
 
