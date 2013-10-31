@@ -206,6 +206,9 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
         sensor = context.active_object
         sensor.scale = Vector((0.05, 0.05, 0.05))
         sensor.name = 'Sensor_' + str(model['sensors'])
+        material = bpy.data.materials.new("Red sensor")
+        material.diffuse_color = 1,0,0
+        sensor.data.materials.append(material)
         
         model['sensors'] += 1
         bpy.context.scene.objects.active = model
