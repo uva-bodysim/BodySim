@@ -10,6 +10,10 @@ import bpy
 from mathutils import *
 from math import *
 
+'''
+Functions
+'''
+
 def object_mode():
     bpy.ops.object.mode_set(mode="OBJECT")
     
@@ -65,32 +69,96 @@ def bind_to_vertex_group(obj, context):
 
     cancel_selection()
 
+
+'''
+Panels
+'''
+# This function is called by the subpanel for the body part
+def _draw(self, context):
+    layout = self.layout
+
+    #row = layout.row()
+    #row.label(text=self.group)
+    for _part in self.v_list:
+        layout.operator("bodysim.select_body_part", text=_part).part = _part
+
+
+def draw_body_part_panels():
+    #layout = self.layout
+
+    #row = layout.row()
+    #row.label(text="HELLO")
+
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'TOOLS'
+    
+    v_list = parse_vertex_group(list_vertex_group())
+    for group in v_list:
+
+        subpanel = type("PartSelectPanel%s" % group,
+               (bpy.types.Panel, ),
+               {"bl_label": group, 
+                    "bl_space_type": bl_space_type,
+                    "bl_region_type": bl_region_type,
+                    "bl_options": {"DEFAULT_CLOSED"},
+                    "v_list": v_list[group],
+                    "draw": _draw},
+               )
+        bpy.utils.register_class(subpanel)
+
+'''
 class PartSelectPanel(bpy.types.Panel):
     """A Custom Panel in the Viewport Toolbar"""
-    bl_label = "Body Part Select"
+    bl_label = "BODY PART SELECT"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
 
-    def draw(self, context):
+    #@classmethod
+    #def poll(self, context):
+        #return 'model' in context.scene.objects.keys()
+
+    # This function is called by the subpanel for the body part
+    def _draw(self, context):
         layout = self.layout
+
+        #row = layout.row()
+        #row.label(text=self.group)
+        for _part in self.v_list:
+            layout.operator("bodysim.select_body_part", text=_part).part = _part
+
+    def draw(self, context):
+        #layout = self.layout
 
         #row = layout.row()
         #row.label(text="HELLO")
         
         v_list = parse_vertex_group(list_vertex_group())
         for group in v_list:
+
+            subpanel = type("PartSelectPanel%s" % group,
+                   (bpy.types.Panel, ),
+                   {"bl_label": group, 
+                        "bl_space_type": self.bl_space_type,
+                        "bl_region_type": self.bl_region_type,
+                        "v_list": v_list[group],
+                        "draw": self._draw},
+                   )
+            bpy.utils.register_class(subpanel)
+
+   
             row = layout.row()
             row.label(text=group)
             for _part in v_list[group]:
                 layout.operator("bodysim.select_body_part", text=_part).part = _part
-                        
-        # layout.operator("mesh.primitive_plane_add", text="Plane", icon='MESH_PLANE')
-        # layout.operator("mesh.primitive_torus_add", text="Torus", icon='MESH_TORUS')
-        # layout.operator("", text="Button 1", icon='MESH_TORUS')
-        # layout.operator("", text="Button 2", icon='MESH_TORUS')
-        # In theory - have another operator as the first argument, 
-        # choose a button name, choose a button icon
-        # col.operator("mesh.primitive_plane_add", text="Button 3", icon='MESH_TORUS')
+            
+            # layout.operator("mesh.primitive_plane_add", text="Plane", icon='MESH_PLANE')
+            # layout.operator("mesh.primitive_torus_add", text="Torus", icon='MESH_TORUS')
+            # layout.operator("", text="Button 1", icon='MESH_TORUS')
+            # layout.operator("", text="Button 2", icon='MESH_TORUS')
+            # In theory - have another operator as the first argument, 
+            # choose a button name, choose a button icon
+            # col.operator("mesh.primitive_plane_add", text="Button 3", icon='MESH_TORUS')
+'''
         
 class AddSensorPanel(bpy.types.Panel):
     """A Custom Panel in the Viewport Toolbar"""
@@ -104,7 +172,11 @@ class AddSensorPanel(bpy.types.Panel):
         layout.operator("bodysim.bind_sensor", text="Add Sensor")
     
     
-        
+'''
+Operators
+=========
+'''
+
 class BodySim_SELECT_BODY_PART(bpy.types.Operator):
     bl_idname = "bodysim.select_body_part"
     bl_label = "BodySim Select Body Part"
@@ -194,6 +266,7 @@ def unregister():
 
 if __name__ == "__main__":
     register()
+    draw_body_part_panels()
 
 
 '''
