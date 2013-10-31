@@ -39,3 +39,5 @@ nosetests.xml
 
 # Log Files
 *.csv
+
+data.lnk

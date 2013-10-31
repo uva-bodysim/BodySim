@@ -7,7 +7,15 @@ The wire frame of the blender object this is working on must
 """ 
 
 import bpy
+from mathutils import *
+from math import *
 
+def object_mode():
+    bpy.ops.object.mode_set(mode="OBJECT")
+    
+def edit_mode():
+    bpy.ops.object.mode_set(mode="EDIT")
+    
 
 def list_vertex_group():
     """Returns a list of names to vertex groups"""
@@ -41,6 +49,7 @@ def cancel_selection():
 def bind_to_vertex_group(obj, context):
     """ Binds the object passed in to the currently selected vertex group"""
     vg = context.object.vertex_groups.active
+    print(vg)
     body_obj = bpy.data.objects['model']
 
     # Bind the obj to a vertex group
@@ -52,33 +61,21 @@ def bind_to_vertex_group(obj, context):
     obj_const.subtarget = vg.name
 
     # Reset the cube's relative location.
-    cube_obj.location = (0.0, 0.0, 0.0)
+    obj.location = (0.0, 0.0, 0.0)
 
     cancel_selection()
 
-'''
-#Previous testing code
-if __name__ == "__main__":
-    cube_obj = bpy.data.objects["Cube"]
-    body_obj = bpy.data.objects['model']
-    print("Vertex groups: ")
-    print(list_vertex_group())
-    print(parse_vertex_group(list_vertex_group()))
-    select_vertex_group("Neck-0")
-    bind_to_vertex_group(cube_obj)
-'''
-
-class CustomPanel(bpy.types.Panel):
+class PartSelectPanel(bpy.types.Panel):
     """A Custom Panel in the Viewport Toolbar"""
-    bl_label = "Custom Panel HERE"
+    bl_label = "Body Part Select"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
 
     def draw(self, context):
         layout = self.layout
 
-        row = layout.row()
-        row.label(text="HELLO")
+        #row = layout.row()
+        #row.label(text="HELLO")
         
         v_list = parse_vertex_group(list_vertex_group())
         for group in v_list:
@@ -95,6 +92,19 @@ class CustomPanel(bpy.types.Panel):
         # choose a button name, choose a button icon
         # col.operator("mesh.primitive_plane_add", text="Button 3", icon='MESH_TORUS')
         
+class AddSensorPanel(bpy.types.Panel):
+    """A Custom Panel in the Viewport Toolbar"""
+    bl_label = "Add Sensor"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'TOOLS'
+    
+    def draw(self, context):
+        layout = self.layout
+        
+        layout.operator("bodysim.bind_sensor", text="Add Sensor")
+    
+    
+        
 class BodySim_SELECT_BODY_PART(bpy.types.Operator):
     bl_idname = "bodysim.select_body_part"
     bl_label = "BodySim Select Body Part"
@@ -110,7 +120,24 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
     bl_label = "BodySim Bind Sensor"
 
     def execute(self, context):
-        sensor = bpy.ops.mesh.primitive_cube_add(location=(0,0,0))
+        object_mode()
+        
+        model = context.scene.objects['model']
+        
+        if('sensors' not in model.keys()):
+            model['sensors'] = 0
+        
+        context.scene.objects.active = None
+        # add cube and scale
+        bpy.ops.mesh.primitive_cube_add(location=(0,0,0))
+        
+        sensor = context.active_object
+        sensor.scale = Vector((0.05, 0.05, 0.05))
+        sensor.name = 'Sensor_' + str(model['sensors'])
+        
+        model['sensors'] += 1
+        bpy.context.scene.objects.active = model
+        edit_mode()
         bind_to_vertex_group(sensor, context)
 
         return {'FINISHED'}
@@ -142,7 +169,7 @@ class TempCustomPanel%s(bpy.types.Panel):
         layout = self.layout
 
         row = layout.row()
-        row.label(text=bodypart)
+        #row.label(text=bodypart)
         
         for _part in v_list[bodypart]:
             layout.operator("bodysim.select_body_part", text=_part).part = _part
@@ -156,14 +183,40 @@ def register():
     bpy.utils.register_class(BodySim_SELECT_BODY_PART)
     bpy.utils.register_class(BodySim_BIND_SENSOR)
     bpy.utils.register_class(BodySim_DESELECT_BODY_PART)
+    bpy.utils.register_class(AddSensorPanel)
 
     for c in classlist:
         bpy.utils.register_class(c)
 
 
 def unregister():
-    bpy.utils.unregister_class(CustomPanel)
+    bpy.utils.unregister_module(__name__)
 
 if __name__ == "__main__":
     register()
-    #bpy.utils.register_module(__name__)
+
+
+'''
+#Previous testing code
+if __name__ == "__main__":
+    # cube_obj = bpy.data.objects["Cube"]
+    # body_obj = bpy.data.objects['model']
+    print("Vertex groups: ")
+    print(list_vertex_group())
+    print(parse_vertex_group(list_vertex_group()))
+    select_vertex_group("Hips-0", bpy.context)
+    
+    object_mode()
+    
+    bpy.context.scene.objects.active = None
+    
+    # add cube and scale
+    bpy.ops.mesh.primitive_cube_add(location=(0,0,0))
+    
+    sensor = bpy.context.active_object
+    sensor.scale = Vector((0.05, 0.05, 0.05))
+    bpy.context.scene.objects.active = bpy.data.objects['model']
+    edit_mode()
+    
+    bind_to_vertex_group(sensor, bpy.context)
+'''
