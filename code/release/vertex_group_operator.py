@@ -117,6 +117,7 @@ class AddSensorPanel(bpy.types.Panel):
         layout = self.layout
         
         layout.operator("bodysim.bind_sensor", text="Add Sensor")
+        layout.operator("bodysim.reset_sensors", text="Reset Sensors")
     
     
 '''
@@ -164,6 +165,25 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
 
         return {'FINISHED'}
 
+class BodySim_RESET_SENSORS(bpy.types.Operator):
+    bl_idname = "bodysim.reset_sensors"
+    bl_label = "BodySim Reset All Sensors"
+
+    def execute(self, context):
+        object_mode()
+        model = context.scene.objects['model']
+        context.scene.objects.active = None
+        model['sensors'] = 0
+        bpy.context.scene.objects.active = model
+        sensors_to_delete = [item.name for item in bpy.data.objects if item.name.startswith("Sensor")]
+
+        for sensor in sensors_to_delete:
+            bpy.data.objects[sensor].select = True
+
+        bpy.ops.object.delete()
+        edit_mode()
+        cancel_selection()
+        return {'FINISHED'}
 
 class BodySim_DESELECT_BODY_PART(bpy.types.Operator):
     bl_idname = "bodysim.deselect_body_part"
