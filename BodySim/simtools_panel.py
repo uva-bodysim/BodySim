@@ -23,7 +23,7 @@ dirname = os.path.dirname
 sys.path.insert(0, dirname(dirname(__file__)))
 
 def plot_csv(plot_type, fps, filenames):
-    pool = Pool(processes=1)
+    #pool = Pool(processes=1)
     plotter_file_path = os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/blender_plotter.py")
     print(plotter_file_path)
     print(filenames)
@@ -43,6 +43,12 @@ def read_most_recent_run():
     mmr = f.read() + os.sep
     f.close()
     return mmr
+
+def run_channel_sims(filenames):
+    channel_sim_file_path = os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/channel_simulator.py")
+    pipe = subprocess.Popen(["python", channel_sim_file_path] + filenames,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
+    return pipe
 
 
 class GraphOperator(bpy.types.Operator):
@@ -85,10 +91,13 @@ class GraphOperator(bpy.types.Operator):
         sensor_files = []
 
         if (self.plot_type == '-imu'):
-            sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'sim' + os.sep + '*csv')
+            sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'sim' + os.sep + '*-i.csv')
 
         if (self.plot_type == '-raw'):
             sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'raw' + os.sep + '*csv')
+
+        if (self.plot_type == '-chan'):
+            sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'sim' + os.sep + '*-c.csv')
 
         self._pipe = plot_csv(self.plot_type, str(30), sensor_files)
         
@@ -125,6 +134,29 @@ class IMUGenerateOperator(bpy.types.Operator):
         print(sensor_files)
         pipe = run_imu_sims(sensor_files)
         pipe.wait()
+        return {'FINISHED'}
+
+class ChannelGenerateOperator(bpy.types.Operator):
+    """Tooltip"""
+    bl_idname = "bodysim.generate_channel"
+    bl_label = "Channel Generator Operator"
+
+    '''
+    @classmethod
+    def poll(self, context):
+        return context.scene.objects['model']['sensors'] > 1
+    '''
+
+    def execute(self, context):
+        most_recent_run = read_most_recent_run()
+        print ("MRR: " + most_recent_run)
+        sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'raw' + os.sep + '*csv')
+        print(sensor_files)
+        print('running channel sim')
+        pipe = run_channel_sims(sensor_files)
+        pipe.wait()
+        print(pipe)
+        print("done")
         return {'FINISHED'}
 
 def read_most_recent_run():
@@ -233,8 +265,10 @@ class SimTools(bpy.types.Panel):
     def draw(self, context):
         self.layout.operator("bodysim.track_sensors", text = "Run Motion Simulation")
         self.layout.operator("bodysim.generate_imu", text = "Run IMU Simulation")
+        self.layout.operator("bodysim.generate_channel", text = "Run Channel Simulation")
         self.layout.operator("bodysim.plot_motion", text = "Plot Motion Data").plot_type = "-raw"
         self.layout.operator("bodysim.plot_motion", text = "Plot IMU Data").plot_type = "-imu"
+        self.layout.operator("bodysim.plot_motion", text = "Plot Channel Data").plot_type = "-chan"
 
 def register():
     bpy.utils.register_class(TrackSensorOperator)

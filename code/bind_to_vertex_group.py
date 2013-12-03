@@ -21,9 +21,11 @@ def edit_mode():
     bpy.ops.object.mode_set(mode="EDIT")
     
 
-def list_vertex_group():
+def list_vertex_group(model):
     """Returns a list of names to vertex groups"""
-    return bpy.data.objects["model"].vertex_groups.keys()
+    
+    return model.vertex_groups.keys()
+    
 
 
 def parse_vertex_group(groups):
@@ -39,7 +41,7 @@ def parse_vertex_group(groups):
 def select_vertex_group(vg_name, context):
     """Given a vertex group name, selects and displays it on the screen"""
     bpy.ops.object.mode_set(mode="OBJECT")
-    obj = bpy.data.objects["model"]
+    obj = context.scene.objects["model"]
     context.scene.objects.active = obj
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="DESELECT")
@@ -92,7 +94,9 @@ def draw_body_part_panels():
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
     
-    v_list = parse_vertex_group(list_vertex_group())
+    model = bpy.context.scene.objects["model"]
+
+    v_list = parse_vertex_group(list_vertex_group(model))
     for group in v_list:
 
         subpanel = type("PartSelectPanel%s" % group,
@@ -170,8 +174,8 @@ class AddSensorPanel(bpy.types.Panel):
         layout = self.layout
         
         layout.operator("bodysim.bind_sensor", text="Add Sensor")
-    
-    
+
+#draw_body_part_panels()
 '''
 Operators
 =========
@@ -227,41 +231,9 @@ class BodySim_DESELECT_BODY_PART(bpy.types.Operator):
 
         return {'FINISHED'}
 
-
-global classlist
-classlist = []
-v_list = parse_vertex_group(list_vertex_group())
-for bodypart in v_list:
-    exec(
-'''
-class TempCustomPanel%s(bpy.types.Panel):
-    """A Custom Panel in the Viewport Toolbar"""
-    bl_label = "Custom Panel %s"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
-
-    def draw(self, context):
-        layout = self.layout
-
-        row = layout.row()
-        #row.label(text=bodypart)
-        
-        for _part in v_list[bodypart]:
-            layout.operator("bodysim.select_body_part", text=_part).part = _part
-
-classlist.append(TempCustomPanel%s)
-'''%(bodypart, bodypart, bodypart)
-    )
-
 def register():
-    global classlist
-    bpy.utils.register_class(BodySim_SELECT_BODY_PART)
-    bpy.utils.register_class(BodySim_BIND_SENSOR)
-    bpy.utils.register_class(BodySim_DESELECT_BODY_PART)
-    bpy.utils.register_class(AddSensorPanel)
-
-    for c in classlist:
-        bpy.utils.register_class(c)
+    bpy.utils.register_module(__name__)
+    print ("Loaded!")
 
 
 def unregister():
@@ -270,6 +242,7 @@ def unregister():
 if __name__ == "__main__":
     register()
     draw_body_part_panels()
+    
 
 
 '''

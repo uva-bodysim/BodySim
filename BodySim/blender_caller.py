@@ -17,6 +17,13 @@ def run_imu_sims(filenames):
     pipe = subprocess.Popen(["python", imu_sim_file_path] + filenames,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
     return pipe
+
+def run_channel_sims(filenames):
+    channel_sim_file_path = os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/channel_simulator.py")
+    pipe = subprocess.Popen(["python", channel_sim_file_path] + filenames,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
+    return pipe
+
 '''
 if __name__ == "__main__":
     proc = plot_csv(sys.argv[1])

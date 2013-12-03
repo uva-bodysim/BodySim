@@ -12,8 +12,8 @@ def simulate(filenames, fps):
 	Simulate each sensor and store the data to appropriate output filenames
 	'''
 	for f in filenames:
-		print ("simulating " + f + "...")
-		sys.stdout.flush()
+		#print ("simulating " + f + "...")
+		#sys.stdout.flush()
 		store_outputs(f, run_sim(read_inputs(f, fps), fps))
 
 
@@ -26,7 +26,7 @@ def read_inputs(filename, fps):
 
 	# extract relevant data
 	frames = values[0] # frames
-	pos = values[1:4]	# position values
+	pos = values[1:4] * SCALE	# position values
 	quat = values[4:9]	# quaternion values
 
 	timestamps = (frames - 1)/fps
@@ -73,10 +73,10 @@ def store_outputs(filename, imu_data):
 	except:
 		pass
 
-	np.savetxt(output_dir + os.sep + filename.split(os.sep)[-1], imu_data.transpose(), delimiter=',')
+	np.savetxt(output_dir + os.sep + filename.split(os.sep)[-1].split('.')[0] + '-i.csv', imu_data.transpose(), delimiter=',')
 
 
 if __name__ == "__main__":
 	simulate(sys.argv[1:], 30)
-	print('sucsess!')
-	sys.stdout.flush()
+	#print('sucsess!')
+	#sys.stdout.flush()
