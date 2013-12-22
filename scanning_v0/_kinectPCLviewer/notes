@@ -1,0 +1,41 @@
+Make sure when using /usr/bin/pcl_openni_viewer that the you adjust black screen so that image appears
+
+PCL for Mac
+First of all, the pre-compiled binaries for Mac are only compitable for OSX 10.8 so if you don't have the latest version of OSX you are shit out of luck. I tried using MacPorts to compile the code from source into a OSX 10.7 compatible version following the tutorial offered on the PCL website but the installation process was tricky and prone to error and I'm pretty sure several parts of each code library were not installed correctly. Do this at your own risk and if you get PCL to work on a Mac with OSX 10.7 or below, email me at shkim93@gmail.com.
+
+PCL for Windows
+...
+
+PCL for Linux
+Compared to the Mac installation, the Linux installation was fairly easy. Just enter the instructions on the PCL website into terminal and it should automatically fetch all of the required software and dependencies for PCL to work. It appears the pre-compiled binaries for Linux are compatible with a variety of distros. I installed PCL on a Macbook Pro 8,1 dual booted with Ubuntu 12.04 and OSX 10.7 with little difficulty.
+
+The tricky part is finding all of the sections of code that you just downloaded. Here are the following paths that I found contain the relevant parts to this project:
+
+/usr/bin: contains all of the PCL included terminal commands (all prefixed by pcl)
+
+For tutorials:
+/usr/share/doc/libpcl-1.7-doc/doc/pcl-1.7/tutorials/sources: contains all of the tutorials and sample code for PCL.
+	*I don't know what all the other libpcl* folders are for under /usr/share/doc
+
+
+Getting started with PCL and Kinect
+	View pictures through Kinect using pcl_openni_viewer
+		In terminal enter: pcl_openni_viewer
+
+	To convert .pcd files to .ply files
+		In terminal enter: pcl_pcd2ply
+	
+
+
+
+Here is the website where I grabbed the code from. Credit goes to user Ber461.
+http://www.pcl-users.org/Simple-Kinect-viewer-that-writes-a-PCD-td3883792.html#a3916577
+
+-RGBD
+-Kinfu
+-Animated 3d point cloud
+-2d to 3d: SIFT stanford (visualSFM)
+-Photogrammetry
+
+will@virginia.edu
+
