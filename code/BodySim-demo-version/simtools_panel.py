@@ -15,6 +15,8 @@ from queue import Queue, Empty
 from threading import Thread
 import subprocess
 from multiprocessing import Pool
+from xml.etree.ElementTree import ElementTree as ET
+from xml.etree.ElementTree import *
 q = Queue()
 
 dirname = os.path.dirname
@@ -190,6 +192,55 @@ class TrackSensorOperator(bpy.types.Operator):
         sensor_objects = populate_sensor_list(num_sensors)
         track_sensors(1, 100, num_sensors, file_name, sensor_objects, scene)       
         return {'FINISHED'}
+
+class SaveOperator(bpy.types.Operator):
+    """Tooltip"""
+    bl_idname = "bodysim.save"
+    bl_label = "Save Session"
+
+    def execute(self, context):
+        tree = ET()
+        sensor_dict = context.scene.objects['model']['sensor_info']
+        sensors_element = Element('sensors')
+        for location, info in sensor_dict.iteritems():
+            curr_sensor_element = Element('sensor', {'location' : location})
+            curr_sensor_type_element = Element('type')
+            curr_sensor_type_element.text = info[0]
+            curr_sensor_color_element = Element('color')
+            curr_sensor_color_element.text = info[1]
+            curr_sensor_element.extend([curr_sensor_type_element, curr_sensor_color_element])
+            sensors_element.append(curr_sensor_element)
+        indent(sensors_element)
+        # For what ever reason, tree.write fails.
+        #tree.write(path_to_this_file + os.sep + 'sensors-' + time.strftime('%Y%m%d%H%M%S') + '.xml')
+        f = open(path_to_this_file + os.sep + 'sensors-' + time.strftime('%Y%m%d%H%M%S') + '.xml', 'wb')
+        f.write(tostring(sensors_element))
+        f.close()
+        return {'FINISHED'}
+
+class LoadOperator(bpy.types.Operator):
+    """Tooltip"""
+    bl_idname = "bodysim.load"
+    bl_label = "Load Session"
+
+    def execute(self, context):
+        pass
+
+def indent(elem, level=0):
+    i = "\n" + level*"  "
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "  "
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+        for elem in elem:
+            indent(elem, level+1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
+
     
 def populate_sensor_list(num_sensors):
     """ Get all the sensors in the scene."""
@@ -269,6 +320,8 @@ class SimTools(bpy.types.Panel):
         self.layout.operator("bodysim.plot_motion", text = "Plot Motion Data").plot_type = "-raw"
         self.layout.operator("bodysim.plot_motion", text = "Plot IMU Data").plot_type = "-imu"
         self.layout.operator("bodysim.plot_motion", text = "Plot Channel Data").plot_type = "-chan"
+        self.layout.operator("bodysim.save", text = "Save Session")
+        self.layout.operator("bodysim.load", text = "Load Session")
 
 def register():
     bpy.utils.register_class(TrackSensorOperator)
@@ -281,3 +334,5 @@ def unregister():
     bpy.utils.unregister_class(GraphOperator)
     bpy.utils.unregister_class(IMUGenerateOperator)
     bpy.utils.unregister_class(TrackSensorOperator)
+
+bpy.utils.register_module(__name__)
