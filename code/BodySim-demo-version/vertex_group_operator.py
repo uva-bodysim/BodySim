@@ -45,6 +45,36 @@ def select_vertex_group(vg_name, context):
     bpy.ops.mesh.select_all(action="DESELECT")
     bpy.ops.object.vertex_group_set_active(group=vg_name)
     bpy.ops.object.vertex_group_select()
+
+def bind_to_text_vg(context):
+    object_mode()
+        
+    model = context.scene.objects['model']
+    
+    if('sensors' not in model.keys()):
+        model['sensors'] = 0
+
+    if('sensor_info' not in model.keys()):
+        model['sensor_info'] = {}
+    
+    context.scene.objects.active = None
+    # add cube and scale
+    bpy.ops.mesh.primitive_cube_add(location=(0,0,0))
+    
+    sensor = context.active_object
+    sensor.scale = Vector((0.05, 0.05, 0.05))
+    sensor.name = 'Sensor_' + str(model['sensors'])
+    material = bpy.data.materials.new("Red sensor")
+    material.diffuse_color = 1,0,0
+    sensor.data.materials.append(material)
+    
+    model['sensors'] += 1
+    # TODO Change the motion type and color
+    bpy.context.scene.objects.active = model
+    edit_mode()
+    model['sensor_info'][context.object.vertex_groups.active.name] = ('motion', 'red')
+    bind_to_vertex_group(sensor, context)
+    object_mode()
     
 def cancel_selection():
     """Go back to object mode after selection"""
@@ -140,33 +170,7 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
     bl_label = "BodySim Bind Sensor"
 
     def execute(self, context):
-        object_mode()
-        
-        model = context.scene.objects['model']
-        
-        if('sensors' not in model.keys()):
-            model['sensors'] = 0
-
-        if('sensor_info' not in model.keys()):
-            model['sensor_info'] = {}
-        
-        context.scene.objects.active = None
-        # add cube and scale
-        bpy.ops.mesh.primitive_cube_add(location=(0,0,0))
-        
-        sensor = context.active_object
-        sensor.scale = Vector((0.05, 0.05, 0.05))
-        sensor.name = 'Sensor_' + str(model['sensors'])
-        material = bpy.data.materials.new("Red sensor")
-        material.diffuse_color = 1,0,0
-        sensor.data.materials.append(material)
-        
-        model['sensors'] += 1
-        # TODO Change the motion type and color
-        bpy.context.scene.objects.active = model
-        edit_mode()
-        model['sensor_info'][context.object.vertex_groups.active.name] = ('motion', 'red')
-        bind_to_vertex_group(sensor, context)
+        bind_to_text_vg(context)
 
         return {'FINISHED'}
 

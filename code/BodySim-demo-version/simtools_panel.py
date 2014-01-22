@@ -14,6 +14,7 @@ import glob
 from queue import Queue, Empty
 from threading import Thread
 import subprocess
+from vertex_group_operator import select_vertex_group, bind_to_text_vg
 from multiprocessing import Pool
 from xml.etree.ElementTree import ElementTree as ET
 from xml.etree.ElementTree import *
@@ -224,7 +225,18 @@ class LoadOperator(bpy.types.Operator):
     bl_label = "Load Session"
 
     def execute(self, context):
-        pass
+        # TODO Prompt user for the file name and location
+        context.scene.objects['model']['sensor_info'] = {}
+        sensor_dict = context.scene.objects['model']['sensor_info']
+        tree = ET().parse('save_data.xml')
+
+        for sensor in tree.iter('sensor'):
+            sensor_subelements = list(sensor)
+            context.scene.objects['model']['sensor_info'][sensor.attrib['location']] = (sensor_subelements[0].text,
+                                                                                        sensor_subelements[1].text)
+            select_vertex_group(sensor.attrib['location'], context)
+            bind_to_text_vg(context)
+
 
 def indent(elem, level=0):
     i = "\n" + level*"  "
