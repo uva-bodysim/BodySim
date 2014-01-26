@@ -200,6 +200,21 @@ class SaveOperator(bpy.types.Operator):
     bl_label = "Save Session"
 
     def execute(self, context):
+        bpy.ops.bodysim.save_to_file('INVOKE_DEFAULT')
+        return {'FINISHED'}
+
+class WriteToFileOperator(bpy.types.Operator):
+    """Tooltip"""
+    bl_idname = "bodysim.save_to_file"
+    bl_label = "Save to file"
+
+    filepath = bpy.props.StringProperty(subtype="FILE_PATH")
+
+    @classmethod
+    def poll(cls, context):
+        return context.object is not None
+
+    def execute(self, context):
         tree = ET()
         sensor_dict = context.scene.objects['model']['sensor_info']
         sensors_element = Element('sensors')
@@ -212,12 +227,16 @@ class SaveOperator(bpy.types.Operator):
             curr_sensor_element.extend([curr_sensor_type_element, curr_sensor_color_element])
             sensors_element.append(curr_sensor_element)
         indent(sensors_element)
-        # For what ever reason, tree.write fails.
-        #tree.write(path_to_this_file + os.sep + 'sensors-' + time.strftime('%Y%m%d%H%M%S') + '.xml')
-        f = open(path_to_this_file + os.sep + 'sensors-' + time.strftime('%Y%m%d%H%M%S') + '.xml', 'wb')
-        f.write(tostring(sensors_element))
-        f.close()
+        file = open(self.filepath, 'wb')
+        file.write(tostring(sensors_element))
+        file.close()
         return {'FINISHED'}
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        self.filepath = 'session' + time.strftime('-%Y%m%d%H%M%S') + '.xml'
+        return {'RUNNING_MODAL'}
+
 
 class LoadOperator(bpy.types.Operator):
     """Tooltip"""
