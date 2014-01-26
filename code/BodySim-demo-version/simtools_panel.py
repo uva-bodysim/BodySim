@@ -237,17 +237,30 @@ class WriteToFileOperator(bpy.types.Operator):
         self.filepath = 'session' + time.strftime('-%Y%m%d%H%M%S') + '.xml'
         return {'RUNNING_MODAL'}
 
-
 class LoadOperator(bpy.types.Operator):
     """Tooltip"""
     bl_idname = "bodysim.load"
     bl_label = "Load Session"
 
     def execute(self, context):
-        # TODO Prompt user for the file name and location
+        bpy.ops.bodysim.read_from_file('INVOKE_DEFAULT')
+        return {'FINISHED'}
+
+class ReadFileOperator(bpy.types.Operator):
+    """Tooltip"""
+    bl_idname = "bodysim.read_from_file"
+    bl_label = "Read from file"
+
+    filepath = bpy.props.StringProperty(subtype="FILE_PATH")
+
+    @classmethod
+    def poll(cls, context):
+        return context.object is not None
+
+    def execute(self, context):
         context.scene.objects['model']['sensor_info'] = {}
         sensor_dict = context.scene.objects['model']['sensor_info']
-        tree = ET().parse('save_data.xml')
+        tree = ET().parse(self.filepath)
 
         for sensor in tree.iter('sensor'):
             sensor_subelements = list(sensor)
@@ -255,6 +268,11 @@ class LoadOperator(bpy.types.Operator):
                                                                                         sensor_subelements[1].text)
             select_vertex_group(sensor.attrib['location'], context)
             bind_to_text_vg(context)
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 
 def indent(elem, level=0):
