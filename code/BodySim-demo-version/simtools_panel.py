@@ -20,6 +20,7 @@ from xml.etree.ElementTree import ElementTree as ET
 from xml.etree.ElementTree import *
 q = Queue()
 dirname = os.path.dirname
+session_element = None
 
 #Imports blender_caller.py
 sys.path.insert(0, dirname(dirname(__file__)))
@@ -215,6 +216,7 @@ class WriteSessionToFileOperator(bpy.types.Operator):
         return context.object is not None
 
     def execute(self, context):
+        global session_element
         # TODO Handle the case when simulations have been run before a session is saved.
         if not self.filepath[-4:] == '.xml':
             bpy.ops.bodysim.message('INVOKE_DEFAULT',
@@ -228,20 +230,25 @@ class WriteSessionToFileOperator(bpy.types.Operator):
 
         tree = ET()
         model = context.scene.objects['model']
-        # Cannot store element in the model.
-        temp_session_element = Element('session', {'directory' : self.filepath.split(os.sep)[-1][:-4]})
-        indent(temp_session_element)
-        file = open(self.filepath, 'wb')
-        file.write(tostring(temp_session_element))
-        file.close()
-        os.mkdir(self.filepath[:-4])
         model['session_path'] = self.filepath[:-4]
+        # Cannot store element in the model.
+        session_element = Element('session', {'directory' : self.filepath.split(os.sep)[-1][:-4]})
+        update_session_file(context)
+        os.mkdir(self.filepath[:-4])
+        
         return {'FINISHED'}
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         self.filepath = 'session' + time.strftime('-%Y%m%d%H%M%S') + '.xml'
         return {'RUNNING_MODAL'}
+
+def update_session_file(context):
+    global session_element
+    with open(context.scene.objects['model']['session_path'] + '.xml', 'wb') as f:
+        indent(session_element)
+        f.write(tostring(session_element))
+        f.close()
 
 class LoadOperator(bpy.types.Operator):
     """Tooltip"""
@@ -314,6 +321,7 @@ class TrackSensorOperator(bpy.types.Operator):
         return context.active_object is not None
 
     def execute(self, context):
+        global session_element
         model = context.scene.objects['model']
         num_sensors = model['sensors']
         if 'simulation_count' not in model: 
@@ -323,6 +331,16 @@ class TrackSensorOperator(bpy.types.Operator):
         path = model['session_path'] + os.sep + 'simulation_' + str(model['simulation_count'])
         os.mkdir(path)
         tree = ET()
+        if model['simulation_count'] == 0:
+            simulations_element = Element('simulations')
+
+        curr_simulation_element = Element('simulation')
+        curr_simulation_name_element = Element('name')
+        curr_simulation_name_element.text = 'simulation_' + str(model['simulation_count'])
+        curr_simulation_element.append(curr_simulation_name_element)
+        session_element.append(curr_simulation_element)
+        update_session_file(context)
+
         sensor_dict = context.scene.objects['model']['sensor_info']
         sensors_element = Element('sensors')
         for location, info in sensor_dict.iteritems():
