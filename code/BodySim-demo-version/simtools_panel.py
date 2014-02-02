@@ -315,16 +315,23 @@ class TrackSensorOperator(bpy.types.Operator):
         return context.active_object is not None
 
     def execute(self, context):
+        bpy.ops.bodysim.name_simulation('INVOKE_DEFAULT')
+        return {'FINISHED'}
+
+class NameSimulationDialogOperator(bpy.types.Operator):
+    bl_idname = "bodysim.name_simulation"
+    bl_label = "Enter a name for this simulation."
+
+    simulation_name = bpy.props.StringProperty(name="Name: ", )
+
+    def execute(self, context):
         global session_element
         global simulation_ran
         simulation_ran = True
         model = context.scene.objects['model']
         num_sensors = model['sensors']
-        if 'simulation_count' not in model: 
-            model['simulation_count'] = 0
 
-        # TODO Allow user to name a simulation. 
-        path = model['session_path'] + os.sep + 'simulation_' + str(model['simulation_count'])
+        path = model['session_path'] + os.sep + self.simulation_name
         os.mkdir(path)
         tree = ET()
         if model['simulation_count'] == 0:
@@ -332,7 +339,7 @@ class TrackSensorOperator(bpy.types.Operator):
 
         curr_simulation_element = Element('simulation')
         curr_simulation_name_element = Element('name')
-        curr_simulation_name_element.text = 'simulation_' + str(model['simulation_count'])
+        curr_simulation_name_element.text = self.simulation_name
         curr_simulation_element.append(curr_simulation_name_element)
         session_element.append(curr_simulation_element)
         update_session_file(context)
@@ -353,8 +360,15 @@ class TrackSensorOperator(bpy.types.Operator):
         model['simulation_count'] += 1
         scene = bpy.context.scene
         sensor_objects = populate_sensor_list(num_sensors)
-        track_sensors(1, 100, num_sensors, sensor_objects, scene, path)       
+        track_sensors(1, 100, num_sensors, sensor_objects, scene, path)
         return {'FINISHED'}
+
+    def invoke(self, context, event):
+        model = context.scene.objects['model']
+        if 'simulation_count' not in model: 
+            model['simulation_count'] = 0
+        self.simulation_name = "simulation_" + str(model['simulation_count'])
+        return context.window_manager.invoke_props_dialog(self)
 
 class NewSimulationOperator(bpy.types.Operator):
     bl_idname = "bodysim.new_sim"
