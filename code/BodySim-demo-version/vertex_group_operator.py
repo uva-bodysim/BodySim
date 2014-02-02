@@ -183,6 +183,7 @@ class BodySim_RESET_SENSORS(bpy.types.Operator):
         model = context.scene.objects['model']
         context.scene.objects.active = None
         model['sensors'] = 0
+        model['sensor_info'] = {}
         bpy.context.scene.objects.active = model
         sensors_to_delete = [item.name for item in bpy.data.objects if item.name.startswith("Sensor")]
 
