@@ -19,7 +19,6 @@ from multiprocessing import Pool
 from xml.etree.ElementTree import ElementTree as ET
 from xml.etree.ElementTree import *
 q = Queue()
-
 dirname = os.path.dirname
 
 #Imports blender_caller.py
@@ -122,9 +121,6 @@ def enqueue_output(out, queue):
         queue.put(line)
     out.close()
 
-#Imports blender_caller.py
-sys.path.insert(0, dirname(dirname(__file__)))
-
 class IMUGenerateOperator(bpy.types.Operator):
     """Tooltip"""
     bl_idname = "bodysim.generate_imu"
@@ -177,23 +173,6 @@ def main(context):
         print(ob)
 
 
-class TrackSensorOperator(bpy.types.Operator):
-    """Tooltip"""
-    bl_idname = "bodysim.track_sensors"
-    bl_label = "Track Sensors"
-
-    @classmethod
-    def poll(cls, context):
-        return context.active_object is not None
-
-    def execute(self, context):
-        num_sensors = context.scene.objects['model']['sensors']
-        file_name = 'Sensor'
-        scene = bpy.context.scene
-        sensor_objects = populate_sensor_list(num_sensors)
-        track_sensors(1, 100, num_sensors, file_name, sensor_objects, scene)       
-        return {'FINISHED'}
-
 class BodysimMessageOperator(bpy.types.Operator):
     bl_idname = "bodysim.message"
     bl_label = "Message"
@@ -236,7 +215,8 @@ class WriteSessionToFileOperator(bpy.types.Operator):
         return context.object is not None
 
     def execute(self, context):
-        if self.filepath[:-4] is not '.xml':
+        # TODO Handle the case when simulations have been run before a session is saved.
+        if not self.filepath[-4:] == '.xml':
             bpy.ops.bodysim.message('INVOKE_DEFAULT',
              msg_type = "Error", message = 'The session file must be saved with an xml extension.')
             return {'FINISHED'}
@@ -246,10 +226,16 @@ class WriteSessionToFileOperator(bpy.types.Operator):
              msg_type = "Error", message = 'A folder already exists with the desired session name.')
             return {'FINISHED'}            
 
-        file = open(self.filepath, 'w')
-        file.write("This is the session file.")
+        tree = ET()
+        model = context.scene.objects['model']
+        # Cannot store element in the model.
+        temp_session_element = Element('session', {'directory' : self.filepath.split(os.sep)[-1][:-4]})
+        indent(temp_session_element)
+        file = open(self.filepath, 'wb')
+        file.write(tostring(temp_session_element))
         file.close()
         os.mkdir(self.filepath[:-4])
+        model['session_path'] = self.filepath[:-4]
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -318,27 +304,53 @@ def populate_sensor_list(num_sensors):
         sensor_objects.append(bpy.data.objects["Sensor_" + str(i)])
     return sensor_objects
         
-def save_run_time():
-    sim_out_dir = path_to_this_file + os.sep + time.strftime(
-            'simout-%Y%m%d%H%M%S')
-    f = open(path_to_this_file + os.sep + 'mmr', 'w')
-    f.write(sim_out_dir)
-    f.close()
-    tracking_out_dir = sim_out_dir + os.sep + 'raw'
-    os.mkdir(sim_out_dir)
-    os.mkdir(tracking_out_dir)
-    return tracking_out_dir
+class TrackSensorOperator(bpy.types.Operator):
+    """Tooltip"""
+    bl_idname = "bodysim.track_sensors"
+    bl_label = "Track Sensors"
 
-def track_sensors(frame_start, frame_end, num_sensors, file_name, sensor_objects, scene):
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
+    def execute(self, context):
+        model = context.scene.objects['model']
+        num_sensors = model['sensors']
+        if 'simulation_count' not in model: 
+            model['simulation_count'] = 0
+
+        # TODO Allow user to name a simulation. 
+        path = model['session_path'] + os.sep + 'simulation_' + str(model['simulation_count'])
+        os.mkdir(path)
+        tree = ET()
+        sensor_dict = context.scene.objects['model']['sensor_info']
+        sensors_element = Element('sensors')
+        for location, info in sensor_dict.iteritems():
+            curr_sensor_element = Element('sensor', {'location' : location})
+            curr_sensor_type_element = Element('type')
+            curr_sensor_type_element.text = info[0]
+            curr_sensor_color_element = Element('color')
+            curr_sensor_color_element.text = info[1]
+            curr_sensor_element.extend([curr_sensor_type_element, curr_sensor_color_element])
+            sensors_element.append(curr_sensor_element)
+        indent(sensors_element)
+        file = open(path + os.sep + 'sensors.xml', 'wb')
+        file.write(tostring(sensors_element))
+        model['simulation_count'] += 1
+        scene = bpy.context.scene
+        sensor_objects = populate_sensor_list(num_sensors)
+        track_sensors(1, 100, num_sensors, sensor_objects, scene, path)       
+        return {'FINISHED'}
+
+def track_sensors(frame_start, frame_end, num_sensors, sensor_objects, scene, path):
     """Print location and rotation of sensors along respective paths.
 
     Rotation in quaternions.
 
     """
-    tracking_out_dir = save_run_time()
     data_files = []
     for i in range(num_sensors):
-        data_files.append(open(tracking_out_dir + os.sep + file_name + '_' + str(i) + '.csv', 'w'))
+        data_files.append(open(path + os.sep + 'sensor_' + str(i) + '.csv', 'w'))
         print(os.path.realpath(data_files[i].name))
 
     for i in range(frame_end - frame_start + 1):
