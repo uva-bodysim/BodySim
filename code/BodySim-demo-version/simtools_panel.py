@@ -194,18 +194,39 @@ class TrackSensorOperator(bpy.types.Operator):
         track_sensors(1, 100, num_sensors, file_name, sensor_objects, scene)       
         return {'FINISHED'}
 
+class BodysimMessageOperator(bpy.types.Operator):
+    bl_idname = "bodysim.message"
+    bl_label = "Message"
+    msg_type = bpy.props.StringProperty()
+    message = bpy.props.StringProperty()
+ 
+    def execute(self, context):
+        self.report({'INFO'}, self.message)
+        print(self.message)
+        return {'FINISHED'}
+ 
+    def invoke(self, context, event):
+        wm = context.window_manager
+        return wm.invoke_popup(self, width=600, height=200)
+ 
+    def draw(self, context):
+        self.layout.label("Message")
+        col = self.layout.split().column(align=True)
+        col.prop(self, "msg_type")
+        col.prop(self, "message")
+
 class SaveOperator(bpy.types.Operator):
     """Tooltip"""
     bl_idname = "bodysim.save"
     bl_label = "Save Session"
 
     def execute(self, context):
-        bpy.ops.bodysim.save_to_file('INVOKE_DEFAULT')
+        bpy.ops.bodysim.save_session_to_file('INVOKE_DEFAULT')
         return {'FINISHED'}
 
-class WriteToFileOperator(bpy.types.Operator):
+class WriteSessionToFileOperator(bpy.types.Operator):
     """Tooltip"""
-    bl_idname = "bodysim.save_to_file"
+    bl_idname = "bodysim.save_session_to_file"
     bl_label = "Save to file"
 
     filepath = bpy.props.StringProperty(subtype="FILE_PATH")
@@ -215,21 +236,20 @@ class WriteToFileOperator(bpy.types.Operator):
         return context.object is not None
 
     def execute(self, context):
-        tree = ET()
-        sensor_dict = context.scene.objects['model']['sensor_info']
-        sensors_element = Element('sensors')
-        for location, info in sensor_dict.iteritems():
-            curr_sensor_element = Element('sensor', {'location' : location})
-            curr_sensor_type_element = Element('type')
-            curr_sensor_type_element.text = info[0]
-            curr_sensor_color_element = Element('color')
-            curr_sensor_color_element.text = info[1]
-            curr_sensor_element.extend([curr_sensor_type_element, curr_sensor_color_element])
-            sensors_element.append(curr_sensor_element)
-        indent(sensors_element)
-        file = open(self.filepath, 'wb')
-        file.write(tostring(sensors_element))
+        if self.filepath[:-4] is not '.xml':
+            bpy.ops.bodysim.message('INVOKE_DEFAULT',
+             msg_type = "Error", message = 'The session file must be saved with an xml extension.')
+            return {'FINISHED'}
+
+        if os.path.exists(self.filepath):
+            bpy.ops.bodysim.error_message('INVOKE_DEFAULT',
+             msg_type = "Error", message = 'A folder already exists with the desired session name.')
+            return {'FINISHED'}            
+
+        file = open(self.filepath, 'w')
+        file.write("This is the session file.")
         file.close()
+        os.mkdir(self.filepath[:-4])
         return {'FINISHED'}
 
     def invoke(self, context, event):
