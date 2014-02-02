@@ -21,6 +21,7 @@ from xml.etree.ElementTree import *
 q = Queue()
 dirname = os.path.dirname
 session_element = None
+simulation_ran = False
 
 #Imports blender_caller.py
 sys.path.insert(0, dirname(dirname(__file__)))
@@ -123,7 +124,6 @@ def enqueue_output(out, queue):
     out.close()
 
 class IMUGenerateOperator(bpy.types.Operator):
-    """Tooltip"""
     bl_idname = "bodysim.generate_imu"
     bl_label = "IMU Generator Operator"
 
@@ -137,7 +137,6 @@ class IMUGenerateOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class ChannelGenerateOperator(bpy.types.Operator):
-    """Tooltip"""
     bl_idname = "bodysim.generate_channel"
     bl_label = "Channel Generator Operator"
 
@@ -196,7 +195,6 @@ class BodysimMessageOperator(bpy.types.Operator):
         col.prop(self, "message")
 
 class SaveOperator(bpy.types.Operator):
-    """Tooltip"""
     bl_idname = "bodysim.save"
     bl_label = "Save Session"
 
@@ -205,7 +203,6 @@ class SaveOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class WriteSessionToFileOperator(bpy.types.Operator):
-    """Tooltip"""
     bl_idname = "bodysim.save_session_to_file"
     bl_label = "Save to file"
 
@@ -251,7 +248,6 @@ def update_session_file(context):
         f.close()
 
 class LoadOperator(bpy.types.Operator):
-    """Tooltip"""
     bl_idname = "bodysim.load"
     bl_label = "Load Session"
 
@@ -260,7 +256,6 @@ class LoadOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class ReadFileOperator(bpy.types.Operator):
-    """Tooltip"""
     bl_idname = "bodysim.read_from_file"
     bl_label = "Read from file"
 
@@ -312,7 +307,6 @@ def populate_sensor_list(num_sensors):
     return sensor_objects
         
 class TrackSensorOperator(bpy.types.Operator):
-    """Tooltip"""
     bl_idname = "bodysim.track_sensors"
     bl_label = "Track Sensors"
 
@@ -322,6 +316,8 @@ class TrackSensorOperator(bpy.types.Operator):
 
     def execute(self, context):
         global session_element
+        global simulation_ran
+        simulation_ran = True
         model = context.scene.objects['model']
         num_sensors = model['sensors']
         if 'simulation_count' not in model: 
@@ -359,6 +355,37 @@ class TrackSensorOperator(bpy.types.Operator):
         sensor_objects = populate_sensor_list(num_sensors)
         track_sensors(1, 100, num_sensors, sensor_objects, scene, path)       
         return {'FINISHED'}
+
+class NewSimulationOperator(bpy.types.Operator):
+    bl_idname = "bodysim.new_sim"
+    bl_label = "Create a new simulation"
+
+    def execute(self, context):
+        # TODO Let the user pick a previous simulation to use as a template.
+        # For now, this will clear all sensors.
+        global simulation_ran
+        if context.scene.objects['model']['sensor_info'] and not simulation_ran:
+            bpy.ops.bodysim.not_ran_sim_dialog('INVOKE_DEFAULT')
+        else:
+            bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
+        return {'FINISHED'}
+
+class NotRanSimDialogOperator(bpy.types.Operator):
+    bl_idname = "bodysim.not_ran_sim_dialog"
+    bl_label = "Simulation not ran yet on these sensors."
+
+
+    def execute(self, context):
+        bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column()
+        col.label(text="Are you sure you want to reset?")
 
 def track_sensors(frame_start, frame_end, num_sensors, sensor_objects, scene, path):
     """Print location and rotation of sensors along respective paths.
@@ -421,6 +448,7 @@ class SimTools(bpy.types.Panel):
         self.layout.operator("bodysim.plot_motion", text = "Plot Channel Data").plot_type = "-chan"
         self.layout.operator("bodysim.save", text = "Save Session")
         self.layout.operator("bodysim.load", text = "Load Session")
+        self.layout.operator("bodysim.new_sim", text = "New Simulation")
 
 def register():
     bpy.utils.register_class(TrackSensorOperator)
