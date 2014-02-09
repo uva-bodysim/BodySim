@@ -11,6 +11,7 @@ import os
 import time
 import sys
 import glob
+import shutil
 from queue import Queue, Empty
 from threading import Thread
 import subprocess
@@ -22,6 +23,7 @@ q = Queue()
 dirname = os.path.dirname
 session_element = None
 simulation_ran = False
+temp_sim_ran = False
 
 #Imports blender_caller.py
 sys.path.insert(0, dirname(dirname(__file__)))
@@ -214,7 +216,7 @@ class WriteSessionToFileOperator(bpy.types.Operator):
 
     def execute(self, context):
         global session_element
-        # TODO Handle the case when simulations have been run before a session is saved.
+        global temp_sim_ran
         if not self.filepath[-4:] == '.xml':
             bpy.ops.bodysim.message('INVOKE_DEFAULT',
              msg_type = "Error", message = 'The session file must be saved with an xml extension.')
@@ -228,10 +230,19 @@ class WriteSessionToFileOperator(bpy.types.Operator):
         tree = ET()
         model = context.scene.objects['model']
         model['session_path'] = self.filepath[:-4]
-        # Cannot store element in the model.
-        session_element = Element('session', {'directory' : self.filepath.split(os.sep)[-1][:-4]})
-        update_session_file(context)
-        os.mkdir(self.filepath[:-4])
+
+        # Handle the case when simulations have been run before a session is saved.
+        if temp_sim_ran:
+            session_element.set('directory', self.filepath.split(os.sep)[-1][:-4])
+            os.remove(path_to_this_file + os.sep + 'tmp.xml')
+            shutil.move(path_to_this_file + os.sep + 'tmp', self.filepath[:-4])
+
+        else:
+            session_element = Element('session', {'directory' : self.filepath.split(os.sep)[-1][:-4]})
+            os.mkdir(self.filepath[:-4])
+
+        update_session_file(session_element, model['session_path'], context)
+        
         
         return {'FINISHED'}
 
@@ -240,9 +251,8 @@ class WriteSessionToFileOperator(bpy.types.Operator):
         self.filepath = 'session' + time.strftime('-%Y%m%d%H%M%S') + '.xml'
         return {'RUNNING_MODAL'}
 
-def update_session_file(context):
-    global session_element
-    with open(context.scene.objects['model']['session_path'] + '.xml', 'wb') as f:
+def update_session_file(session_element, session_path, context):
+    with open(session_path + '.xml', 'wb') as f:
         indent(session_element)
         f.write(tostring(session_element))
         f.close()
@@ -327,11 +337,20 @@ class NameSimulationDialogOperator(bpy.types.Operator):
     def execute(self, context):
         global session_element
         global simulation_ran
+        global temp_sim_ran
         simulation_ran = True
         model = context.scene.objects['model']
         num_sensors = model['sensors']
 
-        path = model['session_path'] + os.sep + self.simulation_name
+        if 'session_path' not in model:
+            session_path = path_to_this_file + os.sep + 'tmp'
+            os.mkdir(path_to_this_file + os.sep + 'tmp')
+            session_element = Element('session', {'directory' : session_path})
+            temp_sim_ran = True
+        else:
+            session_path =  model['session_path']
+
+        path = session_path + os.sep + self.simulation_name
         os.mkdir(path)
         tree = ET()
         if model['simulation_count'] == 0:
@@ -342,7 +361,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         curr_simulation_name_element.text = self.simulation_name
         curr_simulation_element.append(curr_simulation_name_element)
         session_element.append(curr_simulation_element)
-        update_session_file(context)
+        update_session_file(session_element, session_path, context)
 
         sensor_dict = context.scene.objects['model']['sensor_info']
         sensors_element = Element('sensors')
