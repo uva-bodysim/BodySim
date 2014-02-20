@@ -258,6 +258,7 @@ def update_session_file(session_element, session_path, context):
         f.close()
 
 class LoadOperator(bpy.types.Operator):
+
     bl_idname = "bodysim.load"
     bl_label = "Load Session"
 
@@ -276,16 +277,19 @@ class ReadFileOperator(bpy.types.Operator):
         return context.object is not None
 
     def execute(self, context):
-        context.scene.objects['model']['sensor_info'] = {}
-        sensor_dict = context.scene.objects['model']['sensor_info']
+        global session_element
+        model = context.scene.objects['model']
+        model['sensor_info'] = {}
+        model['session_path'] = self.filepath[:-4]
         tree = ET().parse(self.filepath)
+        session_element = tree
 
-        for sensor in tree.iter('sensor'):
-            sensor_subelements = list(sensor)
-            context.scene.objects['model']['sensor_info'][sensor.attrib['location']] = (sensor_subelements[0].text,
-                                                                                        sensor_subelements[1].text)
-            select_vertex_group(sensor.attrib['location'], context)
-            bind_to_text_vg(context)
+        sim_list = []
+        # simulations_element = Element('simulations')
+        for simulation in tree.iter('simulation'):
+            sim_list.append(list(simulation)[0].text)
+
+        draw_previous_run_panel(sim_list)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -466,6 +470,51 @@ def track_sensors(frame_start, frame_end, num_sensors, sensor_objects, scene, pa
     for i in range(num_sensors):
         data_files[i].flush()
         data_files[i].close()
+
+class LoadSimulationOperator(bpy.types.Operator):
+    bl_idname = "bodysim.load_simulation"
+    bl_label = "Load a simulation."
+
+    simulation_name = bpy.props.StringProperty()
+
+    def execute(self, context):
+        # TODO Check if there were any unsaved modifications first.
+        bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
+        # Navigate to correct folder to load the correct sensors.xml
+        model = context.scene.objects['model']
+        sensor_xml_path = model['session_path'] + os.sep + self.simulation_name + os.sep + 'sensors.xml'
+        tree = ET().parse(sensor_xml_path)
+
+        for sensor in tree.iter('sensor'):
+            sensor_subelements = list(sensor)
+
+            context.scene.objects['model']['sensor_info'][sensor.attrib['location']] = (sensor_subelements[0].text,
+                                                                                        sensor_subelements[1].text)
+
+            select_vertex_group(sensor.attrib['location'], context)
+            bind_to_text_vg(context)
+
+        return {'FINISHED'}
+
+
+def _drawPreviousRunButtons(self, context):
+    layout = self.layout
+
+    for _previousRun in self.sim_runs:
+        layout.operator("bodysim.load_simulation", text = _previousRun).simulation_name = _previousRun
+
+def draw_previous_run_panel(list_of_simulations):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'TOOLS'
+
+    panel = type("SimulationSelectPanel", (bpy.types.Panel,),{
+        "bl_label": "Previous Simulations",
+        "bl_space_type": bl_space_type,
+        "bl_region_type": bl_region_type,
+        "sim_runs": list_of_simulations,
+        "draw": _drawPreviousRunButtons},)
+
+    bpy.utils.register_class(panel)
 
 class SimTools(bpy.types.Panel):
     bl_label = "Sim Tools"
