@@ -41,13 +41,13 @@ def plot_csv(plot_type, fps, filenames):
 
 
 def run_imu_sims(filenames):
-    imu_sim_file_path = path_to_this_file + os.sep + "imu_simulator.py")
+    imu_sim_file_path = path_to_this_file + os.sep + "imu_simulator.py"
     pipe = subprocess.Popen(["python", imu_sim_file_path] + filenames,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
     return pipe
 
 def run_channel_sims(filenames):
-    channel_sim_file_path = path_to_this_file + os.sep + "channel_simulator.py")
+    channel_sim_file_path = path_to_this_file + os.sep + "channel_simulator.py"
     pipe = subprocess.Popen(["python", channel_sim_file_path] + filenames,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
     return pipe
@@ -344,6 +344,11 @@ class NameSimulationDialogOperator(bpy.types.Operator):
 
         path = session_path + os.sep + self.simulation_name
         current_simulation_path = path
+        if os.path.exists(path):
+            bpy.ops.bodysim.message('INVOKE_DEFAULT',
+             msg_type = "Error", message = 'A simulation with that name already exists!')
+            return {'CANCELLED'}
+
         os.mkdir(path)
         os.mkdir(path + os.sep + 'raw')
         tree = ET()
