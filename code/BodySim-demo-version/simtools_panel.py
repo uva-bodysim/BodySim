@@ -21,6 +21,7 @@ from xml.etree.ElementTree import ElementTree as ET
 from xml.etree.ElementTree import *
 q = Queue()
 dirname = os.path.dirname
+path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
 session_element = None
 simulation_ran = False
 temp_sim_ran = False
@@ -43,12 +44,6 @@ def run_imu_sims(filenames):
     pipe = subprocess.Popen(["python", imu_sim_file_path] + filenames,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
     return pipe
-
-def read_most_recent_run():
-    f = open(dirname(dirname(__file__)) + os.sep +'mmr', 'r')
-    mmr = f.read() + os.sep
-    f.close()
-    return mmr
 
 def run_channel_sims(filenames):
     channel_sim_file_path = os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/channel_simulator.py")
@@ -165,9 +160,6 @@ def read_most_recent_run():
     mmr = f.read() + os.sep
     f.close()
     return mmr
-
-dirname = os.path.dirname
-path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
 
 def main(context):
     scene = bpy.context.scene
