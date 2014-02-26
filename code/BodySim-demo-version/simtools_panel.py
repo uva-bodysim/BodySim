@@ -25,13 +25,14 @@ path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
 session_element = None
 simulation_ran = False
 temp_sim_ran = False
+current_simulation_path = None
 
 #Imports blender_caller.py
 sys.path.insert(0, dirname(dirname(__file__)))
 
 def plot_csv(plot_type, fps, filenames):
     #pool = Pool(processes=1)
-    plotter_file_path = os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/blender_plotter.py")
+    plotter_file_path = path_to_this_file + os.sep + "blender_plotter.py"
     print(plotter_file_path)
     print(filenames)
     pipe = subprocess.Popen(["python", plotter_file_path, plot_type, fps] + filenames, 
@@ -40,13 +41,13 @@ def plot_csv(plot_type, fps, filenames):
 
 
 def run_imu_sims(filenames):
-    imu_sim_file_path = os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/imu_simulator.py")
+    imu_sim_file_path = path_to_this_file + os.sep + "imu_simulator.py")
     pipe = subprocess.Popen(["python", imu_sim_file_path] + filenames,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
     return pipe
 
 def run_channel_sims(filenames):
-    channel_sim_file_path = os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/channel_simulator.py")
+    channel_sim_file_path = path_to_this_file + os.sep + "channel_simulator.py")
     pipe = subprocess.Popen(["python", channel_sim_file_path] + filenames,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
     return pipe
@@ -87,18 +88,18 @@ class GraphOperator(bpy.types.Operator):
 
     def execute(self, context):
         # Get the files ending with .csv extension.'
-        most_recent_run = read_most_recent_run()
-        print ("MRR: " + most_recent_run)
+        global current_simulation_path
+        most_recent_run = current_simulation_path
         sensor_files = []
 
         if (self.plot_type == '-imu'):
-            sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'sim' + os.sep + '*-i.csv')
+            sensor_files = glob.glob(current_simulation_path + os.sep + 'sim' + os.sep + '*-i.csv')
 
         if (self.plot_type == '-raw'):
-            sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'raw' + os.sep + '*csv')
+            sensor_files = glob.glob(current_simulation_path + os.sep + 'raw' + os.sep + '*csv')
 
         if (self.plot_type == '-chan'):
-            sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'sim' + os.sep + '*-c.csv')
+            sensor_files = glob.glob(current_simulation_path + os.sep + 'sim' + os.sep + '*-c.csv')
 
         self._pipe = plot_csv(self.plot_type, str(30), sensor_files)
         
@@ -127,7 +128,7 @@ class IMUGenerateOperator(bpy.types.Operator):
     def execute(self, context):
         most_recent_run = read_most_recent_run()
         print ("MRR: " + most_recent_run)
-        sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'raw' + os.sep + '*csv')
+        sensor_files = glob.glob(current_simulation_path + os.sep + 'raw' + os.sep + '*csv')
         print(sensor_files)
         pipe = run_imu_sims(sensor_files)
         pipe.wait()
@@ -146,7 +147,7 @@ class ChannelGenerateOperator(bpy.types.Operator):
     def execute(self, context):
         most_recent_run = read_most_recent_run()
         print ("MRR: " + most_recent_run)
-        sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'raw' + os.sep + '*csv')
+        sensor_files = glob.glob(current_simulation_path + os.sep + 'raw' + os.sep + '*csv')
         print(sensor_files)
         print('running channel sim')
         pipe = run_channel_sims(sensor_files)
@@ -154,12 +155,6 @@ class ChannelGenerateOperator(bpy.types.Operator):
         print(pipe)
         print("done")
         return {'FINISHED'}
-
-def read_most_recent_run():
-    f = open(dirname(dirname(__file__)) + os.sep +'mmr', 'r')
-    mmr = f.read() + os.sep
-    f.close()
-    return mmr
 
 def main(context):
     scene = bpy.context.scene
@@ -334,6 +329,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         global session_element
         global simulation_ran
         global temp_sim_ran
+        global current_simulation_path
         simulation_ran = True
         model = context.scene.objects['model']
         num_sensors = model['sensors']
@@ -347,7 +343,9 @@ class NameSimulationDialogOperator(bpy.types.Operator):
             session_path =  model['session_path']
 
         path = session_path + os.sep + self.simulation_name
+        current_simulation_path = path
         os.mkdir(path)
+        os.mkdir(path + os.sep + 'raw')
         tree = ET()
         if model['simulation_count'] == 0:
             simulations_element = Element('simulations')
@@ -375,7 +373,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         model['simulation_count'] += 1
         scene = bpy.context.scene
         sensor_objects = populate_sensor_list(num_sensors)
-        track_sensors(1, 100, num_sensors, sensor_objects, scene, path)
+        track_sensors(1, 100, num_sensors, sensor_objects, scene, path + os.sep + 'raw')
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -470,11 +468,13 @@ class LoadSimulationOperator(bpy.types.Operator):
     simulation_name = bpy.props.StringProperty()
 
     def execute(self, context):
+        global current_simulation_path
         # TODO Check if there were any unsaved modifications first.
         bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
         # Navigate to correct folder to load the correct sensors.xml
         model = context.scene.objects['model']
         sensor_xml_path = model['session_path'] + os.sep + self.simulation_name + os.sep + 'sensors.xml'
+        current_simulation_path = model['session_path'] + os.sep + self.simulation_name
         tree = ET().parse(sensor_xml_path)
 
         for sensor in tree.iter('sensor'):
