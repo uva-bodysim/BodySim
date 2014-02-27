@@ -26,6 +26,7 @@ session_element = None
 simulation_ran = False
 temp_sim_ran = False
 current_simulation_path = None
+sim_list = []
 
 #Imports blender_caller.py
 sys.path.insert(0, dirname(dirname(__file__)))
@@ -271,7 +272,6 @@ class ReadFileOperator(bpy.types.Operator):
         tree = ET().parse(self.filepath)
         session_element = tree
 
-        sim_list = []
         # simulations_element = Element('simulations')
         for simulation in tree.iter('simulation'):
             sim_list.append(list(simulation)[0].text)
@@ -330,6 +330,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         global simulation_ran
         global temp_sim_ran
         global current_simulation_path
+        global sim_list
         simulation_ran = True
         model = context.scene.objects['model']
         num_sensors = model['sensors']
@@ -349,6 +350,8 @@ class NameSimulationDialogOperator(bpy.types.Operator):
              msg_type = "Error", message = 'A simulation with that name already exists!')
             return {'CANCELLED'}
 
+        sim_list.append(self.simulation_name)
+        draw_previous_run_panel(sim_list)
         os.mkdir(path)
         os.mkdir(path + os.sep + 'raw')
         tree = ET()
