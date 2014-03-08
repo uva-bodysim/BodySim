@@ -32,74 +32,6 @@ sim_list = []
 sys.path.insert(0, dirname(dirname(__file__)))
 from blender_caller import *
 
-class GraphOperator(bpy.types.Operator):
-    """Get input from graph."""
-    bl_idname = "bodysim.plot_motion"
-    bl_label = "Graph Modal Operator"
-    plot_type = bpy.props.StringProperty()    
-    _timer = None
-    _pipe = None
-    _thread = None
-
-    def modal(self, context, event):
-        scene = bpy.context.scene
-        if event.type == 'ESC':
-            return self.cancel(context)
-
-        if event.type == 'TIMER':
-            try:
-                line = q.get_nowait()
-            except Empty:
-                pass
-            else:
-                # Stop the operator if the graph window is closed.
-                if str(line.strip()) == "b'quit'":
-                    return self.cancel(context)
-
-                # Move the animation to the desired frame.
-                scene.frame_current = int(float(line))
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.object.mode_set(mode='OBJECT')
-                bpy.ops.render.render()
-                bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
-
-        return {'PASS_THROUGH'}
-
-    def execute(self, context):
-        # Get the files ending with .csv extension.'
-        global current_simulation_path
-        most_recent_run = current_simulation_path
-        sensor_files = []
-
-        if (self.plot_type == '-imu'):
-            sensor_files = glob.glob(current_simulation_path + os.sep + 'sim' + os.sep + '*-i.csv')
-
-        if (self.plot_type == '-raw'):
-            sensor_files = glob.glob(current_simulation_path + os.sep + 'raw' + os.sep + '*csv')
-
-        if (self.plot_type == '-chan'):
-            sensor_files = glob.glob(current_simulation_path + os.sep + 'sim' + os.sep + '*-c.csv')
-
-        self._pipe = plot_csv(self.plot_type, str(30), sensor_files)
-        
-        # A separate thread must be started to keep track of the blocking pipe
-        # so the script does not freeze blender.
-        self._thread = Thread(target=enqueue_output, args=(self._pipe.stdout, q))
-        self._thread.daemon = True
-        self._thread.start()
-        self._timer = context.window_manager.event_timer_add(0.2, context.window)
-        context.window_manager.modal_handler_add(self)
-        return {'RUNNING_MODAL'}
-
-    def cancel(self, context):
-        context.window_manager.event_timer_remove(self._timer)
-        return {'CANCELLED'}
-
-def enqueue_output(out, queue):
-    for line in iter(out.readline, b''):
-        queue.put(line)
-    out.close()
-
 class IMUGenerateOperator(bpy.types.Operator):
     bl_idname = "bodysim.generate_imu"
     bl_label = "IMU Generator Operator"
@@ -286,7 +218,6 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         global session_element
         global simulation_ran
         global temp_sim_ran
-        global current_simulation_path
         global sim_list
         simulation_ran = True
         model = context.scene.objects['model']
@@ -301,7 +232,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
             session_path =  model['session_path']
 
         path = session_path + os.sep + self.simulation_name
-        current_simulation_path = path
+        model['current_simulation_path'] = path
         if os.path.exists(path):
             bpy.ops.bodysim.message('INVOKE_DEFAULT',
              msg_type = "Error", message = 'A simulation with that name already exists!')
@@ -433,13 +364,12 @@ class LoadSimulationOperator(bpy.types.Operator):
     simulation_name = bpy.props.StringProperty()
 
     def execute(self, context):
-        global current_simulation_path
         # TODO Check if there were any unsaved modifications first.
         bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
         # Navigate to correct folder to load the correct sensors.xml
         model = context.scene.objects['model']
         sensor_xml_path = model['session_path'] + os.sep + self.simulation_name + os.sep + 'sensors.xml'
-        current_simulation_path = model['session_path'] + os.sep + self.simulation_name
+        model['current_simulation_path'] = model['session_path'] + os.sep + self.simulation_name
         tree = ET().parse(sensor_xml_path)
 
         for sensor in tree.iter('sensor'):

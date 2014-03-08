@@ -60,8 +60,7 @@ class GraphOperator(bpy.types.Operator):
 
     def execute(self, context):
         # Get the files ending with .csv extension.'
-        most_recent_run = read_most_recent_run()
-        print ("MRR: " + most_recent_run)
+        most_recent_run = context.scene.objects['model']['current_simulation_path']
         sensor_files = []
 
         if (self.plot_type == '-imu'):
