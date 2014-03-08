@@ -30,29 +30,7 @@ sim_list = []
 
 #Imports blender_caller.py
 sys.path.insert(0, dirname(dirname(__file__)))
-
-def plot_csv(plot_type, fps, filenames):
-    #pool = Pool(processes=1)
-    plotter_file_path = path_to_this_file + os.sep + "blender_plotter.py"
-    print(plotter_file_path)
-    print(filenames)
-    pipe = subprocess.Popen(["python", plotter_file_path, plot_type, fps] + filenames, 
-            stdout=subprocess.PIPE, bufsize=1)
-    return pipe
-
-
-def run_imu_sims(filenames):
-    imu_sim_file_path = path_to_this_file + os.sep + "imu_simulator.py"
-    pipe = subprocess.Popen(["python", imu_sim_file_path] + filenames,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
-    return pipe
-
-def run_channel_sims(filenames):
-    channel_sim_file_path = path_to_this_file + os.sep + "channel_simulator.py"
-    pipe = subprocess.Popen(["python", channel_sim_file_path] + filenames,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
-    return pipe
-
+from blender_caller import *
 
 class GraphOperator(bpy.types.Operator):
     """Get input from graph."""
@@ -162,27 +140,6 @@ def main(context):
     for ob in context.scene.objects:
         print(ob)
 
-
-class BodysimMessageOperator(bpy.types.Operator):
-    bl_idname = "bodysim.message"
-    bl_label = "Message"
-    msg_type = bpy.props.StringProperty()
-    message = bpy.props.StringProperty()
- 
-    def execute(self, context):
-        self.report({'INFO'}, self.message)
-        print(self.message)
-        return {'FINISHED'}
- 
-    def invoke(self, context, event):
-        wm = context.window_manager
-        return wm.invoke_popup(self, width=600, height=200)
- 
-    def draw(self, context):
-        self.layout.label("Message")
-        col = self.layout.split().column(align=True)
-        col.prop(self, "msg_type")
-        col.prop(self, "message")
 
 class SaveOperator(bpy.types.Operator):
     bl_idname = "bodysim.save"

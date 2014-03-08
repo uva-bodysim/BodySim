@@ -24,11 +24,3 @@ def run_channel_sims(filenames):
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
     return pipe
 
-'''
-if __name__ == "__main__":
-    proc = plot_csv(sys.argv[1])
-    while True:
-        line = proc.stdout.readline()
-        if line != '':
-            print line
-'''
