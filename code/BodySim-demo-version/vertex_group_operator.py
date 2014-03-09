@@ -120,7 +120,8 @@ def draw_body_part_panels():
     #row.label(text="HELLO")
 
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
+    bl_region_type = 'UI'
+    bl_context = "objectmode"
     
     v_list = parse_vertex_group(list_vertex_group())
     for group in v_list:
@@ -130,6 +131,7 @@ def draw_body_part_panels():
                {"bl_label": group, 
                     "bl_space_type": bl_space_type,
                     "bl_region_type": bl_region_type,
+                    "bl_context": bl_context,
                     "bl_options": {"DEFAULT_CLOSED"},
                     "v_list": v_list[group],
                     "draw": _draw},
@@ -141,12 +143,12 @@ class AddSensorPanel(bpy.types.Panel):
     """A Custom Panel in the Viewport Toolbar"""
     bl_label = "Add Sensor"
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
+    bl_region_type = 'UI'
+    bl_context = "objectmode"
     
     def draw(self, context):
         layout = self.layout
-        
-        layout.operator("bodysim.bind_sensor", text="Add Sensor")
+        layout.operator("bodysim.new_sensor", text="Add Sensor")
         layout.operator("bodysim.reset_sensors", text="Reset Sensors")
     
     
@@ -172,6 +174,38 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
     def execute(self, context):
         bind_to_text_vg(context)
 
+        return {'FINISHED'}
+
+def _draw_sensor_properties(self, context):
+    layout = self.layout
+    layout.operator("bodysim.sensor_properties", text="Next")
+
+class BodySim_NEW_SENSOR(bpy.types.Operator):
+    bl_idname = "bodysim.new_sensor"
+    bl_label = "Create a new sensor"
+
+    def execute(self, context):
+        bl_label = "Add Sensor"
+        bl_space_type = 'VIEW_3D'
+        bl_region_type = 'UI'
+        bl_context = "objectmode"
+
+        panel = type("AddSensorPanel", (bpy.types.Panel,),{
+        "bl_label": "Add Sensor",
+        "bl_space_type": bl_space_type,
+        "bl_region_type": bl_region_type,
+        "draw": _draw_sensor_properties},)
+
+        bpy.utils.register_class(panel)
+        draw_body_part_panels()
+        return {'FINISHED'}
+
+class BodySim_SENSOR_PROPERTIES(bpy.types.Operator):
+    bl_idname = "bodysim.sensor_properties"
+    bl_label = "Bodysim Properties"
+
+    def execute(self, context):
+        pass
         return {'FINISHED'}
 
 class BodySim_RESET_SENSORS(bpy.types.Operator):
@@ -214,4 +248,4 @@ def unregister():
 
 if __name__ == "__main__":
     register()
-    draw_body_part_panels()
+    #draw_body_part_panels()
