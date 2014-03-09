@@ -10,6 +10,10 @@ import bpy
 from mathutils import *
 from math import *
 
+# Note that this must be cleared each time a new model is loaded (different
+# vertx groups).
+panel_list = []
+
 '''
 Functions
 '''
@@ -103,42 +107,39 @@ def bind_to_vertex_group(obj, context):
 '''
 Panels
 '''
-# This function is called by the subpanel for the body part
 def _draw(self, context):
     layout = self.layout
-
-    #row = layout.row()
-    #row.label(text=self.group)
     for _part in self.v_list:
         layout.operator("bodysim.select_body_part", text=_part).part = _part
 
 
 def draw_body_part_panels():
-    #layout = self.layout
 
-    #row = layout.row()
-    #row.label(text="HELLO")
+    global panel_list
 
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_context = "objectmode"
-    
-    v_list = parse_vertex_group(list_vertex_group())
-    for group in v_list:
+    if not panel_list:
+        v_list = parse_vertex_group(list_vertex_group())
+        for group in v_list:
 
-        subpanel = type("PartSelectPanel%s" % group,
-               (bpy.types.Panel, ),
-               {"bl_label": group, 
-                    "bl_space_type": bl_space_type,
-                    "bl_region_type": bl_region_type,
-                    "bl_context": bl_context,
-                    "bl_options": {"DEFAULT_CLOSED"},
-                    "v_list": v_list[group],
-                    "draw": _draw},
-               )
-        bpy.utils.register_class(subpanel)
+            subpanel = type("PartSelectPanel%s" % group,
+                   (bpy.types.Panel, ),
+                   {"bl_label": group,
+                        "bl_space_type": bl_space_type,
+                        "bl_region_type": bl_region_type,
+                        "bl_context": bl_context,
+                        "bl_options": {"DEFAULT_CLOSED"},
+                        "v_list": v_list[group],
+                        "draw": _draw},
+                   )
+            panel_list.append(subpanel)
+            bpy.utils.register_class(subpanel)
+    else:
+        for panel in panel_list:
+            bpy.utils.register_class(panel)
 
-        
 class AddSensorPanel(bpy.types.Panel):
     """A Custom Panel in the Viewport Toolbar"""
     bl_label = "Add Sensor"
@@ -185,27 +186,36 @@ class BodySim_NEW_SENSOR(bpy.types.Operator):
     bl_label = "Create a new sensor"
 
     def execute(self, context):
-        bl_label = "Add Sensor"
-        bl_space_type = 'VIEW_3D'
-        bl_region_type = 'UI'
-        bl_context = "objectmode"
-
-        panel = type("AddSensorPanel", (bpy.types.Panel,),{
-        "bl_label": "Add Sensor",
-        "bl_space_type": bl_space_type,
-        "bl_region_type": bl_region_type,
-        "draw": _draw_sensor_properties},)
-
-        bpy.utils.register_class(panel)
+        redraw_addSensorPanel(_draw_sensor_properties)
         draw_body_part_panels()
         return {'FINISHED'}
+
+def _draw_sensor_properties_page(self, context):
+    layout = self.layout
+    layout.operator("bodysim.bind_sensor", text="Add Sensor")
+
+def redraw_addSensorPanel(draw_function):
+    bl_label = "Add Sensor"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_context = "objectmode"
+
+    panel = type("AddSensorPanel", (bpy.types.Panel,),{
+    "bl_label": "Add Sensor",
+    "bl_space_type": bl_space_type,
+    "bl_region_type": bl_region_type,
+    "draw": draw_function},)
+
+    bpy.utils.register_class(panel)
 
 class BodySim_SENSOR_PROPERTIES(bpy.types.Operator):
     bl_idname = "bodysim.sensor_properties"
     bl_label = "Bodysim Properties"
 
     def execute(self, context):
-        pass
+        redraw_addSensorPanel(_draw_sensor_properties_page)
+        for panel in panel_list:
+            bpy.utils.unregister_class(panel)
         return {'FINISHED'}
 
 class BodySim_RESET_SENSORS(bpy.types.Operator):
@@ -248,4 +258,3 @@ def unregister():
 
 if __name__ == "__main__":
     register()
-    #draw_body_part_panels()
