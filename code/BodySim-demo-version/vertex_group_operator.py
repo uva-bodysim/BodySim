@@ -10,6 +10,7 @@ import bpy
 from mathutils import *
 from math import *
 
+# List of vertices for a model.
 # Note that this must be cleared each time a new model is loaded (different
 # vertx groups).
 panel_list = []
@@ -151,8 +152,37 @@ class AddSensorPanel(bpy.types.Panel):
         layout = self.layout
         layout.operator("bodysim.new_sensor", text="Add Sensor")
         layout.operator("bodysim.reset_sensors", text="Reset Sensors")
+
+def _drawSingleSensorButtons(self, context):
+    layout = self.layout
+    for sensor in self.sensor_dict:
+        layout.operator("bodysim.select_body_part", text = sensor).part = sensor
+
+def draw_sensor_list_panel(sensor_dict):
+    bl_label = "Current Sensors"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_context = "objectmode"
+
+    panel = type("CurrentSensorsPanel", (bpy.types.Panel,),{
+        "bl_label": bl_label,
+        "bl_space_type": bl_space_type,
+        "bl_region_type": bl_region_type,
+        "sensor_dict": sensor_dict,
+        "draw": _drawSingleSensorButtons},)
+
+    bpy.utils.register_class(panel)
     
-    
+class CurrentSensorsPanel(bpy.types.Panel):
+    bl_label = "Current Sensors"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_context = "objectmode"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.label("No sensors yet.")
+
 '''
 Operators
 =========
@@ -165,7 +195,6 @@ class BodySim_SELECT_BODY_PART(bpy.types.Operator):
     
     def execute(self, context):
         select_vertex_group(self.part, context)
-            
         return {'FINISHED'}
 
 class BodySim_BIND_SENSOR(bpy.types.Operator):
@@ -174,7 +203,8 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
 
     def execute(self, context):
         bind_to_text_vg(context)
-
+        model = context.scene.objects['model']
+        draw_sensor_list_panel(model['sensor_info'])
         return {'FINISHED'}
 
 def _draw_sensor_properties(self, context):
