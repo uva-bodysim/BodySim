@@ -72,14 +72,14 @@ def bind_to_text_vg(context):
     material = bpy.data.materials.new("Red sensor")
     material.diffuse_color = 1,0,0
     sensor.data.materials.append(material)
-    
-    model['sensors'] += 1
+
     # TODO Change the motion type and color
     bpy.context.scene.objects.active = model
     edit_mode()
-    model['sensor_info'][context.object.vertex_groups.active.name] = ('motion', 'red')
+    model['sensor_info'][context.object.vertex_groups.active.name] = ('motion', 'red', str(model['sensors']))
     bind_to_vertex_group(sensor, context)
     object_mode()
+    model['sensors'] += 1
     
 def cancel_selection():
     """Go back to object mode after selection"""
@@ -156,7 +156,10 @@ class AddSensorPanel(bpy.types.Panel):
 def _drawSingleSensorButtons(self, context):
     layout = self.layout
     for sensor in self.sensor_dict:
-        layout.operator("bodysim.select_body_part", text = sensor).part = sensor
+        row = layout.row(align = True)
+        row.alignment = 'EXPAND'
+        row.operator("bodysim.select_body_part", text = sensor).part = sensor
+        row.operator("bodysim.delete_sensor", text = "Delete").part = sensor
 
 def draw_sensor_list_panel(sensor_dict):
     bl_label = "Current Sensors"
@@ -204,6 +207,24 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
     def execute(self, context):
         bind_to_text_vg(context)
         model = context.scene.objects['model']
+        draw_sensor_list_panel(model['sensor_info'])
+        return {'FINISHED'}
+
+class BodySim_DELETE_SENSOR(bpy.types.Operator):
+    bl_idname = "bodysim.delete_sensor"
+    bl_label = "BodySim Delete Sensor"
+    part = bpy.props.StringProperty()
+
+    def execute(self, context):
+        object_mode()
+        context.scene.objects.active = None
+        model = context.scene.objects['model']
+        bpy.context.scene.objects.active = model
+        bpy.data.objects["Sensor_" +  model['sensor_info'][self.part][2]].select = True
+        bpy.ops.object.delete()
+        edit_mode()
+        cancel_selection()
+        del model['sensor_info'][self.part]
         draw_sensor_list_panel(model['sensor_info'])
         return {'FINISHED'}
 
