@@ -251,14 +251,16 @@ class BodySim_FINALIZE(bpy.types.Operator):
     bl_idname = "bodysim.finalize"
     bl_label = "Add sensor to the panel"
 
-    sensorColor = bpy.props.StringProperty()
+    sensorColor = bpy.props.FloatVectorProperty()
     sensorType = bpy.props.StringProperty()
 
     def execute(self, context):
         model = context.scene.objects['model']
         draw_sensor_list_panel(model['sensor_info'])
         print(self.sensorType)
-        print(self.sensorColor)
+        print(self.sensorColor[0])
+        print(self.sensorColor[1])
+        print(self.sensorColor[2])
         return {'FINISHED'}
 
 class BodySim_NEW_SENSOR(bpy.types.Operator):
@@ -278,7 +280,7 @@ def _draw_sensor_properties_page(self, context):
     col.prop(bpy.context.active_object, "sensor_color")
     col.prop(bpy.context.active_object, "sensor_type")
 
-    prop.sensorColor = str(bpy.context.active_object.sensor_color)
+    prop.sensorColor = bpy.context.active_object.sensor_color
     prop.sensorType = bpy.context.active_object.sensor_type
 
 
