@@ -80,14 +80,10 @@ def bind_to_text_vg(context):
     sensor = context.active_object
     sensor.scale = Vector((0.05, 0.05, 0.05))
     sensor.name = 'Sensor_' + str(model['sensors'])
-    material = bpy.data.materials.new("Red sensor")
-    material.diffuse_color = 1,0,0
-    sensor.data.materials.append(material)
-
+    
     # TODO Change the motion type and color
     bpy.context.scene.objects.active = model
     edit_mode()
-    model['sensor_info'][context.object.vertex_groups.active.name] = ('motion', 'red', str(model['sensors']))
     bind_to_vertex_group(sensor, context)
     object_mode()
     model['sensors'] += 1
@@ -217,8 +213,10 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
     bl_label = "BodySim Bind Sensor"
 
     def execute(self, context):
-        redraw_addSensorPanel(_draw_sensor_properties_page)
+        model = context.scene.objects['model']
         bind_to_text_vg(context)
+        context.scene.objects.active = context.scene.objects['Sensor_' + str((model['sensors'] - 1))]
+        redraw_addSensorPanel(_draw_sensor_properties_page)
         for panel in panel_list:
             bpy.utils.unregister_class(panel)
         return {'FINISHED'}
@@ -255,12 +253,17 @@ class BodySim_FINALIZE(bpy.types.Operator):
     sensorType = bpy.props.StringProperty()
 
     def execute(self, context):
+        sensor = context.active_object
+        print(sensor)
+        r = round(self.sensorColor[0], 3)
+        g = round(self.sensorColor[1], 3)
+        b = round(self.sensorColor[2], 3)
+        material = bpy.data.materials.new("SensorColor")
+        material.diffuse_color = r, g, b
+        sensor.data.materials.append(material)
         model = context.scene.objects['model']
+        model['sensor_info']['hi'] = (self.sensorType, str(r) + ',' + str(g) + ',' + str(b), str(model['sensors'] - 1))
         draw_sensor_list_panel(model['sensor_info'])
-        print(self.sensorType)
-        print(self.sensorColor[0])
-        print(self.sensorColor[1])
-        print(self.sensorColor[2])
         return {'FINISHED'}
 
 class BodySim_NEW_SENSOR(bpy.types.Operator):
@@ -297,16 +300,6 @@ def redraw_addSensorPanel(draw_function):
     "draw": draw_function},)
 
     bpy.utils.register_class(panel)
-
-class BodySim_SENSOR_PROPERTIES(bpy.types.Operator):
-    bl_idname = "bodysim.sensor_properties"
-    bl_label = "Bodysim Properties"
-
-    def execute(self, context):
-        redraw_addSensorPanel(_draw_sensor_properties_page)
-        for panel in panel_list:
-            bpy.utils.unregister_class(panel)
-        return {'FINISHED'}
 
 class BodySim_RESET_SENSORS(bpy.types.Operator):
     bl_idname = "bodysim.reset_sensors"
