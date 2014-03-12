@@ -188,14 +188,37 @@ def indent(elem, level=0):
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
 
-    
-def populate_sensor_list(num_sensors):
-    """ Get all the sensors in the scene."""
-    sensor_objects = []
-    for i in range(num_sensors):
-        sensor_objects.append(bpy.data.objects["Sensor_" + str(i)])
-    return sensor_objects
-        
+class NewSimulationOperator(bpy.types.Operator):
+    bl_idname = "bodysim.new_sim"
+    bl_label = "Create a new simulation"
+
+    def execute(self, context):
+        # TODO Let the user pick a previous simulation to use as a template.
+        # For now, this will clear all sensors.
+        global simulation_ran
+        if context.scene.objects['model']['sensor_info'] and not simulation_ran:
+            bpy.ops.bodysim.not_ran_sim_dialog('INVOKE_DEFAULT')
+        else:
+            bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
+        return {'FINISHED'}
+
+class NotRanSimDialogOperator(bpy.types.Operator):
+    bl_idname = "bodysim.not_ran_sim_dialog"
+    bl_label = "Simulation not ran yet on these sensors."
+
+
+    def execute(self, context):
+        bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column()
+        col.label(text="Are you sure you want to reset?")
+
 class TrackSensorOperator(bpy.types.Operator):
     bl_idname = "bodysim.track_sensors"
     bl_label = "Track Sensors"
@@ -221,7 +244,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         global sim_list
         simulation_ran = True
         model = context.scene.objects['model']
-        num_sensors = model['sensors']
+        num_sensors = len(model['sensor_info'])
 
         if 'session_path' not in model:
             session_path = path_to_this_file + os.sep + 'tmp'
@@ -268,7 +291,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         file.write(tostring(sensors_element))
         model['simulation_count'] += 1
         scene = bpy.context.scene
-        sensor_objects = populate_sensor_list(num_sensors)
+        sensor_objects = populate_sensor_list(num_sensors, context)
         track_sensors(1, 100, num_sensors, sensor_objects, scene, path + os.sep + 'raw')
         return {'FINISHED'}
 
@@ -279,36 +302,13 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         self.simulation_name = "simulation_" + str(model['simulation_count'])
         return context.window_manager.invoke_props_dialog(self)
 
-class NewSimulationOperator(bpy.types.Operator):
-    bl_idname = "bodysim.new_sim"
-    bl_label = "Create a new simulation"
-
-    def execute(self, context):
-        # TODO Let the user pick a previous simulation to use as a template.
-        # For now, this will clear all sensors.
-        global simulation_ran
-        if context.scene.objects['model']['sensor_info'] and not simulation_ran:
-            bpy.ops.bodysim.not_ran_sim_dialog('INVOKE_DEFAULT')
-        else:
-            bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
-        return {'FINISHED'}
-
-class NotRanSimDialogOperator(bpy.types.Operator):
-    bl_idname = "bodysim.not_ran_sim_dialog"
-    bl_label = "Simulation not ran yet on these sensors."
-
-
-    def execute(self, context):
-        bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
-        return {'FINISHED'}
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
-
-    def draw(self, context):
-        layout = self.layout
-        col = layout.column()
-        col.label(text="Are you sure you want to reset?")
+def populate_sensor_list(num_sensors, context):
+    """ Get all the sensors in the scene."""
+    print(bpy.data.objects)
+    sensor_objects = []
+    for i in context.scene.objects['model']['sensor_info']:
+        sensor_objects.append(bpy.data.objects['sensor_' + i])
+    return sensor_objects
 
 def track_sensors(frame_start, frame_end, num_sensors, sensor_objects, scene, path):
     """Print location and rotation of sensors along respective paths.
@@ -317,9 +317,8 @@ def track_sensors(frame_start, frame_end, num_sensors, sensor_objects, scene, pa
 
     """
     data_files = []
-    for i in range(num_sensors):
-        data_files.append(open(path + os.sep + 'sensor_' + str(i) + '.csv', 'w'))
-        print(os.path.realpath(data_files[i].name))
+    for i in sensor_objects:
+        data_files.append(open(path + os.sep + i.name + '.csv', 'w'))
 
     for i in range(frame_end - frame_start + 1):
         current_frame = frame_start + i

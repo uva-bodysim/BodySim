@@ -67,11 +67,11 @@ def bind_to_text_vg(context):
         
     model = context.scene.objects['model']
     
-    if('sensors' not in model.keys()):
-        model['sensors'] = 0
-
     if('sensor_info' not in model.keys()):
         model['sensor_info'] = {}
+
+    if('current_vg' not in model.keys()):
+        model['current_vg'] = ""
     
     context.scene.objects.active = None
     # add cube and scale
@@ -79,14 +79,15 @@ def bind_to_text_vg(context):
     
     sensor = context.active_object
     sensor.scale = Vector((0.05, 0.05, 0.05))
-    sensor.name = 'Sensor_' + str(model['sensors'])
     
     # TODO Change the motion type and color
     bpy.context.scene.objects.active = model
     edit_mode()
+    sensor.name = 'sensor_' + context.object.vertex_groups.active.name
+    model['current_vg'] = context.object.vertex_groups.active.name
     bind_to_vertex_group(sensor, context)
     object_mode()
-    model['sensors'] += 1
+    return sensor.name
     
 def cancel_selection():
     """Go back to object mode after selection"""
@@ -110,7 +111,6 @@ def bind_to_vertex_group(obj, context):
     obj.location = (0.0, 0.0, 0.0)
 
     cancel_selection()
-
 
 '''
 Panels
@@ -214,8 +214,8 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
 
     def execute(self, context):
         model = context.scene.objects['model']
-        bind_to_text_vg(context)
-        context.scene.objects.active = context.scene.objects['Sensor_' + str((model['sensors'] - 1))]
+        sensor_name = bind_to_text_vg(context)
+        context.scene.objects.active = context.scene.objects[sensor_name]
         redraw_addSensorPanel(_draw_sensor_properties_page)
         for panel in panel_list:
             bpy.utils.unregister_class(panel)
@@ -231,7 +231,7 @@ class BodySim_DELETE_SENSOR(bpy.types.Operator):
         context.scene.objects.active = None
         model = context.scene.objects['model']
         bpy.context.scene.objects.active = model
-        bpy.data.objects["Sensor_" +  model['sensor_info'][self.part][2]].select = True
+        bpy.data.objects["Sensor_" + self.part].select = True
         bpy.ops.object.delete()
         edit_mode()
         cancel_selection()
@@ -262,7 +262,7 @@ class BodySim_FINALIZE(bpy.types.Operator):
         material.diffuse_color = r, g, b
         sensor.data.materials.append(material)
         model = context.scene.objects['model']
-        model['sensor_info']['hi'] = (self.sensorType, str(r) + ',' + str(g) + ',' + str(b), str(model['sensors'] - 1))
+        model['sensor_info'][model['current_vg']] = (self.sensorType, str(r) + ',' + str(g) + ',' + str(b))
         draw_sensor_list_panel(model['sensor_info'])
         return {'FINISHED'}
 
@@ -309,7 +309,6 @@ class BodySim_RESET_SENSORS(bpy.types.Operator):
         object_mode()
         model = context.scene.objects['model']
         context.scene.objects.active = None
-        model['sensors'] = 0
         model['sensor_info'] = {}
         bpy.context.scene.objects.active = model
         sensors_to_delete = [item.name for item in bpy.data.objects if item.name.startswith("Sensor")]
