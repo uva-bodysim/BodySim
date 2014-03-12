@@ -62,7 +62,7 @@ def select_vertex_group(vg_name, context):
     bpy.ops.object.vertex_group_set_active(group=vg_name)
     bpy.ops.object.vertex_group_select()
 
-def bind_to_text_vg(context):
+def bind_to_text_vg(context, color_tuple):
     object_mode()
         
     model = context.scene.objects['model']
@@ -79,6 +79,11 @@ def bind_to_text_vg(context):
     
     sensor = context.active_object
     sensor.scale = Vector((0.05, 0.05, 0.05))
+
+    if color_tuple:
+        material = bpy.data.materials.new("SensorColor")
+        material.diffuse_color = color_tuple
+        sensor.data.materials.append(material)
     
     # TODO Change the motion type and color
     bpy.context.scene.objects.active = model
@@ -214,7 +219,7 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
 
     def execute(self, context):
         model = context.scene.objects['model']
-        sensor_name = bind_to_text_vg(context)
+        sensor_name = bind_to_text_vg(context, None)
         context.scene.objects.active = context.scene.objects[sensor_name]
         redraw_addSensorPanel(_draw_sensor_properties_page)
         for panel in panel_list:
@@ -231,7 +236,7 @@ class BodySim_DELETE_SENSOR(bpy.types.Operator):
         context.scene.objects.active = None
         model = context.scene.objects['model']
         bpy.context.scene.objects.active = model
-        bpy.data.objects["Sensor_" + self.part].select = True
+        bpy.data.objects["sensor_" + self.part].select = True
         bpy.ops.object.delete()
         edit_mode()
         cancel_selection()
@@ -254,7 +259,6 @@ class BodySim_FINALIZE(bpy.types.Operator):
 
     def execute(self, context):
         sensor = context.active_object
-        print(sensor)
         r = round(self.sensorColor[0], 3)
         g = round(self.sensorColor[1], 3)
         b = round(self.sensorColor[2], 3)

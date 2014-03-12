@@ -15,7 +15,7 @@ import shutil
 from queue import Queue, Empty
 from threading import Thread
 import subprocess
-from vertex_group_operator import select_vertex_group, bind_to_text_vg
+from vertex_group_operator import select_vertex_group, bind_to_text_vg, draw_sensor_list_panel
 from multiprocessing import Pool
 from xml.etree.ElementTree import ElementTree as ET
 from xml.etree.ElementTree import *
@@ -373,13 +373,15 @@ class LoadSimulationOperator(bpy.types.Operator):
 
         for sensor in tree.iter('sensor'):
             sensor_subelements = list(sensor)
+            print(sensor_subelements)
 
-            context.scene.objects['model']['sensor_info'][sensor.attrib['location']] = (sensor_subelements[0].text,
+            model['sensor_info'][sensor.attrib['location']] = (sensor_subelements[0].text,
                                                                                         sensor_subelements[1].text)
 
             select_vertex_group(sensor.attrib['location'], context)
-            bind_to_text_vg(context)
 
+            bind_to_text_vg(context, tuple([float(color) for color in sensor_subelements[1].text.split(',')]))
+            draw_sensor_list_panel(model['sensor_info'])
         return {'FINISHED'}
 
 
