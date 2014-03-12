@@ -16,11 +16,21 @@ from math import *
 # vertx groups).
 panel_list = []
 
+def update_color(self, context):
+    context.scene.objects.active = context.scene.objects[self.name]
+    while self.data.materials:
+        self.data.materials.pop()
+
+    material = bpy.data.materials.new("SensorColor")
+    material.diffuse_color = context.scene.objects[self.name].sensor_color
+    self.data.materials.append(material)
+
 bpy.types.Object.sensor_color = FloatVectorProperty(name="sensor_color",
     subtype='COLOR',
     default=(1.0, 1.0, 1.0),
     min=0.0, max=1.0,
-    description="color picker"
+    description="color picker",
+    update=update_color,
     )
 
 bpy.types.Object.sensor_type = StringProperty(name="sensor_type",
@@ -84,6 +94,7 @@ def bind_to_text_vg(context, color_tuple):
         material = bpy.data.materials.new("SensorColor")
         material.diffuse_color = color_tuple
         sensor.data.materials.append(material)
+        context.scene.objects[sensor.name].sensor_color = color_tuple
     
     # TODO Change the motion type and color
     bpy.context.scene.objects.active = model
@@ -161,16 +172,20 @@ class AddSensorPanel(bpy.types.Panel):
     bl_context = "objectmode"
     
     def draw(self, context):
-        layout = self.layout
-        layout.operator("bodysim.new_sensor", text="Add Sensor")
-        layout.operator("bodysim.reset_sensors", text="Reset Sensors")
+        _drawAddSensorFirstPage(self, context)
+
+def _drawAddSensorFirstPage(self, context):
+    layout = self.layout
+    layout.operator("bodysim.new_sensor", text="Add Sensor")
+    layout.operator("bodysim.reset_sensors", text="Reset Sensors")
 
 def _drawSingleSensorButtons(self, context):
     layout = self.layout
     for sensor in self.sensor_dict:
         row = layout.row(align = True)
         row.alignment = 'EXPAND'
-        row.operator("bodysim.select_body_part", text = sensor).part = sensor
+        row.operator("bodysim.locate_body_part", text = sensor).part = sensor
+        row.prop(context.scene.objects['sensor_' + sensor], "sensor_color")
         row.operator("bodysim.delete_sensor", text = "Delete").part = sensor
 
 def draw_sensor_list_panel(sensor_dict):
@@ -179,14 +194,16 @@ def draw_sensor_list_panel(sensor_dict):
     bl_region_type = 'UI'
     bl_context = "objectmode"
 
-    panel = type("CurrentSensorsPanel", (bpy.types.Panel,),{
-        "bl_label": bl_label,
-        "bl_space_type": bl_space_type,
-        "bl_region_type": bl_region_type,
-        "sensor_dict": sensor_dict,
-        "draw": _drawSingleSensorButtons},)
-
-    bpy.utils.register_class(panel)
+    if sensor_dict:
+        panel = type("CurrentSensorsPanel", (bpy.types.Panel,),{
+            "bl_label": bl_label,
+            "bl_space_type": bl_space_type,
+            "bl_region_type": bl_region_type,
+            "sensor_dict": sensor_dict,
+            "draw": _drawSingleSensorButtons},)
+        bpy.utils.register_class(panel)
+    else:
+        bpy.utils.register_class(CurrentSensorsPanel)
     
 class CurrentSensorsPanel(bpy.types.Panel):
     bl_label = "Current Sensors"
@@ -202,6 +219,15 @@ class CurrentSensorsPanel(bpy.types.Panel):
 Operators
 =========
 '''
+
+class BodySim_LOCATE_BODY_PART(bpy.types.Operator):
+    bl_idname = "bodysim.locate_body_part"
+    bl_label = "BodySim Locate Body Part"
+    part = bpy.props.StringProperty()
+
+    def execute(self, context):
+        context.scene.objects.active = context.scene.objects['sensor_' + self.part]
+        return {'FINISHED'}
 
 class BodySim_SELECT_BODY_PART(bpy.types.Operator):
     bl_idname = "bodysim.select_body_part"
@@ -241,10 +267,13 @@ class BodySim_DELETE_SENSOR(bpy.types.Operator):
         edit_mode()
         cancel_selection()
         del model['sensor_info'][self.part]
-        draw_sensor_list_panel(model['sensor_info'])
+        if model['sensor_info']:
+            draw_sensor_list_panel(model['sensor_info'])
+        else:
+            draw_sensor_list_panel(None)
         return {'FINISHED'}
 
-# Property V1 (addd sensor)
+# Property V1 (add sensor)
 def _draw_sensor_properties(self, context):
     layout = self.layout
     layout.operator("bodysim.bind_sensor", text="Next")
@@ -267,6 +296,7 @@ class BodySim_FINALIZE(bpy.types.Operator):
         sensor.data.materials.append(material)
         model = context.scene.objects['model']
         model['sensor_info'][model['current_vg']] = (self.sensorType, str(r) + ',' + str(g) + ',' + str(b))
+        redraw_addSensorPanel(_drawAddSensorFirstPage)
         draw_sensor_list_panel(model['sensor_info'])
         return {'FINISHED'}
 
@@ -282,13 +312,14 @@ class BodySim_NEW_SENSOR(bpy.types.Operator):
 # Draw the V2, finalize
 def _draw_sensor_properties_page(self, context):
     layout = self.layout
+    model = context.scene.objects['model']
     col = layout.column()
     prop = col.operator("bodysim.finalize", text="Finalize")
-    col.prop(bpy.context.active_object, "sensor_color")
-    col.prop(bpy.context.active_object, "sensor_type")
+    col.prop(context.scene.objects['sensor_' + model['current_vg']], "sensor_color")
+    col.prop(context.scene.objects['sensor_' + model['current_vg']], "sensor_type")
 
-    prop.sensorColor = bpy.context.active_object.sensor_color
-    prop.sensorType = bpy.context.active_object.sensor_type
+    prop.sensorColor = context.scene.objects['sensor_' + model['current_vg']].sensor_color
+    prop.sensorType = context.scene.objects['sensor_' + model['current_vg']].sensor_type
 
 
 def redraw_addSensorPanel(draw_function):
