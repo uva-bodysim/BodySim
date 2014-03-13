@@ -262,19 +262,19 @@ class BodySim_DELETE_SENSOR(bpy.types.Operator):
         context.scene.objects.active = None
         model = context.scene.objects['model']
         bpy.context.scene.objects.active = model
+        for sensor in model['sensor_info']:
+            bpy.data.objects["sensor_" + sensor].select = False
+
         bpy.data.objects["sensor_" + self.part].select = True
         bpy.ops.object.delete()
-        edit_mode()
-        cancel_selection()
-        del model['sensor_info'][self.part]
+        model['sensor_info'].pop(self.part)
         if model['sensor_info']:
             draw_sensor_list_panel(model['sensor_info'])
         else:
             draw_sensor_list_panel(None)
         return {'FINISHED'}
 
-# Property V1 (add sensor)
-def _draw_sensor_properties(self, context):
+def _draw_bind_button(self, context):
     layout = self.layout
     layout.operator("bodysim.bind_sensor", text="Next")
 
@@ -305,11 +305,10 @@ class BodySim_NEW_SENSOR(bpy.types.Operator):
     bl_label = "Create a new sensor"
     
     def execute(self, context):
-        redraw_addSensorPanel(_draw_sensor_properties)
+        redraw_addSensorPanel(_draw_bind_button)
         draw_body_part_panels()
         return {'FINISHED'}
 
-# Draw the V2, finalize
 def _draw_sensor_properties_page(self, context):
     layout = self.layout
     model = context.scene.objects['model']
@@ -320,7 +319,6 @@ def _draw_sensor_properties_page(self, context):
 
     prop.sensorColor = context.scene.objects['sensor_' + model['current_vg']].sensor_color
     prop.sensorType = context.scene.objects['sensor_' + model['current_vg']].sensor_type
-
 
 def redraw_addSensorPanel(draw_function):
     bl_label = "Add Sensor"
