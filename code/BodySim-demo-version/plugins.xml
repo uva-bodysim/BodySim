@@ -1,0 +1,10 @@
+<simulator name="IMU" file="imusimulator">
+    <variables>
+        <variable>x_acc</variable>
+        <variable>y_acc</variable>
+        <variable>z_acc</variable>
+        <variable>x_gyro</variable>
+        <variable>y_gyro</variable>
+        <variable>z_gyro</variable>
+    </variables>
+</simulator>

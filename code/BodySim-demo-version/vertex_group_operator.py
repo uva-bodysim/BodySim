@@ -7,14 +7,21 @@ The wire frame of the blender object this is working on must
 """ 
 
 import bpy
+import os
 from bpy.props import FloatVectorProperty, StringProperty
 from mathutils import *
 from math import *
+from xml.etree.ElementTree import ElementTree as ET
+from xml.etree.ElementTree import *
+dirname = os.path.dirname
+path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
 
 # List of vertices for a model.
 # Note that this must be cleared each time a new model is loaded (different
 # vertx groups).
 panel_list = []
+
+plugins = {}
 
 def update_color(self, context):
     context.scene.objects.active = context.scene.objects[self.name]
@@ -363,7 +370,21 @@ class BodySim_DESELECT_BODY_PART(bpy.types.Operator):
 
         return {'FINISHED'}
 
+def get_plugins():
+    # TODO Error checking (existance of plugins.xml, duplicate plugins)
+    tree = ET().parse(path_to_this_file + os.sep + 'plugins.xml')
+    for simulator in tree.iter('simulator'):
+        simulator_name = simulator.attrib['name']
+        simulator_file = simulator.attrib['file']
+        varaibles = []
+        for variable in simulator[0].iter('variable'):
+            variables.append(variable.text)
+
+        plugins[simulator_name] = {'file' : simulator_file, 'variables' : variables}
+
+
 def register():
+    get_plugins()
     bpy.utils.register_module(__name__)
 
 
