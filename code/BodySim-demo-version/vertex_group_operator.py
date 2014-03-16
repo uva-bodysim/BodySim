@@ -21,6 +21,8 @@ path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
 # vertx groups).
 panel_list = []
 
+plugin_panel_list = []
+
 plugins = {}
 
 def update_color(self, context):
@@ -31,6 +33,8 @@ def update_color(self, context):
     material = bpy.data.materials.new("SensorColor")
     material.diffuse_color = context.scene.objects[self.name].sensor_color
     self.data.materials.append(material)
+
+
 
 bpy.types.Object.sensor_color = FloatVectorProperty(name="sensor_color",
     subtype='COLOR',
@@ -145,9 +149,7 @@ def _draw(self, context):
 
 
 def draw_body_part_panels():
-
     global panel_list
-
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_context = "objectmode"
@@ -170,6 +172,38 @@ def draw_body_part_panels():
     else:
         for panel in panel_list:
             bpy.utils.register_class(panel)
+
+def _draw_plugin_panels(self, context):
+    model = context.scene.objects['model']
+    layout = self.layout
+    for var in self.var_list:
+        layout.prop(context.scene.objects['sensor_' + model['current_vg']], self.sim_name + var)
+
+def draw_plugins_subpanels():
+    global plugins
+    global plugin_panel_list
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_context = "objectmode"
+    if not plugin_panel_list:
+        for simulator in plugins:
+            subpanel = type("SimulationSubPanel%s" % simulator,
+                (bpy.types.Panel,),
+                {"bl_label": simulator,
+                            "bl_space_type": bl_space_type,
+                            "bl_region_type": bl_region_type,
+                            "bl_context": bl_context,
+                            "bl_options": {"DEFAULT_CLOSED"},
+                            "sim_name": simulator,
+                            "var_list": plugins[simulator]['variables'],
+                            "draw" : _draw_plugin_panels},
+                        )
+            plugin_panel_list.append(subpanel)
+            bpy.utils.register_class(subpanel)
+    else:
+        for subpanel in plugin_panel_list:
+            bpy.utils.register_class(subpanel)
+
 
 class AddSensorPanel(bpy.types.Panel):
     """A Custom Panel in the Viewport Toolbar"""
@@ -255,6 +289,7 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
         sensor_name = bind_to_text_vg(context, None)
         context.scene.objects.active = context.scene.objects[sensor_name]
         redraw_addSensorPanel(_draw_sensor_properties_page)
+        draw_plugins_subpanels()
         for panel in panel_list:
             bpy.utils.unregister_class(panel)
         return {'FINISHED'}
@@ -294,6 +329,8 @@ class BodySim_FINALIZE(bpy.types.Operator):
     sensorType = bpy.props.StringProperty()
 
     def execute(self, context):
+        for subpanel in plugin_panel_list:
+            bpy.utils.unregister_class(subpanel)
         sensor = context.active_object
         r = round(self.sensorColor[0], 3)
         g = round(self.sensorColor[1], 3)
@@ -323,7 +360,6 @@ def _draw_sensor_properties_page(self, context):
     prop = col.operator("bodysim.finalize", text="Finalize")
     col.prop(context.scene.objects['sensor_' + model['current_vg']], "sensor_color")
     col.prop(context.scene.objects['sensor_' + model['current_vg']], "sensor_type")
-
     prop.sensorColor = context.scene.objects['sensor_' + model['current_vg']].sensor_color
     prop.sensorType = context.scene.objects['sensor_' + model['current_vg']].sensor_type
 
@@ -340,6 +376,7 @@ def redraw_addSensorPanel(draw_function):
     "draw": draw_function},)
 
     bpy.utils.register_class(panel)
+
 
 class BodySim_RESET_SENSORS(bpy.types.Operator):
     bl_idname = "bodysim.reset_sensors"
@@ -376,9 +413,12 @@ def get_plugins():
     for simulator in tree.iter('simulator'):
         simulator_name = simulator.attrib['name']
         simulator_file = simulator.attrib['file']
-        varaibles = []
+        variables = []
         for variable in simulator[0].iter('variable'):
             variables.append(variable.text)
+            # Append simulator name to allow variables of the same name over different
+            # simulations.
+            setattr(bpy.types.Object, simulator_name + variable.text, bpy.props.BoolProperty(default=False, name=variable.text))
 
         plugins[simulator_name] = {'file' : simulator_file, 'variables' : variables}
 
