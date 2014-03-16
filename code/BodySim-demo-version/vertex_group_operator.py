@@ -44,9 +44,6 @@ bpy.types.Object.sensor_color = FloatVectorProperty(name="sensor_color",
     update=update_color,
     )
 
-bpy.types.Object.sensor_type = StringProperty(name="sensor_type",
-    default="Motion")
-
 '''
 Functions
 '''
@@ -177,7 +174,12 @@ def _draw_plugin_panels(self, context):
     model = context.scene.objects['model']
     layout = self.layout
     for var in self.var_list:
-        layout.prop(context.scene.objects['sensor_' + model['current_vg']], self.sim_name + var)
+        # Hard coded plugin: Trajectory
+        if self.sim_name == 'Trajectory':
+            layout.enabled = False
+            layout.prop(context.scene.objects['sensor_' + model['current_vg']], self.sim_name + var)
+        else:
+            layout.prop(context.scene.objects['sensor_' + model['current_vg']], self.sim_name + var)
 
 def draw_plugins_subpanels():
     global plugins
@@ -359,9 +361,7 @@ def _draw_sensor_properties_page(self, context):
     col = layout.column()
     prop = col.operator("bodysim.finalize", text="Finalize")
     col.prop(context.scene.objects['sensor_' + model['current_vg']], "sensor_color")
-    col.prop(context.scene.objects['sensor_' + model['current_vg']], "sensor_type")
     prop.sensorColor = context.scene.objects['sensor_' + model['current_vg']].sensor_color
-    prop.sensorType = context.scene.objects['sensor_' + model['current_vg']].sensor_type
 
 def redraw_addSensorPanel(draw_function):
     bl_label = "Add Sensor"
@@ -409,6 +409,12 @@ class BodySim_DESELECT_BODY_PART(bpy.types.Operator):
 
 def get_plugins():
     # TODO Error checking (existance of plugins.xml, duplicate plugins)
+    # Hard coded plugin: Trajectory
+    trajectory_vars = ['x', 'y', 'z', 'w', 'rx', 'ry', 'rz']
+    plugins['Trajectory'] = {'file' : None, 'variables' : trajectory_vars}
+    for var in trajectory_vars:
+        setattr(bpy.types.Object, 'Trajectory' + var, bpy.props.BoolProperty(default=True, name=var))
+
     tree = ET().parse(path_to_this_file + os.sep + 'plugins.xml')
     for simulator in tree.iter('simulator'):
         simulator_name = simulator.attrib['name']
