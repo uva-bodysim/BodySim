@@ -181,8 +181,7 @@ def _draw_plugin_panels(self, context):
         else:
             layout.prop(context.scene.objects['sensor_' + model['current_vg']], self.sim_name + var)
 
-def draw_plugins_subpanels():
-    global plugins
+def draw_plugins_subpanels(plugins):
     global plugin_panel_list
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -291,7 +290,7 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
         sensor_name = bind_to_text_vg(context, None)
         context.scene.objects.active = context.scene.objects[sensor_name]
         redraw_addSensorPanel(_draw_sensor_properties_page)
-        draw_plugins_subpanels()
+        draw_plugins_subpanels(plugins)
         for panel in panel_list:
             bpy.utils.unregister_class(panel)
         return {'FINISHED'}
@@ -407,15 +406,16 @@ class BodySim_DESELECT_BODY_PART(bpy.types.Operator):
 
         return {'FINISHED'}
 
-def get_plugins():
+def get_plugins(path, setTheAttrs):
     # TODO Error checking (existance of plugins.xml, duplicate plugins)
     # Hard coded plugin: Trajectory
+    plugins_dict = {}
     trajectory_vars = ['x', 'y', 'z', 'w', 'rx', 'ry', 'rz']
-    plugins['Trajectory'] = {'file' : None, 'variables' : trajectory_vars}
+    plugins_dict['Trajectory'] = {'file' : None, 'variables' : trajectory_vars}
     for var in trajectory_vars:
         setattr(bpy.types.Object, 'Trajectory' + var, bpy.props.BoolProperty(default=True, name=var))
 
-    tree = ET().parse(path_to_this_file + os.sep + 'plugins.xml')
+    tree = ET().parse(path + os.sep + 'plugins.xml')
     for simulator in tree.iter('simulator'):
         simulator_name = simulator.attrib['name']
         simulator_file = simulator.attrib['file']
@@ -424,13 +424,16 @@ def get_plugins():
             variables.append(variable.text)
             # Append simulator name to allow variables of the same name over different
             # simulations.
-            setattr(bpy.types.Object, simulator_name + variable.text, bpy.props.BoolProperty(default=False, name=variable.text))
+            if setTheAttrs:
+                setattr(bpy.types.Object, simulator_name + variable.text, bpy.props.BoolProperty(default=False, name=variable.text))
 
-        plugins[simulator_name] = {'file' : simulator_file, 'variables' : variables}
+        plugins_dict[simulator_name] = {'file' : simulator_file, 'variables' : variables}
 
+    return plugins_dict
 
 def register():
-    get_plugins()
+    global plugins
+    plugins = get_plugins(path_to_this_file, True)
     bpy.utils.register_module(__name__)
 
 

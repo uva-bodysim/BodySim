@@ -1,4 +1,5 @@
-<simulator name="IMU" file="imusimulator">
+<plugins>
+<simulator name="IMU" file="imusimulator.py">
     <variables>
         <variable>x_acc</variable>
         <variable>y_acc</variable>
@@ -8,3 +9,15 @@
         <variable>z_gyro</variable>
     </variables>
 </simulator>
+
+<simulator name="ABC" file="imusimulator.py">
+    <variables>
+        <variable>a_acc</variable>
+        <variable>b_acc</variable>
+        <variable>c_acc</variable>
+        <variable>x_gyro</variable>
+        <variable>y_gyro</variable>
+        <variable>z_gyro</variable>
+    </variables>
+</simulator>
+</plugins>
