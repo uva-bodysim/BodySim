@@ -25,6 +25,10 @@ plugin_panel_list = []
 
 plugins = {}
 
+current_sensor_panel = None
+
+current_graph_panel = None
+
 def update_color(self, context):
     context.scene.objects.active = context.scene.objects[self.name]
     while self.data.materials:
@@ -229,21 +233,23 @@ def _drawSingleSensorButtons(self, context):
         row.operator("bodysim.locate_body_part", text = sensor).part = sensor
         row.prop(context.scene.objects['sensor_' + sensor], "sensor_color")
         row.operator("bodysim.delete_sensor", text = "Delete").part = sensor
+        row.operator("bodysim.graph_select", text = "Graph Selection").part = sensor
 
 def draw_sensor_list_panel(sensor_dict):
     bl_label = "Current Sensors"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_context = "objectmode"
+    global current_sensor_panel
 
     if sensor_dict:
-        panel = type("CurrentSensorsPanel", (bpy.types.Panel,),{
+        current_sensor_panel = type("CurrentSensorsPanel", (bpy.types.Panel,),{
             "bl_label": bl_label,
             "bl_space_type": bl_space_type,
             "bl_region_type": bl_region_type,
             "sensor_dict": sensor_dict,
             "draw": _drawSingleSensorButtons},)
-        bpy.utils.register_class(panel)
+        bpy.utils.register_class(current_sensor_panel)
     else:
         bpy.utils.register_class(CurrentSensorsPanel)
     
@@ -376,6 +382,52 @@ def redraw_addSensorPanel(draw_function):
 
     bpy.utils.register_class(panel)
 
+def draw_GraphSelectionPanel(part):
+    bl_label = "Graph Sensors"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_context = "objectmode"
+
+    global current_graph_panel
+
+    current_graph_panel = type("GraphingPanel", (bpy.types.Panel,),{
+    "bl_label": "Graph Sensor " + part,
+    "bl_space_type": bl_space_type,
+    "bl_region_type": bl_region_type,
+    "part": part,
+    "draw": _draw_selected_simvars},)
+
+    bpy.utils.register_class(current_graph_panel)
+
+def _draw_selected_simvars(self, context):
+    layout = self.layout
+    column = layout.column()
+    for simulator in plugins:
+        for variable in plugins[simulator]['variables']:
+            if getattr(context.scene.objects['sensor_' + self.part], simulator + variable):
+                column.prop(context.scene.objects['sensor_' + self.part], 'GRAPH_' + simulator + variable)
+
+    column.operator("bodysim.graph_return", text = "Return")
+
+class GraphButton(bpy.types.Operator):
+    bl_idname = "bodysim.graph_select"
+    bl_label = "Select variables to graph"
+    part = bpy.props.StringProperty()
+
+    def execute(self, context):
+        bpy.utils.unregister_class(current_sensor_panel)
+        draw_GraphSelectionPanel(self.part)
+        return {'FINISHED'}
+
+class ReturnToCurrentSensors(bpy.types.Operator):
+    bl_idname = "bodysim.graph_return"
+    bl_label = "Return to current sensor list"
+
+    def execute(self, context):
+        global current_graph_panel
+        bpy.utils.unregister_class(current_graph_panel)
+        bpy.utils.register_class(current_sensor_panel)
+        return {'FINISHED'}
 
 class BodySim_RESET_SENSORS(bpy.types.Operator):
     bl_idname = "bodysim.reset_sensors"
@@ -414,6 +466,7 @@ def get_plugins(path, setTheAttrs):
     plugins_dict['Trajectory'] = {'file' : None, 'variables' : trajectory_vars}
     for var in trajectory_vars:
         setattr(bpy.types.Object, 'Trajectory' + var, bpy.props.BoolProperty(default=True, name=var))
+        setattr(bpy.types.Object, 'GRAPH_Trajectory' + var, bpy.props.BoolProperty(default=False, name='Trajectory_' + var))
 
     tree = ET().parse(path + os.sep + 'plugins.xml')
     for simulator in tree.iter('simulator'):
@@ -426,6 +479,7 @@ def get_plugins(path, setTheAttrs):
             # simulations.
             if setTheAttrs:
                 setattr(bpy.types.Object, simulator_name + variable.text, bpy.props.BoolProperty(default=False, name=variable.text))
+                setattr(bpy.types.Object, 'GRAPH_' + simulator_name + variable.text, bpy.props.BoolProperty(default=False, name=simulator_name + variable.text))
 
         plugins_dict[simulator_name] = {'file' : simulator_file, 'variables' : variables}
 

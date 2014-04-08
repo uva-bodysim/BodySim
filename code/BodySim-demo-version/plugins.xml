@@ -1,5 +1,5 @@
 <plugins>
-<simulator name="IMU" file="imusimulator.py">
+<simulator name="IMU" file="imu_simulator.py">
     <variables>
         <variable>x_acc</variable>
         <variable>y_acc</variable>

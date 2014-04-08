@@ -278,10 +278,21 @@ class NameSimulationDialogOperator(bpy.types.Operator):
 
         sensor_dict = context.scene.objects['model']['sensor_info']
         sensors_element = Element('sensors')
+
+        sim_dict = get_sensor_plugin_mapping(context)
+
         for location, info in sensor_dict.iteritems():
             curr_sensor_element = Element('sensor', {'location' : location})
-            curr_sensor_type_element = Element('type')
-            curr_sensor_type_element.text = info[0]
+            curr_sensor_type_element = Element('plugins_used')
+            # Add information about plugins
+            for plugin in sim_dict[location]:
+                curr_plugin_element = Element('plugin', {'name' : plugin})
+                curr_sensor_type_element.extend([curr_plugin_element])
+                for variable in sim_dict[location][plugin]:
+                    curr_variable_element = Element('variable')
+                    curr_variable_element.text = variable
+                    curr_plugin_element.extend([curr_variable_element])
+            #curr_sensor_type_element.text = info[0]
             curr_sensor_color_element = Element('color')
             curr_sensor_color_element.text = info[1]
             curr_sensor_element.extend([curr_sensor_type_element, curr_sensor_color_element])
@@ -289,11 +300,13 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         indent(sensors_element)
         file = open(path + os.sep + 'sensors.xml', 'wb')
         file.write(tostring(sensors_element))
+        file.flush()
+        file.close()
         model['simulation_count'] += 1
         scene = bpy.context.scene
         sensor_objects = populate_sensor_list(num_sensors, context)
         track_sensors(1, 100, num_sensors, sensor_objects, scene, path + os.sep + 'raw')
-        execute_simulators(context)
+        execute_simulators(context, sim_dict)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -311,13 +324,26 @@ def populate_sensor_list(num_sensors, context):
         sensor_objects.append(bpy.data.objects['sensor_' + i])
     return sensor_objects
 
-def execute_simulators(context):
+def execute_simulators(context, sim_dict):
     """
     Run simulators depending sensor and variables selected.
 
     """
+    model = context.scene.objects['model']
+    plugins = get_plugins(path_to_this_file,False)
     # TODO Put fps somewhere else. Should it be set by the user?
     fps = 25
+    for sensor in sim_dict:
+        for simulator in sim_dict[sensor]:
+            args = " ".join(sim_dict[sensor][simulator])
+
+            # Run the simulator
+            subprocess.check_call("python " + path_to_this_file + os.sep + "plugins" + os.sep
+             + plugins[simulator]['file'] + ' '
+             + model['current_simulation_path'] + os.sep + 'raw' + os.sep + 'sensor_' + sensor + '.csv'
+             + ' ' + str(fps) + ' ' + args)
+
+def get_sensor_plugin_mapping(context):
     plugins = get_plugins(path_to_this_file,False)
     model = context.scene.objects['model']
     sim_dict = {}
@@ -333,15 +359,7 @@ def execute_simulators(context):
                             sim_dict[sensor][plugin] = []
                         sim_dict[sensor][plugin].append(variable)
 
-    for sensor in sim_dict:
-        for simulator in sim_dict[sensor]:
-            args = " ".join(sim_dict[sensor][simulator])
-
-            # Run the simulator
-            subprocess.check_call("python " + path_to_this_file + os.sep + "plugins" + os.sep
-             + plugins[simulator]['file'] + ' '
-             + model['current_simulation_path'] + os.sep + 'raw' + os.sep + 'sensor_' + sensor + '.csv'
-             + ' ' + str(fps) + ' ' + args)
+    return sim_dict
 
 
 def track_sensors(frame_start, frame_end, num_sensors, sensor_objects, scene, path):
@@ -445,9 +463,6 @@ class SimTools(bpy.types.Panel):
  
     def draw(self, context):
         self.layout.operator("bodysim.run_sim", text = "Run Simulation")
-        self.layout.operator("bodysim.plot_motion", text = "Plot Motion Data").plot_type = "-raw"
-        self.layout.operator("bodysim.plot_motion", text = "Plot IMU Data").plot_type = "-imu"
-        self.layout.operator("bodysim.plot_motion", text = "Plot Channel Data").plot_type = "-chan"
         self.layout.operator("bodysim.save", text = "Save Session")
         self.layout.operator("bodysim.load", text = "Load Session")
         self.layout.operator("bodysim.new_sim", text = "New Simulation")
