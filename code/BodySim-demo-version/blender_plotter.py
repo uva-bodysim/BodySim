@@ -51,46 +51,9 @@ class PlotNotebook(wx.Panel):
        self.figures[page.figure] = page.toolbar
        return page.figure
 
-    def plot_file(self, filename, fig, plot_type, fps):
-
-        labels = {'-raw': ['t','x','y','z','quat_w','quat_x','quat_y','quat_z'],
-                    '-imu': ['t','x','y','z','x','y','z'],
-                    '-chan': ['t','pathloss', 'pathloss']}
-        lengths = {'-raw': 8, '-imu': 7}
-
-        ranges = {'-raw': [range(1,4), range(4,8)], '-imu': [range(1,4), range(4,7)], 
-                    '-chan': [range(1,2), range(2,3)]}
-        ylabels = {'-raw': ['location (cm)', 'heading (rad)'], 
-                    '-imu': ['acceleration (m/s^2)', 'angular velocity (deg/s)'],
-                    '-chan': ['pathloss (dB)', 'pathloss(dB)']}
-        xlabel = {'-raw': 'frame no.', '-imu': 'time (s)', '-chan': 'time (s)'}
-
-        data = []
-        try:
-            f = open(filename, 'r').read().strip().split('\n')
-            values = [[float(a) for a in k.split(',')] for k in f]
-            data = zip(*values)
-            if(plot_type != '-chan'):
-                if len(data) != lengths[plot_type]:
-                    print("Bad file format! Make sure each line has {0} values!".format(lengths[plot_type]))
-        except IOError:
-            print("Bad file name!")
-            return
-        except:
-            print("Bad file format! Make sure each line has {0} values!".format(lengths[plot_type]))
-            return
-
-        share = None
-        if len(self.plots) != 0:
-            share = self.plots[0][0]
-
-        # 211: Two rows, one column, first subplot. Numbering starts row first.
-        ax1 = self.addSubfig(fig, 211, xlabel[plot_type], labels[plot_type][1:4], ylabels[plot_type][0], data[0], data[1:4], share)
-
-        ax2 = self.addSubfig(fig, 212, xlabel[plot_type], labels[plot_type][4:8], ylabels[plot_type][1], data[0], data[4:8], ax1)
-
+    def plot_file(self, fig, subfiglist, plot_type):
         # Makes sure the limits of the vertical line spans the y axis
-        lim = ax1.axis()
+        lim = subfiglist[0].axis()
         if self.limits == []: 
             self.limits = [lim[2], lim[3]]
         if lim[2] < self.limits[0]: 
@@ -98,7 +61,7 @@ class PlotNotebook(wx.Panel):
         if lim[3] > self.limits[1]: 
             self.limits[1] = lim[3]
 
-        self.plots.append((ax1, ax2),)
+        self.plots.append(subfiglist,)
         self.bind_to_onclick_event(fig, plot_type)
 
     def addSubfig(self,fig, layout, xlabel, labels, ylabel, xData, yDatum, shareAxis):
@@ -159,14 +122,51 @@ class PlotFrame(wx.Frame):
         self.Destroy()
    
 def plot_file(plot_type, fps, filenames):
+    labels = {'-raw': ['t','x','y','z','quat_w','quat_x','quat_y','quat_z'],
+                    '-imu': ['t','x','y','z','x','y','z'],
+                    '-chan': ['t','pathloss', 'pathloss']}
+
+    lengths = {'-raw': 8, '-imu': 7}
+
+    ranges = {'-raw': [range(1,4), range(4,8)], '-imu': [range(1,4), range(4,7)], 
+                '-chan': [range(1,2), range(2,3)]}
+    ylabels = {'-raw': ['location (cm)', 'heading (rad)'], 
+                '-imu': ['acceleration (m/s^2)', 'angular velocity (deg/s)'],
+                '-chan': ['pathloss (dB)', 'pathloss(dB)']}
+    xlabel = {'-raw': 'frame no.', '-imu': 'time (s)', '-chan': 'time (s)'}
+
     app = wx.PySimpleApp()
-    frame = PlotFrame() 
+    frame = PlotFrame()
     plotter = PlotNotebook(frame)
+    
     for filename in filenames:
         fig = plotter.add(os.path.splitext(os.path.basename(filename))[0])
-        plotter.plot_file(filename, fig, plot_type, fps,)
+        data = get_data(filename, plot_type, lengths)
+
+         # 211: Two rows, one column, first subplot. Numbering starts row first.
+        ax1 = plotter.addSubfig(fig, 211, xlabel[plot_type], labels[plot_type][1:4], ylabels[plot_type][0], data[0], data[1:4], None)
+        ax2 = plotter.addSubfig(fig, 212, xlabel[plot_type], labels[plot_type][4:8], ylabels[plot_type][1], data[0], data[4:8], ax1)
+        plotter.plot_file(fig, (ax1, ax2), plot_type)
     frame.Show()
     app.MainLoop()
+
+def get_data(filename, plot_type, lengths):
+    data = []
+    try:
+        f = open(filename, 'r').read().strip().split('\n')
+        values = [[float(a) for a in k.split(',')] for k in f]
+        data = zip(*values)
+        if(plot_type != '-chan'):
+            if len(data) != lengths[plot_type]:
+                print("Bad file format! Make sure each line has {0} values!".format(lengths[plot_type]))
+    except IOError:
+        print("Bad file name!")
+        return
+    except:
+        print("Bad file format! Make sure each line has {0} values!".format(lengths[plot_type]))
+        return
+
+    return data
 
 if __name__=="__main__":
     plot_file(sys.argv[1], float(sys.argv[2]), sys.argv[3:])
