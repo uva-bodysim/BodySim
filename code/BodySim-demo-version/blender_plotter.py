@@ -84,26 +84,11 @@ class PlotNotebook(wx.Panel):
         if len(self.plots) != 0:
             share = self.plots[0][0]
 
-        ax1 = fig.add_subplot(211, sharex=share)
-        ax1.set_title('Plot')
-        for i in ranges[plot_type][0]:
-            ax1.plot(data[0], data[i], label=labels[plot_type][i])
-        ax1.set_xlabel(xlabel[plot_type])
-        ax1.set_ylabel(ylabels[plot_type][0])
-        ax1.grid(True)
-        ax1.legend()
-        ax1.autoscale(enable=False, axis='both')
+        # 211: Two rows, one column, first subplot. Numbering starts row first.
+        ax1 = self.addSubfig(fig, 211, xlabel[plot_type], labels[plot_type][1:4], ylabels[plot_type][0], data[0], data[1:4], share)
 
-        ax2 = fig.add_subplot(212, sharex = ax1)
-        for i in ranges[plot_type][1]:
-            ax2.plot(data[0], data[i], label=labels[plot_type][i])
-        ax2.set_xlabel(xlabel[plot_type])
-        ax2.set_ylabel(ylabels[plot_type][1])
-        ax2.grid(True)
-        ax2.legend()
-        ax2.autoscale(enable=False, axis='both')
+        ax2 = self.addSubfig(fig, 212, xlabel[plot_type], labels[plot_type][4:8], ylabels[plot_type][1], data[0], data[4:8], ax1)
 
-        self.plots.append((ax1, ax2))
         # Makes sure the limits of the vertical line spans the y axis
         lim = ax1.axis()
         if self.limits == []: 
@@ -113,6 +98,22 @@ class PlotNotebook(wx.Panel):
         if lim[3] > self.limits[1]: 
             self.limits[1] = lim[3]
 
+        self.plots.append((ax1, ax2),)
+        self.bind_to_onclick_event(fig, plot_type)
+
+    def addSubfig(self,fig, layout, xlabel, labels, ylabel, xData, yDatum, shareAxis):
+        ax1 = fig.add_subplot(layout, sharex=shareAxis)
+        ax1.set_title('Plot')
+        for i in range(len(yDatum)):
+            ax1.plot(xData, yDatum[i], label=labels[i])
+        ax1.set_xlabel(xlabel)
+        ax1.set_ylabel(ylabel)
+        ax1.grid(True)
+        ax1.legend()
+        ax1.autoscale(enable=False, axis='both')
+        return ax1
+
+    def bind_to_onclick_event(self, fig, plot_type):
         def onclick(event):
             # If click in axis and toolbar mode is nothing
             if event.inaxes is not None and self.figures[fig].mode == "":
@@ -131,8 +132,7 @@ class PlotNotebook(wx.Panel):
                         self.lines.append(plot[1].plot([event.xdata]*2, [-math.pi, math.pi], c="black"))
                     else:
                         self.lines.append(plot[1].plot([event.xdata]*2, [self.limits[0], self.limits[1]], c="black"))
-                #print 'button=%d, x=%d, y=%d, xdata=%f, ydata=%f'%(
-                #        event.button, event.x, event.y, event.xdata, event.ydata)
+
                 for figure in self.figures:
                     fig.canvas.draw()
                 if (plot_type == '-raw'):
