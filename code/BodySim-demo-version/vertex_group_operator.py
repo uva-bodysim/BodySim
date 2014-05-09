@@ -461,6 +461,7 @@ class BodySim_DESELECT_BODY_PART(bpy.types.Operator):
 def get_plugins(path, setTheAttrs):
     # TODO Error checking (existance of plugins.xml, duplicate plugins)
     # Hard coded plugin: Trajectory
+    unit_map = {}
     plugins_dict = {}
     trajectory_vars = ['x', 'y', 'z', 'w', 'rx', 'ry', 'rz']
     plugins_dict['Trajectory'] = {'file' : None, 'variables' : trajectory_vars}
@@ -468,20 +469,35 @@ def get_plugins(path, setTheAttrs):
         setattr(bpy.types.Object, 'Trajectory' + var, bpy.props.BoolProperty(default=True, name=var))
         setattr(bpy.types.Object, 'GRAPH_Trajectory' + var, bpy.props.BoolProperty(default=False, name='Trajectory_' + var))
 
+    unit_map[('frame no.', 'location(cm)')] = ['Trajectoryx', 'Trajectoryy', 'Trajectoryz']
+    unit_map[('frame no.', 'heading (rad)')] = ['Trajectoryw', 'Trajectoryrx', 'Trajectoryry', 'Trajectoryrz']
+
     tree = ET().parse(path + os.sep + 'plugins.xml')
     for simulator in tree.iter('simulator'):
         simulator_name = simulator.attrib['name']
         simulator_file = simulator.attrib['file']
         variables = []
-        for variable in simulator[0].iter('variable'):
-            variables.append(variable.text)
-            # Append simulator name to allow variables of the same name over different
-            # simulations.
-            if setTheAttrs:
-                setattr(bpy.types.Object, simulator_name + variable.text, bpy.props.BoolProperty(default=False, name=variable.text))
-                setattr(bpy.types.Object, 'GRAPH_' + simulator_name + variable.text, bpy.props.BoolProperty(default=False, name=simulator_name + variable.text))
+        for unitGroup in simulator:
+            unitTuple = (unitGroup.attrib['x'], unitGroup.attrib['y'])
+            unitgroup_list = [] if not unitTuple in unit_map else unit_map[unitTuple]
+            for variable in unitGroup:
+                unitgroup_list.append(simulator_name + variable.text)
+
+                variables.append(variable.text)
+                # Append simulator name to allow variables of the same name over different
+                # simulations.
+                if setTheAttrs:
+                    setattr(bpy.types.Object, simulator_name + variable.text, bpy.props.BoolProperty(default=False, name=variable.text))
+                    setattr(bpy.types.Object, 'GRAPH_' + simulator_name + variable.text, bpy.props.BoolProperty(default=False, name=simulator_name + variable.text))
+
+            if not unitTuple in unit_map:
+                unit_map[unitTuple] = unitgroup_list 
 
         plugins_dict[simulator_name] = {'file' : simulator_file, 'variables' : variables}
+
+    for unitgroup in unit_map:
+        print(unitgroup)
+        print(unit_map[unitgroup])
 
     return plugins_dict
 

@@ -144,8 +144,8 @@ def plot_file(plot_type, fps, filenames):
         data = get_data(filename, plot_type, lengths)
 
          # 211: Two rows, one column, first subplot. Numbering starts row first.
-        ax1 = plotter.addSubfig(fig, 211, xlabel[plot_type], labels[plot_type][1:4], ylabels[plot_type][0], data[0], data[1:4], None)
-        ax2 = plotter.addSubfig(fig, 212, xlabel[plot_type], labels[plot_type][4:8], ylabels[plot_type][1], data[0], data[4:8], ax1)
+        ax1 = plotter.addSubfig(fig, "211", xlabel[plot_type], labels[plot_type][1:4], ylabels[plot_type][0], data[0], data[1:4], None)
+        ax2 = plotter.addSubfig(fig, "212", xlabel[plot_type], labels[plot_type][4:8], ylabels[plot_type][1], data[0], data[4:8], ax1)
         plotter.plot_file(fig, (ax1, ax2), plot_type)
     frame.Show()
     app.MainLoop()

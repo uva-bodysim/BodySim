@@ -1,23 +1,27 @@
 <plugins>
 <simulator name="IMU" file="imu_simulator.py">
-    <variables>
+    <unitGroup x="time(s)" y="acceleration (m/s^2)">
         <variable>x_acc</variable>
         <variable>y_acc</variable>
         <variable>z_acc</variable>
+    </unitGroup>
+    <unitGroup x="time(s)" y="angular velocity (deg/s)">
         <variable>x_gyro</variable>
         <variable>y_gyro</variable>
         <variable>z_gyro</variable>
-    </variables>
+    </unitGroup>
 </simulator>
 
 <simulator name="ABC" file="imusimulator.py">
-    <variables>
-        <variable>a_acc</variable>
-        <variable>b_acc</variable>
-        <variable>c_acc</variable>
+    <unitGroup x="time(s)" y="acceleration (m/s^2)">
+        <variable>x_acc</variable>
+        <variable>y_acc</variable>
+        <variable>z_acc</variable>
+    </unitGroup>
+    <unitGroup x="time(s)" y="angular velocity (deg/s)">
         <variable>x_gyro</variable>
         <variable>y_gyro</variable>
         <variable>z_gyro</variable>
-    </variables>
+    </unitGroup>
 </simulator>
 </plugins>
