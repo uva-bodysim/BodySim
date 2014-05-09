@@ -25,6 +25,8 @@ plugin_panel_list = []
 
 plugins = {}
 
+unit_map = {}
+
 current_sensor_panel = None
 
 current_graph_panel = None
@@ -241,7 +243,6 @@ def draw_sensor_list_panel(sensor_dict):
     bl_region_type = 'UI'
     bl_context = "objectmode"
     global current_sensor_panel
-
     if sensor_dict:
         current_sensor_panel = type("CurrentSensorsPanel", (bpy.types.Panel,),{
             "bl_label": bl_label,
@@ -250,9 +251,10 @@ def draw_sensor_list_panel(sensor_dict):
             "sensor_dict": sensor_dict,
             "draw": _drawSingleSensorButtons},)
         bpy.utils.register_class(current_sensor_panel)
+
     else:
         bpy.utils.register_class(CurrentSensorsPanel)
-    
+
 class CurrentSensorsPanel(bpy.types.Panel):
     bl_label = "Current Sensors"
     bl_space_type = 'VIEW_3D'
@@ -495,15 +497,14 @@ def get_plugins(path, setTheAttrs):
 
         plugins_dict[simulator_name] = {'file' : simulator_file, 'variables' : variables}
 
-    for unitgroup in unit_map:
-        print(unitgroup)
-        print(unit_map[unitgroup])
-
-    return plugins_dict
+    return (plugins_dict, unit_map)
 
 def register():
     global plugins
-    plugins = get_plugins(path_to_this_file, True)
+    global unit_map
+    plugins_tuple = get_plugins(path_to_this_file, True)
+    plugins = plugins_tuple[0]
+    unit_map = plugins_tuple[1]
     bpy.utils.register_module(__name__)
 
 

@@ -120,7 +120,6 @@ class WriteSessionToFileOperator(bpy.types.Operator):
 
         update_session_file(session_element, model['session_path'], context)
         
-        
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -330,9 +329,9 @@ def execute_simulators(context, sim_dict):
 
     """
     model = context.scene.objects['model']
-    plugins = get_plugins(path_to_this_file,False)
+    plugins = get_plugins(path_to_this_file,False)[0]
     # TODO Put fps somewhere else. Should it be set by the user?
-    fps = 25
+    fps = 30
     for sensor in sim_dict:
         for simulator in sim_dict[sensor]:
             args = " ".join(sim_dict[sensor][simulator])
@@ -340,11 +339,11 @@ def execute_simulators(context, sim_dict):
             # Run the simulator
             subprocess.check_call("python " + path_to_this_file + os.sep + "plugins" + os.sep
              + plugins[simulator]['file'] + ' '
-             + model['current_simulation_path'] + os.sep + 'raw' + os.sep + 'sensor_' + sensor + '.csv'
+             + model['current_simulation_path'] + os.sep + 'Trajectory' + os.sep + 'sensor_' + sensor + '.csv'
              + ' ' + str(fps) + ' ' + args)
 
 def get_sensor_plugin_mapping(context):
-    plugins = get_plugins(path_to_this_file,False)
+    plugins = get_plugins(path_to_this_file, False)[0]
     model = context.scene.objects['model']
     sim_dict = {}
     for sensor in model['sensor_info']:
@@ -463,6 +462,7 @@ class SimTools(bpy.types.Panel):
  
     def draw(self, context):
         self.layout.operator("bodysim.run_sim", text = "Run Simulation")
+        self.layout.operator("bodysim.graph", text = "Graph Variables")
         self.layout.operator("bodysim.save", text = "Save Session")
         self.layout.operator("bodysim.load", text = "Load Session")
         self.layout.operator("bodysim.new_sim", text = "New Simulation")
