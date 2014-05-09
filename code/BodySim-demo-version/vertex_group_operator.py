@@ -8,6 +8,7 @@ The wire frame of the blender object this is working on must
 
 import bpy
 import os
+import builtins
 from bpy.props import FloatVectorProperty, StringProperty
 from mathutils import *
 from math import *
@@ -27,7 +28,7 @@ plugins = {}
 
 unit_map = {}
 
-current_sensor_panel = None
+builtins.current_sensor_panel = None
 
 current_graph_panel = None
 
@@ -242,15 +243,14 @@ def draw_sensor_list_panel(sensor_dict):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_context = "objectmode"
-    global current_sensor_panel
     if sensor_dict:
-        current_sensor_panel = type("CurrentSensorsPanel", (bpy.types.Panel,),{
+        builtins.current_sensor_panel = type("CurrentSensorsPanel", (bpy.types.Panel,),{
             "bl_label": bl_label,
             "bl_space_type": bl_space_type,
             "bl_region_type": bl_region_type,
             "sensor_dict": sensor_dict,
             "draw": _drawSingleSensorButtons},)
-        bpy.utils.register_class(current_sensor_panel)
+        bpy.utils.register_class(builtins.current_sensor_panel)
 
     else:
         bpy.utils.register_class(CurrentSensorsPanel)
@@ -417,7 +417,7 @@ class GraphButton(bpy.types.Operator):
     part = bpy.props.StringProperty()
 
     def execute(self, context):
-        bpy.utils.unregister_class(current_sensor_panel)
+        bpy.utils.unregister_class(builtins.current_sensor_panel)
         draw_GraphSelectionPanel(self.part)
         return {'FINISHED'}
 
@@ -426,9 +426,8 @@ class ReturnToCurrentSensors(bpy.types.Operator):
     bl_label = "Return to current sensor list"
 
     def execute(self, context):
-        global current_graph_panel
         bpy.utils.unregister_class(current_graph_panel)
-        bpy.utils.register_class(current_sensor_panel)
+        bpy.utils.register_class(builtins.current_sensor_panel)
         return {'FINISHED'}
 
 class BodySim_RESET_SENSORS(bpy.types.Operator):
