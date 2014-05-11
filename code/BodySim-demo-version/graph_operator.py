@@ -59,7 +59,7 @@ class GraphOperator(bpy.types.Operator):
         model = context.scene.objects['model']
         curr_sim_path = model['current_simulation_path']
 
-        # For each sensor, get a list of variables that need to be graphed.
+        # Graphing: one tab per sensor. One plot per unit group per plugin.
         plugins_tuple = get_plugins(path_to_this_file, False)
         graph_var_map = {}
         for sensor in model['sensor_info']:
@@ -67,56 +67,34 @@ class GraphOperator(bpy.types.Operator):
                 for variable in plugins_tuple[0][plugin]['variables']:
                     if getattr(context.scene.objects['sensor_' + sensor], 'GRAPH_' +  plugin + variable):
                         if sensor not in graph_var_map:
-                            graph_var_map[sensor] = []
+                            graph_var_map[sensor] = {}
 
-                        graph_var_map[sensor].append(plugin + variable)
+                        if plugin not in graph_var_map[sensor]:
+                            graph_var_map[sensor][plugin] = {}
 
-        # Now for each sensor, group the variables that have the same units to make the final map
-        # to send to the plotter.
-        # TODO instead of multiple searches, perhaps keep a list of units attributed to each unit
+                        curr_var = plugin + variable
+                        curr_pair = None
+                        for unit_pair in plugins_tuple[1]:
+                            if curr_var in plugins_tuple[1][unit_pair]:
+                                curr_pair = unit_pair
+                                break
+
+                        if curr_pair not in graph_var_map[sensor][plugin]:
+                            graph_var_map[sensor][plugin][curr_pair] = []
+
+                        graph_var_map[sensor][plugin][curr_pair].append((variable, plugins_tuple[0][plugin]['variables'].index(variable)))
+
+
+        self._pipe = blender_caller.plot_csv(str(30), graph_var_map)
         
-        graph_dict = {}
-        for sensor in graph_var_map:
-            graph_dict[sensor] = {}
-            while graph_var_map[sensor]:
-                curr_var = graph_var_map[sensor].pop()
-                curr_unit_pair = None
-                curr_unit_group = [curr_var]
-                for unit_pair in plugins_tuple[1]:
-                    if curr_var in unit_pair: 
-                        curr_unit_pair = unit_pair
-
-                # Now find all other variables that have the same xy labels
-                to_remove = []
-                for i in range(len(graph_var_map[sensor])):
-                    if graph_var_map[sensor][i] in plugins_tuple[1][curr_unit_pair]:
-                        curr_unit_group.append(graph_var_map[sensor][i])
-                        to_remove.append(graph_var_map[sensor][i])
-
-                graph_var_map[sensor] = [var for var in graph_var_map[sensor] if var not in to_remove]
-                graph_dict[sensor][curr_unit_pair] = curr_unit_group
-
-        print(graph_dict)
-        # Next: For each sensor, create a new csv file with the appropriate rows and cols
-
-
-
-        # if (self.plot_type == '-imu'):
-        #     sensor_files = glob.glob(os.path.realpath(curr_sim_path) + os.sep + 'sim' + os.sep + '*csv')
-
-        # if (self.plot_type == '-raw'):
-        #     sensor_files = glob.glob(os.path.realpath(curr_sim_path) + os.sep + 'raw' + os.sep + '*csv')
-
-        # self._pipe = blender_caller.plot_csv(self.plot_type, str(30), sensor_files)
-        
-        # # A separate thread must be started to keep track of the blocking pipe
-        # # so the script does not freeze blender.
-        # self._thread = Thread(target=enqueue_output, args=(self._pipe.stdout, q))
-        # self._thread.daemon = True
-        # self._thread.start()
-        # self._timer = context.window_manager.event_timer_add(0.2, context.window)
-        # context.window_manager.modal_handler_add(self)
-        # return {'RUNNING_MODAL'}
+        # A separate thread must be started to keep track of the blocking pipe
+        # so the script does not freeze blender.
+        self._thread = Thread(target=enqueue_output, args=(self._pipe.stdout, q))
+        self._thread.daemon = True
+        self._thread.start()
+        self._timer = context.window_manager.event_timer_add(0.2, context.window)
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
         return {'FINISHED'}
 
     def cancel(self, context):

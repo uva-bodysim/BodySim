@@ -431,6 +431,12 @@ class LoadSimulationOperator(bpy.types.Operator):
 
             select_vertex_group(sensor.attrib['location'], context)
 
+            # Loop through plugins
+            for plugin in sensor[0]:
+                # Loop through variables
+                for variable in plugin:
+                    setattr(bpy.types.Object, plugin.attrib['name'] + variable.text, True)
+
             bind_to_text_vg(context, tuple([float(color) for color in sensor_subelements[1].text.split(',')]))
             draw_sensor_list_panel(model['sensor_info'])
         return {'FINISHED'}
