@@ -85,7 +85,7 @@ class GraphOperator(bpy.types.Operator):
                         graph_var_map[sensor][plugin][curr_pair].append((variable, plugins_tuple[0][plugin]['variables'].index(variable)))
 
 
-        self._pipe = blender_caller.plot_csv(str(30), graph_var_map)
+        self._pipe = blender_caller.plot_csv(str(30), graph_var_map, curr_sim_path)
         
         # A separate thread must be started to keep track of the blocking pipe
         # so the script does not freeze blender.
@@ -95,7 +95,7 @@ class GraphOperator(bpy.types.Operator):
         self._timer = context.window_manager.event_timer_add(0.2, context.window)
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
-        return {'FINISHED'}
+        #return {'FINISHED'}
 
     def cancel(self, context):
         context.window_manager.event_timer_remove(self._timer)

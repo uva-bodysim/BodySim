@@ -8,6 +8,7 @@ import weakref
 import math
 import sys
 import os
+import ast
 # Used to guarantee to use at least Wx2.8
 import wxversion
 wxversion.ensureMinimal('2.8')
@@ -100,6 +101,8 @@ class PlotNotebook(wx.Panel):
                     fig.canvas.draw()
                 if (plot_type == '-raw'):
                     print event.xdata
+                    #print dir(event.inaxes)
+                    print event.inaxes.get_xlim()
                     sys.stdout.flush()
 
                 if (plot_type in {'-imu', '-chan'}):
@@ -120,33 +123,52 @@ class PlotFrame(wx.Frame):
         print("quit")
         sys.stdout.flush()
         self.Destroy()
+
+class Subfig:
+
+    def __init__(self, parent_fig, max_cols, row_number, xunit, yunit, xlabels, ylabels, xdata, ydata):
+        self.total_rows = None
+        self.parent_fig = parent_fig
+        self.max_cols = max_cols
+        self.row_number = row_number
+        self.xunit = xunit
+        self.yunit = yunit
+        self.xlabels = xlabels
+        self.ylabels = ylabels
+        self.xdata = xdata
+        self.ydata = ydata
    
-def plot_file(plot_type, fps, filenames):
-    labels = {'-raw': ['t','x','y','z','quat_w','quat_x','quat_y','quat_z'],
-                    '-imu': ['t','x','y','z','x','y','z'],
-                    '-chan': ['t','pathloss', 'pathloss']}
+def plot_file(fps, base_dir, string_graph_map):
 
-    lengths = {'-raw': 8, '-imu': 7}
-
-    ranges = {'-raw': [range(1,4), range(4,8)], '-imu': [range(1,4), range(4,7)], 
-                '-chan': [range(1,2), range(2,3)]}
-    ylabels = {'-raw': ['location (cm)', 'heading (rad)'], 
-                '-imu': ['acceleration (m/s^2)', 'angular velocity (deg/s)'],
-                '-chan': ['pathloss (dB)', 'pathloss(dB)']}
-    xlabel = {'-raw': 'frame no.', '-imu': 'time (s)', '-chan': 'time (s)'}
 
     app = wx.PySimpleApp()
     frame = PlotFrame()
     plotter = PlotNotebook(frame)
-    
-    for filename in filenames:
-        fig = plotter.add(os.path.splitext(os.path.basename(filename))[0])
-        data = get_data(filename, plot_type, lengths)
 
-         # 211: Two rows, one column, first subplot. Numbering starts row first.
-        ax1 = plotter.addSubfig(fig, "211", xlabel[plot_type], labels[plot_type][1:4], ylabels[plot_type][0], data[0], data[1:4], None)
-        ax2 = plotter.addSubfig(fig, "212", xlabel[plot_type], labels[plot_type][4:8], ylabels[plot_type][1], data[0], data[4:8], ax1)
-        plotter.plot_file(fig, (ax1, ax2), plot_type)
+    graph_map = ast.literal_eval(string_graph_map)
+    fig_map = {}
+
+    for sensor in graph_map:
+        fig = plotter.add(sensor)
+        fig_map[sensor]['total_rows'] = 0
+        fig_map[sensor] = []
+        for plugin in graph_map[sensor]:
+            data = get_data(base_dir + os.sep + plugin + os.sep +'sensor_' + sensor + '.csv')
+            for variable_group in graph_map[sensor][plugin]:
+                fig_map[sensor].append(Subfig(fig, 2, fig_map[sensor]['total_rows'] + 1, variable_group[0], variable_group[1], 't',
+                 [variable[0] for variable in graph_map[sensor][plugin][variable_group]],
+                 data[0],
+                 [data[variable[1]] for variable in graph_map[sensor][plugin][variable_group]]))
+                fig_map[sensor]['total_rows'] += 1
+
+    for fig in fig_map:
+        ax_list = []
+        for sub_fig in fig_map[fig]:
+            ax_list.append(plotter.addSubfig(sub_fig.parent_fig, str(fig_map[fig]['total_rows']) + str(sub_fig.max_cols) + str(sub_fig.row_number),
+            sub_fig.xunit, sub_fig.ylabels, sub_fig.yunit, sub_fig.xdata, sub_fig.ydata, None))
+
+        plotter.plot_file(fig, tuple(ax_list))
+
     frame.Show()
     app.MainLoop()
 
@@ -156,9 +178,9 @@ def get_data(filename, plot_type, lengths):
         f = open(filename, 'r').read().strip().split('\n')
         values = [[float(a) for a in k.split(',')] for k in f]
         data = zip(*values)
-        if(plot_type != '-chan'):
-            if len(data) != lengths[plot_type]:
-                print("Bad file format! Make sure each line has {0} values!".format(lengths[plot_type]))
+        # if(plot_type != '-chan'):
+        #     if len(data) != lengths[plot_type]:
+        #         print("Bad file format! Make sure each line has {0} values!".format(lengths[plot_type]))
     except IOError:
         print("Bad file name!")
         return
@@ -169,4 +191,4 @@ def get_data(filename, plot_type, lengths):
     return data
 
 if __name__=="__main__":
-    plot_file(sys.argv[1], float(sys.argv[2]), sys.argv[3:])
+    plot_file(float(sys.argv[1]), sys.argv[2], sys.argv[3:])
