@@ -26,6 +26,7 @@ path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
 session_element = None
 simulation_ran = False
 temp_sim_ran = False
+NUMBER_OF_BASE_PLUGINS = 1
 sim_list = []
 
 #Imports blender_caller.py
@@ -263,7 +264,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         sim_list.append(self.simulation_name)
         draw_previous_run_panel(sim_list)
         os.mkdir(path)
-        os.mkdir(path + os.sep + 'raw')
+        os.mkdir(path + os.sep + 'Trajectory')
         tree = ET()
         if model['simulation_count'] == 0:
             simulations_element = Element('simulations')
@@ -280,31 +281,39 @@ class NameSimulationDialogOperator(bpy.types.Operator):
 
         sim_dict = get_sensor_plugin_mapping(context)
 
-        for location, info in sensor_dict.iteritems():
+        for location, color in sensor_dict.iteritems():
             curr_sensor_element = Element('sensor', {'location' : location})
-            curr_sensor_type_element = Element('plugins_used')
-            # Add information about plugins
-            for plugin in sim_dict[location]:
-                curr_plugin_element = Element('plugin', {'name' : plugin})
-                curr_sensor_type_element.extend([curr_plugin_element])
-                for variable in sim_dict[location][plugin]:
-                    curr_variable_element = Element('variable')
-                    curr_variable_element.text = variable
-                    curr_plugin_element.extend([curr_variable_element])
-            #curr_sensor_type_element.text = info[0]
             curr_sensor_color_element = Element('color')
-            curr_sensor_color_element.text = info[1]
-            curr_sensor_element.extend([curr_sensor_type_element, curr_sensor_color_element])
+            curr_sensor_color_element.text = color
+
+            # Add information about plugins
+            if len(sim_dict[location]) > NUMBER_OF_BASE_PLUGINS:
+                curr_sensor_type_element = Element('plugins_used')
+                for plugin in sim_dict[location]:
+                    curr_plugin_element = Element('plugin', {'name' : plugin})
+                    curr_sensor_type_element.extend([curr_plugin_element])
+                    for variable in sim_dict[location][plugin]:
+                        curr_variable_element = Element('variable')
+                        curr_variable_element.text = variable
+                        curr_plugin_element.extend([curr_variable_element])
+
+                curr_sensor_element.extend([curr_sensor_color_element, curr_sensor_type_element])
+
+            else:
+                curr_sensor_element.extend([curr_sensor_color_element])
+
             sensors_element.append(curr_sensor_element)
-        indent(sensors_element)
-        file = open(path + os.sep + 'sensors.xml', 'wb')
-        file.write(tostring(sensors_element))
-        file.flush()
-        file.close()
+
+            indent(sensors_element)
+            file = open(path + os.sep + 'sensors.xml', 'wb')
+            file.write(tostring(sensors_element))
+            file.flush()
+            file.close()
+
         model['simulation_count'] += 1
         scene = bpy.context.scene
         sensor_objects = populate_sensor_list(num_sensors, context)
-        track_sensors(1, 100, num_sensors, sensor_objects, scene, path + os.sep + 'raw')
+        track_sensors(1, 100, num_sensors, sensor_objects, scene, path + os.sep + 'Trajectory')
         execute_simulators(context, sim_dict)
         return {'FINISHED'}
 
@@ -333,14 +342,15 @@ def execute_simulators(context, sim_dict):
     # TODO Put fps somewhere else. Should it be set by the user?
     fps = 30
     for sensor in sim_dict:
-        for simulator in sim_dict[sensor]:
-            args = " ".join(sim_dict[sensor][simulator])
+        if len(sim_dict[sensor]) > NUMBER_OF_BASE_PLUGINS:
+            for simulator in sim_dict[sensor]:
+                args = " ".join(sim_dict[sensor][simulator])
 
-            # Run the simulator
-            subprocess.check_call("python " + path_to_this_file + os.sep + "plugins" + os.sep
-             + plugins[simulator]['file'] + ' '
-             + model['current_simulation_path'] + os.sep + 'Trajectory' + os.sep + 'sensor_' + sensor + '.csv'
-             + ' ' + str(fps) + ' ' + args)
+                # Run the simulator
+                subprocess.check_call("python " + path_to_this_file + os.sep + "plugins" + os.sep
+                 + plugins[simulator]['file'] + ' '
+                 + model['current_simulation_path'] + os.sep + 'Trajectory' + os.sep + 'sensor_' + sensor + '.csv'
+                 + ' ' + str(fps) + ' ' + args)
 
 def get_sensor_plugin_mapping(context):
     plugins = get_plugins(path_to_this_file, False)[0]
@@ -348,15 +358,14 @@ def get_sensor_plugin_mapping(context):
     sim_dict = {}
     for sensor in model['sensor_info']:
         for plugin in plugins:
-            if plugin != 'Trajectory':
-                for variable in plugins[plugin]['variables']:
-                    if getattr(context.scene.objects['sensor_' + sensor], plugin + variable):
-                        if sensor not in sim_dict:
-                            sim_dict[sensor] = {}
+            for variable in plugins[plugin]['variables']:
+                if getattr(context.scene.objects['sensor_' + sensor], plugin + variable):
+                    if sensor not in sim_dict:
+                        sim_dict[sensor] = {}
 
-                        if plugin not in sim_dict[sensor]:
-                            sim_dict[sensor][plugin] = []
-                        sim_dict[sensor][plugin].append(variable)
+                    if plugin not in sim_dict[sensor]:
+                        sim_dict[sensor][plugin] = []
+                    sim_dict[sensor][plugin].append(variable)
 
     return sim_dict
 
@@ -420,25 +429,29 @@ class LoadSimulationOperator(bpy.types.Operator):
         model = context.scene.objects['model']
         sensor_xml_path = model['session_path'] + os.sep + self.simulation_name + os.sep + 'sensors.xml'
         model['current_simulation_path'] = model['session_path'] + os.sep + self.simulation_name
-        tree = ET().parse(sensor_xml_path)
+        print(sensor_xml_path)
+        try:
+            tree = ET().parse(sensor_xml_path)
 
-        for sensor in tree.iter('sensor'):
-            sensor_subelements = list(sensor)
-            print(sensor_subelements)
+            for sensor in tree.iter('sensor'):
+                sensor_subelements = list(sensor)
 
-            model['sensor_info'][sensor.attrib['location']] = (sensor_subelements[0].text,
-                                                                                        sensor_subelements[1].text)
+                model['sensor_info'][sensor.attrib['location']] = (sensor_subelements[0].text)
 
-            select_vertex_group(sensor.attrib['location'], context)
+                select_vertex_group(sensor.attrib['location'], context)
 
-            # Loop through plugins
-            for plugin in sensor[0]:
-                # Loop through variables
-                for variable in plugin:
-                    setattr(bpy.types.Object, plugin.attrib['name'] + variable.text, True)
+                # Loop through plugins, if there are any
+                if len(list(sensor)) > 1:
+                    for plugin in sensor[0]:
+                        # Loop through variables
+                        for variable in plugin:
+                            setattr(bpy.types.Object, plugin.attrib['name'] + variable.text, True)
 
-            bind_to_text_vg(context, tuple([float(color) for color in sensor_subelements[1].text.split(',')]))
-            draw_sensor_list_panel(model['sensor_info'])
+                bind_to_text_vg(context, tuple([float(color) for color in sensor_subelements[0].text.split(',')]))
+                draw_sensor_list_panel(model['sensor_info'])
+        except:
+            print("Sensor file format bad or non-existant.")
+
         return {'FINISHED'}
 
 

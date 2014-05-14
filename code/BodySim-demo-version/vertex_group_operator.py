@@ -335,7 +335,6 @@ class BodySim_FINALIZE(bpy.types.Operator):
     bl_label = "Add sensor to the panel"
 
     sensorColor = bpy.props.FloatVectorProperty()
-    sensorType = bpy.props.StringProperty()
 
     def execute(self, context):
         for subpanel in plugin_panel_list:
@@ -348,7 +347,7 @@ class BodySim_FINALIZE(bpy.types.Operator):
         material.diffuse_color = r, g, b
         sensor.data.materials.append(material)
         model = context.scene.objects['model']
-        model['sensor_info'][model['current_vg']] = (self.sensorType, str(r) + ',' + str(g) + ',' + str(b))
+        model['sensor_info'][model['current_vg']] = str(r) + ',' + str(g) + ',' + str(b)
         redraw_addSensorPanel(_drawAddSensorFirstPage)
         draw_sensor_list_panel(model['sensor_info'])
         return {'FINISHED'}

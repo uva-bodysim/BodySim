@@ -172,8 +172,6 @@ def plot_file(fps, base_dir, string_graph_map):
     app.MainLoop()
 
 def get_data(filename):
-    with open('test.txt', 'w') as f:
-        f.write(filename)
 
     data = []
     try:
