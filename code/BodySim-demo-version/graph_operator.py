@@ -2,6 +2,10 @@
 A modal operator in blender that takes cursor data from the plotter and moves
 the animation to the desired time. Implementation is non-blocking so blender
 does not freeze while it is running. See wiki for more details.
+
+NOTE: Simulators must output to a folder within the simulation folder with the
+exact same name as specified in the name attribute of the simulator element
+in plugins.xml.
 """
 
 import bpy
@@ -10,25 +14,21 @@ import os
 import sys
 from queue import Queue, Empty
 from threading import Thread
+from vertex_group_operator import get_plugins
 
 dirname = os.path.dirname
+path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
 q = Queue()
 
 #Imports blender_caller.py
 sys.path.insert(0, dirname(dirname(__file__)))
 import blender_caller
 
-def read_most_recent_run():
-    f = open(dirname(dirname(__file__)) + os.sep +'mmr', 'r')
-    mmr = f.read() + os.sep
-    f.close()
-    return mmr
-
 scene = bpy.context.scene
 
 class GraphOperator(bpy.types.Operator):
     """Get input from graph."""
-    bl_idname = "bodysim.plot_motion"
+    bl_idname = "bodysim.graph"
     bl_label = "Graph Modal Operator"
     plot_type = bpy.props.StringProperty()    
     _timer = None
@@ -60,16 +60,35 @@ class GraphOperator(bpy.types.Operator):
 
     def execute(self, context):
         # Get the files ending with .csv extension.'
-        most_recent_run = context.scene.objects['model']['current_simulation_path']
-        sensor_files = []
+        model = context.scene.objects['model']
+        curr_sim_path = model['current_simulation_path']
 
-        if (self.plot_type == '-imu'):
-            sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'sim' + os.sep + '*csv')
+        # Graphing: one tab per sensor. One plot per unit group per plugin.
+        plugins_tuple = get_plugins(path_to_this_file, False)
+        graph_var_map = {}
+        for sensor in model['sensor_info']:
+            for plugin in plugins_tuple[0]:
+                for variable in plugins_tuple[0][plugin]['variables']:
+                    if getattr(context.scene.objects['sensor_' + sensor], 'GRAPH_' +  plugin + variable):
+                        if sensor not in graph_var_map:
+                            graph_var_map[sensor] = {}
 
-        if (self.plot_type == '-raw'):
-            sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'raw' + os.sep + '*csv')
+                        if plugin not in graph_var_map[sensor]:
+                            graph_var_map[sensor][plugin] = {}
 
-        self._pipe = blender_caller.plot_csv(self.plot_type, str(30), sensor_files)
+                        curr_var = plugin + variable
+                        curr_pair = None
+                        for unit_pair in plugins_tuple[1]:
+                            if curr_var in plugins_tuple[1][unit_pair]:
+                                curr_pair = unit_pair
+                                break
+
+                        if curr_pair not in graph_var_map[sensor][plugin]:
+                            graph_var_map[sensor][plugin][curr_pair] = []
+
+                        graph_var_map[sensor][plugin][curr_pair].append((variable, plugins_tuple[0][plugin]['variables'].index(variable)))
+
+        self._pipe = blender_caller.plot_csv(str(30), curr_sim_path, graph_var_map)
         
         # A separate thread must be started to keep track of the blocking pipe
         # so the script does not freeze blender.

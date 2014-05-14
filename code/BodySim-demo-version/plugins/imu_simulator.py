@@ -3,18 +3,23 @@ import numpy as np
 import os
 import sys
 
-dirname = os.path.dirname
 
 SCALE = 0.01 # conversion scale from Blender
 
-def simulate(filenames, fps):
-	''' 
+PARAMS = {'x_acc': 0,
+			'y_acc': 1,
+			'z_acc': 2,
+			'x_gyro': 0,
+			'y_gyro': 1,
+			'z_gyro': 2}
+
+dirname = os.path.dirname
+
+def simulate(filename, fps, params):
+	'''
 	Simulate each sensor and store the data to appropriate output filenames
 	'''
-	for f in filenames:
-		#print ("simulating " + f + "...")
-		#sys.stdout.flush()
-		store_outputs(f, run_sim(read_inputs(f, fps), fps))
+	store_outputs(filename, run_sim(read_inputs(filename, fps), fps, params))
 
 
 def read_inputs(filename, fps):
@@ -41,7 +46,7 @@ def read_inputs(filename, fps):
 
 
 
-def run_sim(trajectory, fps):
+def run_sim(trajectory, fps, params):
 	'''
 	Run a simulation of an ideal IMU on trajectory data
 	'''
@@ -53,9 +58,13 @@ def run_sim(trajectory, fps):
 	sim.run(trajectory.endTime)
 	sys.stdout.flush()
 
-	imu_data = np.concatenate(([imu.accelerometer.rawMeasurements.timestamps], 
-		imu.accelerometer.rawMeasurements.values, 
-		imu.gyroscope.rawMeasurements.values))
+	imu_data = imu.accelerometer.rawMeasurements.timestamps
+
+	for p in params:
+		if p.split('_')[1] == 'acc':
+			imu_data = np.vstack((imu_data, imu.accelerometer.rawMeasurements.values[PARAMS[p]]))
+		else:
+			imu_data = np.vstack((imu_data, imu.gyroscope.rawMeasurements.values[PARAMS[p]]))
 
 	return imu_data
 
@@ -66,17 +75,22 @@ def store_outputs(filename, imu_data):
 	'''
 
 	# create output directory
-	output_dir = dirname(dirname(filename)) + os.sep + 'sim'
+	output_dir = dirname(dirname(filename)) + os.sep + 'IMU'
 	try:
 		os.mkdir(output_dir)
 
 	except:
 		pass
 
-	np.savetxt(output_dir + os.sep + filename.split(os.sep)[-1].split('.')[0] + '-i.csv', imu_data.transpose(), delimiter=',')
+	np.savetxt(output_dir + os.sep + filename.split(os.sep)[-1].split('.')[0] + '.csv', imu_data.transpose(), delimiter=',')
 
-
+'''
+Main function: assume input is <path-to-sensor-data> <frames-per-second> <parameters>
+'''
 if __name__ == "__main__":
-	simulate(sys.argv[1:], 30)
+	sensor_file_path = sys.argv[1]
+	fps = int(sys.argv[2])
+	params = [str(param) for param in sys.argv[3:]] 
+	simulate(sensor_file_path, fps, params)
 	#print('sucsess!')
 	#sys.stdout.flush()

@@ -15,7 +15,8 @@ import shutil
 from queue import Queue, Empty
 from threading import Thread
 import subprocess
-from vertex_group_operator import select_vertex_group, bind_to_text_vg, draw_sensor_list_panel
+from vertex_group_operator import select_vertex_group, bind_to_text_vg, draw_sensor_list_panel, get_plugins
+import vertex_group_operator
 from multiprocessing import Pool
 from xml.etree.ElementTree import ElementTree as ET
 from xml.etree.ElementTree import *
@@ -25,7 +26,7 @@ path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
 session_element = None
 simulation_ran = False
 temp_sim_ran = False
-current_simulation_path = None
+NUMBER_OF_BASE_PLUGINS = 1
 sim_list = []
 
 #Imports blender_caller.py
@@ -119,7 +120,6 @@ class WriteSessionToFileOperator(bpy.types.Operator):
             os.mkdir(self.filepath[:-4])
 
         update_session_file(session_element, model['session_path'], context)
-        
         
         return {'FINISHED'}
 
@@ -219,9 +219,9 @@ class NotRanSimDialogOperator(bpy.types.Operator):
         col = layout.column()
         col.label(text="Are you sure you want to reset?")
 
-class TrackSensorOperator(bpy.types.Operator):
-    bl_idname = "bodysim.track_sensors"
-    bl_label = "Track Sensors"
+class RunSimulationOperator(bpy.types.Operator):
+    bl_idname = "bodysim.run_sim"
+    bl_label = "Run Simulation"
 
     @classmethod
     def poll(cls, context):
@@ -264,7 +264,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         sim_list.append(self.simulation_name)
         draw_previous_run_panel(sim_list)
         os.mkdir(path)
-        os.mkdir(path + os.sep + 'raw')
+        os.mkdir(path + os.sep + 'Trajectory')
         tree = ET()
         if model['simulation_count'] == 0:
             simulations_element = Element('simulations')
@@ -278,21 +278,45 @@ class NameSimulationDialogOperator(bpy.types.Operator):
 
         sensor_dict = context.scene.objects['model']['sensor_info']
         sensors_element = Element('sensors')
-        for location, info in sensor_dict.iteritems():
+
+        sim_dict = get_sensor_plugin_mapping(context)
+
+        for location, color in sensor_dict.iteritems():
             curr_sensor_element = Element('sensor', {'location' : location})
-            curr_sensor_type_element = Element('type')
-            curr_sensor_type_element.text = info[0]
             curr_sensor_color_element = Element('color')
-            curr_sensor_color_element.text = info[1]
-            curr_sensor_element.extend([curr_sensor_type_element, curr_sensor_color_element])
+            curr_sensor_color_element.text = color
+
+            # Add information about plugins
+            if len(sim_dict[location]) > NUMBER_OF_BASE_PLUGINS:
+                for plugin in sim_dict[location]:
+                    if plugin == 'Trajectory':
+                        continue
+                    curr_sensor_type_element = Element('plugins_used')
+                    curr_plugin_element = Element('plugin', {'name' : plugin})
+                    curr_sensor_type_element.extend([curr_plugin_element])
+                    for variable in sim_dict[location][plugin]:
+                        curr_variable_element = Element('variable')
+                        curr_variable_element.text = variable
+                        curr_plugin_element.extend([curr_variable_element])
+
+                curr_sensor_element.extend([curr_sensor_color_element, curr_sensor_type_element])
+
+            else:
+                curr_sensor_element.extend([curr_sensor_color_element])
+
             sensors_element.append(curr_sensor_element)
-        indent(sensors_element)
-        file = open(path + os.sep + 'sensors.xml', 'wb')
-        file.write(tostring(sensors_element))
+
+            indent(sensors_element)
+            file = open(path + os.sep + 'sensors.xml', 'wb')
+            file.write(tostring(sensors_element))
+            file.flush()
+            file.close()
+
         model['simulation_count'] += 1
         scene = bpy.context.scene
         sensor_objects = populate_sensor_list(num_sensors, context)
-        track_sensors(1, 100, num_sensors, sensor_objects, scene, path + os.sep + 'raw')
+        track_sensors(1, 100, num_sensors, sensor_objects, scene, path + os.sep + 'Trajectory')
+        execute_simulators(context, sim_dict)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -309,6 +333,46 @@ def populate_sensor_list(num_sensors, context):
     for i in context.scene.objects['model']['sensor_info']:
         sensor_objects.append(bpy.data.objects['sensor_' + i])
     return sensor_objects
+
+def execute_simulators(context, sim_dict):
+    """
+    Run simulators depending sensor and variables selected.
+
+    """
+    model = context.scene.objects['model']
+    plugins = get_plugins(path_to_this_file,False)[0]
+    # TODO Put fps somewhere else. Should it be set by the user?
+    fps = 30
+    for sensor in sim_dict:
+        if len(sim_dict[sensor]) > NUMBER_OF_BASE_PLUGINS:
+            for simulator in sim_dict[sensor]:
+                # Ignore if BASE plugin
+                if not simulator == 'Trajectory':
+                    args = " ".join(sim_dict[sensor][simulator])
+
+                    # Run the simulator
+                    subprocess.check_call("python " + path_to_this_file + os.sep + "plugins" + os.sep
+                     + plugins[simulator]['file'] + ' '
+                     + model['current_simulation_path'] + os.sep + 'Trajectory' + os.sep + 'sensor_' + sensor + '.csv'
+                     + ' ' + str(fps) + ' ' + args)
+
+def get_sensor_plugin_mapping(context):
+    plugins = get_plugins(path_to_this_file, False)[0]
+    model = context.scene.objects['model']
+    sim_dict = {}
+    for sensor in model['sensor_info']:
+        for plugin in plugins:
+            for variable in plugins[plugin]['variables']:
+                if getattr(context.scene.objects['sensor_' + sensor], plugin + variable):
+                    if sensor not in sim_dict:
+                        sim_dict[sensor] = {}
+
+                    if plugin not in sim_dict[sensor]:
+                        sim_dict[sensor][plugin] = []
+                    sim_dict[sensor][plugin].append(variable)
+
+    return sim_dict
+
 
 def track_sensors(frame_start, frame_end, num_sensors, sensor_objects, scene, path):
     """Print location and rotation of sensors along respective paths.
@@ -369,19 +433,27 @@ class LoadSimulationOperator(bpy.types.Operator):
         model = context.scene.objects['model']
         sensor_xml_path = model['session_path'] + os.sep + self.simulation_name + os.sep + 'sensors.xml'
         model['current_simulation_path'] = model['session_path'] + os.sep + self.simulation_name
+        print(sensor_xml_path)
         tree = ET().parse(sensor_xml_path)
 
         for sensor in tree.iter('sensor'):
             sensor_subelements = list(sensor)
-            print(sensor_subelements)
 
-            model['sensor_info'][sensor.attrib['location']] = (sensor_subelements[0].text,
-                                                                                        sensor_subelements[1].text)
+            model['sensor_info'][sensor.attrib['location']] = (sensor_subelements[0].text)
 
             select_vertex_group(sensor.attrib['location'], context)
 
-            bind_to_text_vg(context, tuple([float(color) for color in sensor_subelements[1].text.split(',')]))
+            bind_to_text_vg(context, tuple([float(color) for color in sensor_subelements[0].text.split(',')]))
+
+            # Loop through plugins, if there are any
+            if len(list(sensor)) > 1:
+                for simulator in list(sensor)[1]:
+                    # Loop through variables
+                    for variable in simulator:
+                        setattr(context.scene.objects['sensor_' + sensor.attrib['location']], simulator.attrib['name'] + variable.text, True)
+
             draw_sensor_list_panel(model['sensor_info'])
+
         return {'FINISHED'}
 
 
@@ -410,18 +482,14 @@ class SimTools(bpy.types.Panel):
     bl_region_type = "TOOLS"
  
     def draw(self, context):
-        self.layout.operator("bodysim.track_sensors", text = "Run Motion Simulation")
-        self.layout.operator("bodysim.generate_imu", text = "Run IMU Simulation")
-        self.layout.operator("bodysim.generate_channel", text = "Run Channel Simulation")
-        self.layout.operator("bodysim.plot_motion", text = "Plot Motion Data").plot_type = "-raw"
-        self.layout.operator("bodysim.plot_motion", text = "Plot IMU Data").plot_type = "-imu"
-        self.layout.operator("bodysim.plot_motion", text = "Plot Channel Data").plot_type = "-chan"
+        self.layout.operator("bodysim.run_sim", text = "Run Simulation")
+        self.layout.operator("bodysim.graph", text = "Graph Variables")
         self.layout.operator("bodysim.save", text = "Save Session")
         self.layout.operator("bodysim.load", text = "Load Session")
         self.layout.operator("bodysim.new_sim", text = "New Simulation")
 
 def register():
-    bpy.utils.register_class(TrackSensorOperator)
+    bpy.utils.register_class(RunSimulationOperator)
     bpy.utils.register_class(IMUGenerateOperator)
     bpy.utils.register_class(GraphOperator)
     bpy.utils.register_class(SimTools)
@@ -430,6 +498,6 @@ def unregister():
     bpy.utils.unregister_class(SimTools)
     bpy.utils.unregister_class(GraphOperator)
     bpy.utils.unregister_class(IMUGenerateOperator)
-    bpy.utils.unregister_class(TrackSensorOperator)
+    bpy.utils.unregister_class(RunSimulationOperator)
 
 bpy.utils.register_module(__name__)
