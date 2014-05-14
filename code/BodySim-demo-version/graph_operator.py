@@ -84,8 +84,7 @@ class GraphOperator(bpy.types.Operator):
 
                         graph_var_map[sensor][plugin][curr_pair].append((variable, plugins_tuple[0][plugin]['variables'].index(variable)))
 
-
-        self._pipe = blender_caller.plot_csv(str(30), graph_var_map, curr_sim_path)
+        self._pipe = blender_caller.plot_csv(str(30), curr_sim_path, graph_var_map)
         
         # A separate thread must be started to keep track of the blocking pipe
         # so the script does not freeze blender.

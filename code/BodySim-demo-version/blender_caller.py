@@ -5,7 +5,7 @@ import subprocess
 import sys
 import os
 
-def plot_csv(plot_type, fps, graph_dict, curr_sim_path):
+def plot_csv(fps, curr_sim_path, graph_dict):
     plotter_file_path = os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/blender_plotter.py")
     # For each unit group of each sensor, create a csv file with the variables belonging to that
     # group.

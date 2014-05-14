@@ -52,7 +52,7 @@ class PlotNotebook(wx.Panel):
        self.figures[page.figure] = page.toolbar
        return page.figure
 
-    def plot_file(self, fig, subfiglist, plot_type):
+    def plot_file(self, fig, subfiglist):
         # Makes sure the limits of the vertical line spans the y axis
         lim = subfiglist[0].axis()
         if self.limits == []: 
@@ -63,7 +63,7 @@ class PlotNotebook(wx.Panel):
             self.limits[1] = lim[3]
 
         self.plots.append(subfiglist,)
-        self.bind_to_onclick_event(fig, plot_type)
+        #self.bind_to_onclick_event(fig, plot_type)
 
     def addSubfig(self,fig, layout, xlabel, labels, ylabel, xData, yDatum, shareAxis):
         ax1 = fig.add_subplot(layout, sharex=shareAxis)
@@ -77,7 +77,7 @@ class PlotNotebook(wx.Panel):
         ax1.autoscale(enable=False, axis='both')
         return ax1
 
-    def bind_to_onclick_event(self, fig, plot_type):
+    def bind_to_onclick_event(self, fig):
         def onclick(event):
             # If click in axis and toolbar mode is nothing
             if event.inaxes is not None and self.figures[fig].mode == "":
@@ -104,7 +104,6 @@ class PlotNotebook(wx.Panel):
                     #print dir(event.inaxes)
                     print event.inaxes.get_xlim()
                     sys.stdout.flush()
-
                 if (plot_type in {'-imu', '-chan'}):
                     print (event.xdata * fps) + 1
                     sys.stdout.flush()
@@ -139,8 +138,6 @@ class Subfig:
         self.ydata = ydata
    
 def plot_file(fps, base_dir, string_graph_map):
-
-
     app = wx.PySimpleApp()
     frame = PlotFrame()
     plotter = PlotNotebook(frame)
@@ -150,12 +147,13 @@ def plot_file(fps, base_dir, string_graph_map):
 
     for sensor in graph_map:
         fig = plotter.add(sensor)
+        fig_map[sensor] = {}
         fig_map[sensor]['total_rows'] = 0
-        fig_map[sensor] = []
+        fig_map[sensor]['subfig'] = []
         for plugin in graph_map[sensor]:
             data = get_data(base_dir + os.sep + plugin + os.sep +'sensor_' + sensor + '.csv')
             for variable_group in graph_map[sensor][plugin]:
-                fig_map[sensor].append(Subfig(fig, 2, fig_map[sensor]['total_rows'] + 1, variable_group[0], variable_group[1], 't',
+                fig_map[sensor]['subfig'].append(Subfig(fig, 1, fig_map[sensor]['total_rows'] + 1, variable_group[0], variable_group[1], 't',
                  [variable[0] for variable in graph_map[sensor][plugin][variable_group]],
                  data[0],
                  [data[variable[1]] for variable in graph_map[sensor][plugin][variable_group]]))
@@ -163,32 +161,30 @@ def plot_file(fps, base_dir, string_graph_map):
 
     for fig in fig_map:
         ax_list = []
-        for sub_fig in fig_map[fig]:
+        for sub_fig in fig_map[fig]['subfig']:
             ax_list.append(plotter.addSubfig(sub_fig.parent_fig, str(fig_map[fig]['total_rows']) + str(sub_fig.max_cols) + str(sub_fig.row_number),
             sub_fig.xunit, sub_fig.ylabels, sub_fig.yunit, sub_fig.xdata, sub_fig.ydata, None))
 
         plotter.plot_file(fig, tuple(ax_list))
 
+
     frame.Show()
     app.MainLoop()
 
-def get_data(filename, plot_type, lengths):
+def get_data(filename):
+    with open('test.txt', 'w') as f:
+        f.write(filename)
+
     data = []
     try:
         f = open(filename, 'r').read().strip().split('\n')
         values = [[float(a) for a in k.split(',')] for k in f]
         data = zip(*values)
-        # if(plot_type != '-chan'):
-        #     if len(data) != lengths[plot_type]:
-        #         print("Bad file format! Make sure each line has {0} values!".format(lengths[plot_type]))
-    except IOError:
-        print("Bad file name!")
-        return
     except:
-        print("Bad file format! Make sure each line has {0} values!".format(lengths[plot_type]))
+        print("Bad file format! Each row must have the same number of values.")
         return
 
     return data
 
 if __name__=="__main__":
-    plot_file(float(sys.argv[1]), sys.argv[2], sys.argv[3:])
+    plot_file(float(sys.argv[1]), sys.argv[2], sys.argv[3])
