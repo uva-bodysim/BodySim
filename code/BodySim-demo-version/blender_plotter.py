@@ -63,9 +63,9 @@ class PlotNotebook(wx.Panel):
             self.limits[1] = lim[3]
 
         self.plots.append(subfiglist,)
-        #self.bind_to_onclick_event(fig, plot_type)
+        self.bind_to_onclick_event(fig)
 
-    def addSubfig(self,fig, layout, xlabel, labels, ylabel, xData, yDatum, shareAxis):
+    def addSubfig(self, fig, layout, xlabel, labels, ylabel, xData, yDatum, shareAxis):
         ax1 = fig.add_subplot(layout, sharex=shareAxis)
         ax1.set_title('Plot')
         for i in range(len(yDatum)):
@@ -88,25 +88,17 @@ class PlotNotebook(wx.Panel):
                     l.remove()
                     del l
                 self.lines = []
-                #adds new markers on where we are
+                # Adds new markers on where we are for each TAB
                 for plot in self.plots:
-                    self.lines.append(plot[0].plot([event.xdata]*2, [self.limits[0], self.limits[1]], c="black"))
-
-                    if(plot_type == '-raw'):
-                        self.lines.append(plot[1].plot([event.xdata]*2, [-math.pi, math.pi], c="black"))
-                    else:
-                        self.lines.append(plot[1].plot([event.xdata]*2, [self.limits[0], self.limits[1]], c="black"))
+                    for subplot in plot:
+                        self.lines.append(subplot.plot([event.xdata]*2, [self.limits[0], self.limits[1]], c="black"))
 
                 for figure in self.figures:
                     fig.canvas.draw()
-                if (plot_type == '-raw'):
-                    print event.xdata
-                    #print dir(event.inaxes)
-                    print event.inaxes.get_xlim()
-                    sys.stdout.flush()
-                if (plot_type in {'-imu', '-chan'}):
-                    print (event.xdata * fps) + 1
-                    sys.stdout.flush()
+
+                print (event.xdata / float(event.inaxes.get_xlim()[1])) * 100
+                sys.stdout.flush()
+
 
         cid = fig.canvas.mpl_connect('button_press_event', onclick)
 
@@ -150,6 +142,7 @@ def plot_file(fps, base_dir, string_graph_map):
         fig_map[sensor] = {}
         fig_map[sensor]['total_rows'] = 0
         fig_map[sensor]['subfig'] = []
+        fig_map[sensor]['parent_fig'] = fig
         for plugin in graph_map[sensor]:
             data = get_data(base_dir + os.sep + plugin + os.sep +'sensor_' + sensor + '.csv')
             for variable_group in graph_map[sensor][plugin]:
@@ -165,8 +158,7 @@ def plot_file(fps, base_dir, string_graph_map):
             ax_list.append(plotter.addSubfig(sub_fig.parent_fig, str(fig_map[fig]['total_rows']) + str(sub_fig.max_cols) + str(sub_fig.row_number),
             sub_fig.xunit, sub_fig.ylabels, sub_fig.yunit, sub_fig.xdata, sub_fig.ydata, None))
 
-        plotter.plot_file(fig, tuple(ax_list))
-
+        plotter.plot_file(fig_map[fig]['parent_fig'], tuple(ax_list))
 
     frame.Show()
     app.MainLoop()

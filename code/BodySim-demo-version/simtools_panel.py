@@ -344,13 +344,15 @@ def execute_simulators(context, sim_dict):
     for sensor in sim_dict:
         if len(sim_dict[sensor]) > NUMBER_OF_BASE_PLUGINS:
             for simulator in sim_dict[sensor]:
-                args = " ".join(sim_dict[sensor][simulator])
+                # Ignore if BASE plugin
+                if not simulator == 'Trajectory':
+                    args = " ".join(sim_dict[sensor][simulator])
 
-                # Run the simulator
-                subprocess.check_call("python " + path_to_this_file + os.sep + "plugins" + os.sep
-                 + plugins[simulator]['file'] + ' '
-                 + model['current_simulation_path'] + os.sep + 'Trajectory' + os.sep + 'sensor_' + sensor + '.csv'
-                 + ' ' + str(fps) + ' ' + args)
+                    # Run the simulator
+                    subprocess.check_call("python " + path_to_this_file + os.sep + "plugins" + os.sep
+                     + plugins[simulator]['file'] + ' '
+                     + model['current_simulation_path'] + os.sep + 'Trajectory' + os.sep + 'sensor_' + sensor + '.csv'
+                     + ' ' + str(fps) + ' ' + args)
 
 def get_sensor_plugin_mapping(context):
     plugins = get_plugins(path_to_this_file, False)[0]
