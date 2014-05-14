@@ -2,6 +2,10 @@
 A modal operator in blender that takes cursor data from the plotter and moves
 the animation to the desired time. Implementation is non-blocking so blender
 does not freeze while it is running. See wiki for more details.
+
+NOTE: Simulators must output to a folder within the simulation folder with the
+exact same name as specified in the name attribute of the simulator element
+in plugins.xml.
 """
 
 import bpy

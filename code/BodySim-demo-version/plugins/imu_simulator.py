@@ -59,12 +59,13 @@ def run_sim(trajectory, fps, params):
 	sys.stdout.flush()
 
 	imu_data = imu.accelerometer.rawMeasurements.timestamps
+
 	for p in params:
 		if p.split('_')[1] == 'acc':
-			imu_data = np.concatenate(([imu_data], 
+			imu_data = np.concatenate((imu_data,
 				imu.accelerometer.rawMeasurements.values[PARAMS[p]]))
 		else:
-			imu_data = np.concatenate(([imu_data], 
+			imu_data = np.concatenate((imu_data,
 				imu.gyroscope.rawMeasurements.values[PARAMS[p]]))
 
 	return imu_data
@@ -76,14 +77,14 @@ def store_outputs(filename, imu_data):
 	'''
 
 	# create output directory
-	output_dir = dirname(dirname(filename)) + os.sep + 'imu'
+	output_dir = dirname(dirname(filename)) + os.sep + 'IMU'
 	try:
 		os.mkdir(output_dir)
 
 	except:
 		pass
 
-	np.savetxt(output_dir + os.sep + filename.split(os.sep)[-1].split('.')[0] + '-i.csv', imu_data.transpose(), delimiter=',')
+	np.savetxt(output_dir + os.sep + filename.split(os.sep)[-1].split('.')[0] + '.csv', imu_data.transpose(), delimiter=',')
 
 '''
 Main function: assume input is <path-to-sensor-data> <frames-per-second> <parameters>
