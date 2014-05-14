@@ -288,8 +288,10 @@ class NameSimulationDialogOperator(bpy.types.Operator):
 
             # Add information about plugins
             if len(sim_dict[location]) > NUMBER_OF_BASE_PLUGINS:
-                curr_sensor_type_element = Element('plugins_used')
                 for plugin in sim_dict[location]:
+                    if plugin == 'Trajectory':
+                        continue
+                    curr_sensor_type_element = Element('plugins_used')
                     curr_plugin_element = Element('plugin', {'name' : plugin})
                     curr_sensor_type_element.extend([curr_plugin_element])
                     for variable in sim_dict[location][plugin]:

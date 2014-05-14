@@ -62,11 +62,9 @@ def run_sim(trajectory, fps, params):
 
 	for p in params:
 		if p.split('_')[1] == 'acc':
-			imu_data = np.concatenate((imu_data,
-				imu.accelerometer.rawMeasurements.values[PARAMS[p]]))
+			imu_data = np.vstack((imu_data, imu.accelerometer.rawMeasurements.values[PARAMS[p]]))
 		else:
-			imu_data = np.concatenate((imu_data,
-				imu.gyroscope.rawMeasurements.values[PARAMS[p]]))
+			imu_data = np.vstack((imu_data, imu.gyroscope.rawMeasurements.values[PARAMS[p]]))
 
 	return imu_data
 

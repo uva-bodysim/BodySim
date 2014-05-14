@@ -54,20 +54,21 @@ class PlotNotebook(wx.Panel):
 
     def plot_file(self, fig, subfiglist):
         # Makes sure the limits of the vertical line spans the y axis
-        lim = subfiglist[0].axis()
-        if self.limits == []: 
-            self.limits = [lim[2], lim[3]]
-        if lim[2] < self.limits[0]: 
-            self.limits[0] = lim[2]
-        if lim[3] > self.limits[1]: 
-            self.limits[1] = lim[3]
+        for subfig in subfiglist:
+            lim = subfig.axis()
+            if self.limits == []:
+                self.limits = [lim[2], lim[3]]
+            if lim[2] < self.limits[0]:
+                self.limits[0] = lim[2]
+            if lim[3] > self.limits[1]:
+                self.limits[1] = lim[3]
 
         self.plots.append(subfiglist,)
         self.bind_to_onclick_event(fig)
 
-    def addSubfig(self, fig, layout, xlabel, labels, ylabel, xData, yDatum, shareAxis):
+    def addSubfig(self, title, fig, layout, xlabel, labels, ylabel, xData, yDatum, shareAxis):
         ax1 = fig.add_subplot(layout, sharex=shareAxis)
-        ax1.set_title('Plot')
+        ax1.set_title(title)
         for i in range(len(yDatum)):
             ax1.plot(xData, yDatum[i], label=labels[i])
         ax1.set_xlabel(xlabel)
@@ -91,7 +92,11 @@ class PlotNotebook(wx.Panel):
                 # Adds new markers on where we are for each TAB
                 for plot in self.plots:
                     for subplot in plot:
-                        self.lines.append(subplot.plot([event.xdata]*2, [self.limits[0], self.limits[1]], c="black"))
+                        if event.inaxes.get_xlim()[1] == subplot.get_xlim()[1]:
+                            self.lines.append(subplot.plot([event.xdata]*2, [self.limits[0], self.limits[1]], c="black"))
+                        else:
+                            self.lines.append(subplot.plot([event.xdata / float(event.inaxes.get_xlim()[1]) * subplot.get_xlim()[1]]*2, [self.limits[0], self.limits[1]], c="black"))
+
 
                 for figure in self.figures:
                     fig.canvas.draw()
@@ -117,8 +122,8 @@ class PlotFrame(wx.Frame):
 
 class Subfig:
 
-    def __init__(self, parent_fig, max_cols, row_number, xunit, yunit, xlabels, ylabels, xdata, ydata):
-        self.total_rows = None
+    def __init__(self, title,  parent_fig, max_cols, row_number, xunit, yunit, xlabels, ylabels, xdata, ydata):
+        self.title = title
         self.parent_fig = parent_fig
         self.max_cols = max_cols
         self.row_number = row_number
@@ -146,7 +151,7 @@ def plot_file(fps, base_dir, string_graph_map):
         for plugin in graph_map[sensor]:
             data = get_data(base_dir + os.sep + plugin + os.sep +'sensor_' + sensor + '.csv')
             for variable_group in graph_map[sensor][plugin]:
-                fig_map[sensor]['subfig'].append(Subfig(fig, 1, fig_map[sensor]['total_rows'] + 1, variable_group[0], variable_group[1], 't',
+                fig_map[sensor]['subfig'].append(Subfig(sensor + ' ' + plugin,fig, 1, fig_map[sensor]['total_rows'] + 1, variable_group[0], variable_group[1], 't',
                  [variable[0] for variable in graph_map[sensor][plugin][variable_group]],
                  data[0],
                  [data[variable[1]] for variable in graph_map[sensor][plugin][variable_group]]))
@@ -155,7 +160,7 @@ def plot_file(fps, base_dir, string_graph_map):
     for fig in fig_map:
         ax_list = []
         for sub_fig in fig_map[fig]['subfig']:
-            ax_list.append(plotter.addSubfig(sub_fig.parent_fig, str(fig_map[fig]['total_rows']) + str(sub_fig.max_cols) + str(sub_fig.row_number),
+            ax_list.append(plotter.addSubfig(sub_fig.title ,sub_fig.parent_fig, str(fig_map[fig]['total_rows']) + str(sub_fig.max_cols) + str(sub_fig.row_number),
             sub_fig.xunit, sub_fig.ylabels, sub_fig.yunit, sub_fig.xdata, sub_fig.ydata, None))
 
         plotter.plot_file(fig_map[fig]['parent_fig'], tuple(ax_list))
