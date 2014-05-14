@@ -434,27 +434,25 @@ class LoadSimulationOperator(bpy.types.Operator):
         sensor_xml_path = model['session_path'] + os.sep + self.simulation_name + os.sep + 'sensors.xml'
         model['current_simulation_path'] = model['session_path'] + os.sep + self.simulation_name
         print(sensor_xml_path)
-        try:
-            tree = ET().parse(sensor_xml_path)
+        tree = ET().parse(sensor_xml_path)
 
-            for sensor in tree.iter('sensor'):
-                sensor_subelements = list(sensor)
+        for sensor in tree.iter('sensor'):
+            sensor_subelements = list(sensor)
 
-                model['sensor_info'][sensor.attrib['location']] = (sensor_subelements[0].text)
+            model['sensor_info'][sensor.attrib['location']] = (sensor_subelements[0].text)
 
-                select_vertex_group(sensor.attrib['location'], context)
+            select_vertex_group(sensor.attrib['location'], context)
 
-                # Loop through plugins, if there are any
-                if len(list(sensor)) > 1:
-                    for plugin in sensor[0]:
-                        # Loop through variables
-                        for variable in plugin:
-                            setattr(bpy.types.Object, plugin.attrib['name'] + variable.text, True)
+            bind_to_text_vg(context, tuple([float(color) for color in sensor_subelements[0].text.split(',')]))
 
-                bind_to_text_vg(context, tuple([float(color) for color in sensor_subelements[0].text.split(',')]))
-                draw_sensor_list_panel(model['sensor_info'])
-        except:
-            print("Sensor file format bad or non-existant.")
+            # Loop through plugins, if there are any
+            if len(list(sensor)) > 1:
+                for simulator in list(sensor)[1]:
+                    # Loop through variables
+                    for variable in simulator:
+                        setattr(context.scene.objects['sensor_' + sensor.attrib['location']], simulator.attrib['name'] + variable.text, True)
+
+            draw_sensor_list_panel(model['sensor_info'])
 
         return {'FINISHED'}
 
