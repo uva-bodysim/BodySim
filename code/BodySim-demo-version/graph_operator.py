@@ -12,10 +12,10 @@ import bpy
 import glob
 import os
 import sys
+import builtins
 from queue import Queue, Empty
 from threading import Thread
 from vertex_group_operator import get_plugins
-
 dirname = os.path.dirname
 path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
 q = Queue()
@@ -66,6 +66,7 @@ class GraphOperator(bpy.types.Operator):
         # Graphing: one tab per sensor. One plot per unit group per plugin.
         plugins_tuple = get_plugins(path_to_this_file, False)
         graph_var_map = {}
+        sim_dict = builtins.sim_dict
         for sensor in model['sensor_info']:
             for plugin in plugins_tuple[0]:
                 for variable in plugins_tuple[0][plugin]['variables']:
@@ -86,8 +87,9 @@ class GraphOperator(bpy.types.Operator):
                         if curr_pair not in graph_var_map[sensor][plugin]:
                             graph_var_map[sensor][plugin][curr_pair] = []
 
-                        graph_var_map[sensor][plugin][curr_pair].append((variable, plugins_tuple[0][plugin]['variables'].index(variable)))
+                        graph_var_map[sensor][plugin][curr_pair].append((variable, sim_dict[sensor][plugin].index(variable)))
 
+        print(graph_var_map)
         self._pipe = blender_caller.plot_csv(str(30), curr_sim_path, graph_var_map)
         
         # A separate thread must be started to keep track of the blocking pipe

@@ -12,6 +12,7 @@ import time
 import sys
 import glob
 import shutil
+import builtins
 from queue import Queue, Empty
 from threading import Thread
 import subprocess
@@ -23,6 +24,7 @@ from xml.etree.ElementTree import *
 q = Queue()
 dirname = os.path.dirname
 path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
+builtins.sim_dict = {}
 session_element = None
 simulation_ran = False
 temp_sim_ran = False
@@ -279,7 +281,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         sensor_dict = context.scene.objects['model']['sensor_info']
         sensors_element = Element('sensors')
 
-        sim_dict = get_sensor_plugin_mapping(context)
+        builtins.sim_dict = get_sensor_plugin_mapping(context)
 
         for location, color in sensor_dict.iteritems():
             curr_sensor_element = Element('sensor', {'location' : location})
@@ -287,14 +289,14 @@ class NameSimulationDialogOperator(bpy.types.Operator):
             curr_sensor_color_element.text = color
 
             # Add information about plugins
-            if len(sim_dict[location]) > NUMBER_OF_BASE_PLUGINS:
-                for plugin in sim_dict[location]:
+            if len(builtins.sim_dict[location]) > NUMBER_OF_BASE_PLUGINS:
+                for plugin in builtins.sim_dict[location]:
                     if plugin == 'Trajectory':
                         continue
                     curr_sensor_type_element = Element('plugins_used')
                     curr_plugin_element = Element('plugin', {'name' : plugin})
                     curr_sensor_type_element.extend([curr_plugin_element])
-                    for variable in sim_dict[location][plugin]:
+                    for variable in builtins.sim_dict[location][plugin]:
                         curr_variable_element = Element('variable')
                         curr_variable_element.text = variable
                         curr_plugin_element.extend([curr_variable_element])
@@ -316,7 +318,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         scene = bpy.context.scene
         sensor_objects = populate_sensor_list(num_sensors, context)
         track_sensors(1, 100, num_sensors, sensor_objects, scene, path + os.sep + 'Trajectory')
-        execute_simulators(context, sim_dict)
+        execute_simulators(context, builtins.sim_dict)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -453,6 +455,8 @@ class LoadSimulationOperator(bpy.types.Operator):
                         setattr(context.scene.objects['sensor_' + sensor.attrib['location']], simulator.attrib['name'] + variable.text, True)
 
             draw_sensor_list_panel(model['sensor_info'])
+
+        builtins.sim_dict = get_sensor_plugin_mapping(context)
 
         return {'FINISHED'}
 
