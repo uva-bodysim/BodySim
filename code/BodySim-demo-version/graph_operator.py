@@ -15,16 +15,12 @@ import sys
 import builtins
 from queue import Queue, Empty
 from threading import Thread
-from vertex_group_operator import get_plugins
+import Bodysim.vertex_group_operator
 dirname = os.path.dirname
-path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
+path_to_this_file = dirname(os.path.realpath(__file__))
 q = Queue()
 
-#Imports blender_caller.py
-sys.path.insert(0, dirname(dirname(__file__)))
-import blender_caller
-
-scene = bpy.context.scene
+import Bodysim.blender_caller
 
 class GraphOperator(bpy.types.Operator):
     """Get input from graph."""
@@ -36,6 +32,7 @@ class GraphOperator(bpy.types.Operator):
     _thread = None
 
     def modal(self, context, event):
+
         if event.type == 'ESC':
             return self.cancel(context)
 
@@ -46,6 +43,7 @@ class GraphOperator(bpy.types.Operator):
                 pass
             else:
                 # Stop the operator if the graph window is closed.
+                scene = bpy.context.scene
                 if str(line.strip()) == "b'quit'":
                     return self.cancel(context)
 
@@ -64,7 +62,7 @@ class GraphOperator(bpy.types.Operator):
         curr_sim_path = model['current_simulation_path']
 
         # Graphing: one tab per sensor. One plot per unit group per plugin.
-        plugins_tuple = get_plugins(path_to_this_file, False)
+        plugins_tuple = Bodysim.vertex_group_operator.get_plugins(path_to_this_file, False)
         graph_var_map = {}
         sim_dict = builtins.sim_dict
         for sensor in model['sensor_info']:
@@ -90,7 +88,7 @@ class GraphOperator(bpy.types.Operator):
                         graph_var_map[sensor][plugin][curr_pair].append((variable, sim_dict[sensor][plugin].index(variable)))
 
         print(graph_var_map)
-        self._pipe = blender_caller.plot_csv(str(30), curr_sim_path, graph_var_map)
+        self._pipe = Bodysim.blender_caller.plot_csv(str(30), curr_sim_path, graph_var_map)
         
         # A separate thread must be started to keep track of the blocking pipe
         # so the script does not freeze blender.
@@ -106,7 +104,10 @@ class GraphOperator(bpy.types.Operator):
         return {'CANCELLED'}
 
 def register():
+    global path_to_this_file
     bpy.utils.register_class(GraphOperator)
+    path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
+
 
 def unregister():
     bpy.utils.unregister_class(GraphOperator)

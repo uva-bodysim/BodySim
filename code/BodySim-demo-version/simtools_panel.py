@@ -16,24 +16,23 @@ import builtins
 from queue import Queue, Empty
 from threading import Thread
 import subprocess
-from vertex_group_operator import select_vertex_group, bind_to_text_vg, draw_sensor_list_panel, get_plugins
-import vertex_group_operator
+try:
+    import Bodysim.vertex_group_operator
+except ImportError:
+    raise ImportError()
+
 from multiprocessing import Pool
 from xml.etree.ElementTree import ElementTree as ET
 from xml.etree.ElementTree import *
 q = Queue()
 dirname = os.path.dirname
-path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
+path_to_this_file = dirname(os.path.realpath(__file__))
 builtins.sim_dict = {}
 session_element = None
 simulation_ran = False
 temp_sim_ran = False
 NUMBER_OF_BASE_PLUGINS = 1
 sim_list = []
-
-#Imports blender_caller.py
-sys.path.insert(0, dirname(dirname(__file__)))
-from blender_caller import *
 
 class IMUGenerateOperator(bpy.types.Operator):
     bl_idname = "bodysim.generate_imu"
@@ -342,7 +341,7 @@ def execute_simulators(context, sim_dict):
 
     """
     model = context.scene.objects['model']
-    plugins = get_plugins(path_to_this_file,False)[0]
+    plugins = Bodysim.vertex_group_operator.get_plugins(path_to_this_file,False)[0]
     # TODO Put fps somewhere else. Should it be set by the user?
     fps = 30
     for sensor in sim_dict:
@@ -352,14 +351,17 @@ def execute_simulators(context, sim_dict):
                 if not simulator == 'Trajectory':
                     args = " ".join(sim_dict[sensor][simulator])
 
+                    # Use in case path has spaces
+                    dbl_quotes = '"'
+
                     # Run the simulator
-                    subprocess.check_call("python " + path_to_this_file + os.sep + "plugins" + os.sep
-                     + plugins[simulator]['file'] + ' '
+                    subprocess.check_call("python " + dbl_quotes + path_to_this_file + os.sep + "plugins" + os.sep
+                     + plugins[simulator]['file'] + dbl_quotes + ' ' + dbl_quotes
                      + model['current_simulation_path'] + os.sep + 'Trajectory' + os.sep + 'sensor_' + sensor + '.csv'
-                     + ' ' + str(fps) + ' ' + args)
+                     + dbl_quotes + ' ' + str(fps) + ' ' + args)
 
 def get_sensor_plugin_mapping(context):
-    plugins = get_plugins(path_to_this_file, False)[0]
+    plugins = Bodysim.vertex_group_operator.get_plugins(path_to_this_file, False)[0]
     model = context.scene.objects['model']
     sim_dict = {}
     for sensor in model['sensor_info']:
@@ -443,9 +445,9 @@ class LoadSimulationOperator(bpy.types.Operator):
 
             model['sensor_info'][sensor.attrib['location']] = (sensor_subelements[0].text)
 
-            select_vertex_group(sensor.attrib['location'], context)
+            Bodysim.vertex_group_operator.select_vertex_group(sensor.attrib['location'], context)
 
-            bind_to_text_vg(context, tuple([float(color) for color in sensor_subelements[0].text.split(',')]))
+            Bodysim.vertex_group_operator.bind_to_text_vg(context, tuple([float(color) for color in sensor_subelements[0].text.split(',')]))
 
             # Loop through plugins, if there are any
             if len(list(sensor)) > 1:
@@ -454,7 +456,7 @@ class LoadSimulationOperator(bpy.types.Operator):
                     for variable in simulator:
                         setattr(context.scene.objects['sensor_' + sensor.attrib['location']], simulator.attrib['name'] + variable.text, True)
 
-            draw_sensor_list_panel(model['sensor_info'])
+            Bodysim.vertex_group_operator.draw_sensor_list_panel(model['sensor_info'])
 
         builtins.sim_dict = get_sensor_plugin_mapping(context)
 
@@ -504,4 +506,7 @@ def unregister():
     bpy.utils.unregister_class(IMUGenerateOperator)
     bpy.utils.unregister_class(RunSimulationOperator)
 
-bpy.utils.register_module(__name__)
+if __name__ == "__main__":
+    global path_to_this_file
+    bpy.utils.register_module(__name__)
+    path_to_this_file = dirname(dirname(os.path.realpath(__file__)))

@@ -1,6 +1,8 @@
 _modules = [
-    "bind_to_vertex_group",
-    "simtools_panel",
+    "graph_operator",
+    "message_operators",
+    "vertex_group_operator",
+    "simtools_panel"
 ]
 
 import bpy
