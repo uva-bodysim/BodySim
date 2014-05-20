@@ -34,47 +34,6 @@ temp_sim_ran = False
 NUMBER_OF_BASE_PLUGINS = 1
 sim_list = []
 
-class IMUGenerateOperator(bpy.types.Operator):
-    bl_idname = "bodysim.generate_imu"
-    bl_label = "IMU Generator Operator"
-
-    def execute(self, context):
-        most_recent_run = read_most_recent_run()
-        print ("MRR: " + most_recent_run)
-        sensor_files = glob.glob(current_simulation_path + os.sep + 'raw' + os.sep + '*csv')
-        print(sensor_files)
-        pipe = run_imu_sims(sensor_files)
-        pipe.wait()
-        return {'FINISHED'}
-
-class ChannelGenerateOperator(bpy.types.Operator):
-    bl_idname = "bodysim.generate_channel"
-    bl_label = "Channel Generator Operator"
-
-    '''
-    @classmethod
-    def poll(self, context):
-        return context.scene.objects['model']['sensors'] > 1
-    '''
-
-    def execute(self, context):
-        most_recent_run = read_most_recent_run()
-        print ("MRR: " + most_recent_run)
-        sensor_files = glob.glob(current_simulation_path + os.sep + 'raw' + os.sep + '*csv')
-        print(sensor_files)
-        print('running channel sim')
-        pipe = run_channel_sims(sensor_files)
-        pipe.wait()
-        print(pipe)
-        print("done")
-        return {'FINISHED'}
-
-def main(context):
-    scene = bpy.context.scene
-    for ob in context.scene.objects:
-        print(ob)
-
-
 class SaveOperator(bpy.types.Operator):
     bl_idname = "bodysim.save"
     bl_label = "Save Session"
