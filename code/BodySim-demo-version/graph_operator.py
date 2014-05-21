@@ -16,6 +16,7 @@ import builtins
 from queue import Queue, Empty
 from threading import Thread
 import Bodysim.vertex_group_operator
+import Bodysim.file_operations
 dirname = os.path.dirname
 path_to_this_file = dirname(os.path.realpath(__file__))
 q = Queue()
@@ -62,7 +63,7 @@ class GraphOperator(bpy.types.Operator):
         curr_sim_path = model['current_simulation_path']
 
         # Graphing: one tab per sensor. One plot per unit group per plugin.
-        plugins_tuple = Bodysim.vertex_group_operator.get_plugins(path_to_this_file, False)
+        plugins_tuple = Bodysim.file_operations.get_plugins(path_to_this_file, False)
         graph_var_map = {}
         sim_dict = builtins.sim_dict
         for sensor in model['sensor_info']:
@@ -108,7 +109,6 @@ def register():
     bpy.utils.register_class(GraphOperator)
     path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
 
-
 def unregister():
     bpy.utils.unregister_class(GraphOperator)
 
@@ -116,7 +116,6 @@ def enqueue_output(out, queue):
     for line in iter(out.readline, b''):
         queue.put(line)
     out.close()
-
 
 if __name__ == "__main__":
     register()

@@ -9,6 +9,7 @@ The wire frame of the blender object this is working on must
 import bpy
 import os
 import builtins
+import Bodysim.file_operations
 from bpy.props import FloatVectorProperty, StringProperty
 from mathutils import *
 from math import *
@@ -458,51 +459,10 @@ class BodySim_DESELECT_BODY_PART(bpy.types.Operator):
 
         return {'FINISHED'}
 
-def get_plugins(path, setTheAttrs):
-    # TODO Error checking (existance of plugins.xml, duplicate plugins)
-    # Hard coded plugin: Trajectory
-    unit_map = {}
-    plugins_dict = {}
-    trajectory_vars = ['x', 'y', 'z', 'w', 'rx', 'ry', 'rz']
-    plugins_dict['Trajectory'] = {'file' : None, 'variables' : trajectory_vars}
-    for var in trajectory_vars:
-        setattr(bpy.types.Object, 'Trajectory' + var, bpy.props.BoolProperty(default=True, name=var))
-        setattr(bpy.types.Object, 'GRAPH_Trajectory' + var, bpy.props.BoolProperty(default=False, name='Trajectory_' + var))
-
-    unit_map[('frame no.', 'location(cm)')] = ['Trajectoryx', 'Trajectoryy', 'Trajectoryz']
-    unit_map[('frame no.', 'heading (rad)')] = ['Trajectoryw', 'Trajectoryrx', 'Trajectoryry', 'Trajectoryrz']
-
-    tree = ET().parse(path + os.sep + 'plugins.xml')
-    for simulator in tree.iter('simulator'):
-        simulator_name = simulator.attrib['name']
-        simulator_file = simulator.attrib['file']
-        variables = []
-        for unitGroup in simulator:
-            unitTuple = (unitGroup.attrib['x'], unitGroup.attrib['y'])
-            unitgroup_list = [] if not unitTuple in unit_map else unit_map[unitTuple]
-            for variable in unitGroup:
-                unitgroup_list.append(simulator_name + variable.text)
-
-                variables.append(variable.text)
-                # Append simulator name to allow variables of the same name over different
-                # simulations.
-                if setTheAttrs:
-                    setattr(bpy.types.Object, simulator_name + variable.text, bpy.props.BoolProperty(default=False, name=variable.text))
-                    setattr(bpy.types.Object, 'GRAPH_' + simulator_name + variable.text, bpy.props.BoolProperty(default=False, name=simulator_name + variable.text))
-
-            if not unitTuple in unit_map:
-                unit_map[unitTuple] = unitgroup_list 
-
-        plugins_dict[simulator_name] = {'file' : simulator_file, 'variables' : variables}
-
-    return (plugins_dict, unit_map)
-
 def register():
     global path_to_this_file
     path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
     bpy.utils.register_module(__name__)
-
-
 
 def unregister():
     bpy.utils.unregister_module(__name__)
@@ -511,6 +471,6 @@ def unregister():
 if __name__ == "__main__":
     register()
 
-plugins_tuple = get_plugins(path_to_this_file, True)
+plugins_tuple = Bodysim.file_operations.get_plugins(path_to_this_file, True)
 plugins = plugins_tuple[0]
 unit_map = plugins_tuple[1]

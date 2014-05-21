@@ -13,18 +13,13 @@ import sys
 import glob
 import shutil
 import builtins
-from queue import Queue, Empty
-from threading import Thread
-import subprocess
 try:
     import Bodysim.vertex_group_operator
+    import Bodysim.file_operations
 except ImportError:
     raise ImportError()
-
-from multiprocessing import Pool
 from xml.etree.ElementTree import ElementTree as ET
 from xml.etree.ElementTree import *
-q = Queue()
 dirname = os.path.dirname
 path_to_this_file = dirname(os.path.realpath(__file__))
 builtins.sim_dict = {}
@@ -79,7 +74,7 @@ class WriteSessionToFileOperator(bpy.types.Operator):
             session_element = Element('session', {'directory' : self.filepath.split(os.sep)[-1][:-4]})
             os.mkdir(self.filepath[:-4])
 
-        update_session_file(session_element, model['session_path'], context)
+        Bodysim.file_operations.update_session_file(session_element, model['session_path'])
         
         return {'FINISHED'}
 
@@ -88,11 +83,6 @@ class WriteSessionToFileOperator(bpy.types.Operator):
         self.filepath = 'session' + time.strftime('-%Y%m%d%H%M%S') + '.xml'
         return {'RUNNING_MODAL'}
 
-def update_session_file(session_element, session_path, context):
-    with open(session_path + '.xml', 'wb') as f:
-        indent(session_element)
-        f.write(tostring(session_element))
-        f.close()
 
 class LoadOperator(bpy.types.Operator):
 
@@ -131,22 +121,6 @@ class ReadFileOperator(bpy.types.Operator):
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
-
-
-def indent(elem, level=0):
-    i = "\n" + level*"  "
-    if len(elem):
-        if not elem.text or not elem.text.strip():
-            elem.text = i + "  "
-        if not elem.tail or not elem.tail.strip():
-            elem.tail = i
-        for elem in elem:
-            indent(elem, level+1)
-        if not elem.tail or not elem.tail.strip():
-            elem.tail = i
-    else:
-        if level and (not elem.tail or not elem.tail.strip()):
-            elem.tail = i
 
 class NewSimulationOperator(bpy.types.Operator):
     bl_idname = "bodysim.new_sim"
@@ -229,54 +203,26 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         if model['simulation_count'] == 0:
             simulations_element = Element('simulations')
 
+        # TODO Most of this work is being duplicated inside write_simulation_xml.
         curr_simulation_element = Element('simulation')
         curr_simulation_name_element = Element('name')
         curr_simulation_name_element.text = self.simulation_name
         curr_simulation_element.append(curr_simulation_name_element)
         session_element.append(curr_simulation_element)
-        update_session_file(session_element, session_path, context)
+        Bodysim.file_operations.update_session_file(session_element, session_path)
 
         sensor_dict = context.scene.objects['model']['sensor_info']
         sensors_element = Element('sensors')
 
         builtins.sim_dict = get_sensor_plugin_mapping(context)
 
-        for location, color in sensor_dict.iteritems():
-            curr_sensor_element = Element('sensor', {'location' : location})
-            curr_sensor_color_element = Element('color')
-            curr_sensor_color_element.text = color
-
-            # Add information about plugins
-            if len(builtins.sim_dict[location]) > NUMBER_OF_BASE_PLUGINS:
-                for plugin in builtins.sim_dict[location]:
-                    if plugin == 'Trajectory':
-                        continue
-                    curr_sensor_type_element = Element('plugins_used')
-                    curr_plugin_element = Element('plugin', {'name' : plugin})
-                    curr_sensor_type_element.extend([curr_plugin_element])
-                    for variable in builtins.sim_dict[location][plugin]:
-                        curr_variable_element = Element('variable')
-                        curr_variable_element.text = variable
-                        curr_plugin_element.extend([curr_variable_element])
-
-                curr_sensor_element.extend([curr_sensor_color_element, curr_sensor_type_element])
-
-            else:
-                curr_sensor_element.extend([curr_sensor_color_element])
-
-            sensors_element.append(curr_sensor_element)
-
-            indent(sensors_element)
-            file = open(path + os.sep + 'sensors.xml', 'wb')
-            file.write(tostring(sensors_element))
-            file.flush()
-            file.close()
+        Bodysim.file_operations.write_simulation_xml(self.simulation_name, sensor_dict, builtins.sim_dict, path)
 
         model['simulation_count'] += 1
         scene = bpy.context.scene
         sensor_objects = populate_sensor_list(num_sensors, context)
         track_sensors(1, 100, num_sensors, sensor_objects, scene, path + os.sep + 'Trajectory')
-        execute_simulators(context, builtins.sim_dict)
+        Bodysim.file_operations.execute_simulators(context.scene.objects['model']['current_simulation_path'], path_to_this_file, builtins.sim_dict)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -294,33 +240,8 @@ def populate_sensor_list(num_sensors, context):
         sensor_objects.append(bpy.data.objects['sensor_' + i])
     return sensor_objects
 
-def execute_simulators(context, sim_dict):
-    """
-    Run simulators depending sensor and variables selected.
-
-    """
-    model = context.scene.objects['model']
-    plugins = Bodysim.vertex_group_operator.get_plugins(path_to_this_file,False)[0]
-    # TODO Put fps somewhere else. Should it be set by the user?
-    fps = 30
-    for sensor in sim_dict:
-        if len(sim_dict[sensor]) > NUMBER_OF_BASE_PLUGINS:
-            for simulator in sim_dict[sensor]:
-                # Ignore if BASE plugin
-                if not simulator == 'Trajectory':
-                    args = " ".join(sim_dict[sensor][simulator])
-
-                    # Use in case path has spaces
-                    dbl_quotes = '"'
-
-                    # Run the simulator
-                    subprocess.check_call("python " + dbl_quotes + path_to_this_file + os.sep + "plugins" + os.sep
-                     + plugins[simulator]['file'] + dbl_quotes + ' ' + dbl_quotes
-                     + model['current_simulation_path'] + os.sep + 'Trajectory' + os.sep + 'sensor_' + sensor + '.csv'
-                     + dbl_quotes + ' ' + str(fps) + ' ' + args)
-
 def get_sensor_plugin_mapping(context):
-    plugins = Bodysim.vertex_group_operator.get_plugins(path_to_this_file, False)[0]
+    plugins = Bodysim.file_operations.get_plugins(path_to_this_file, False)[0]
     model = context.scene.objects['model']
     sim_dict = {}
     for sensor in model['sensor_info']:
@@ -452,18 +373,6 @@ class SimTools(bpy.types.Panel):
         self.layout.operator("bodysim.save", text = "Save Session")
         self.layout.operator("bodysim.load", text = "Load Session")
         self.layout.operator("bodysim.new_sim", text = "New Simulation")
-
-def register():
-    bpy.utils.register_class(RunSimulationOperator)
-    bpy.utils.register_class(IMUGenerateOperator)
-    bpy.utils.register_class(GraphOperator)
-    bpy.utils.register_class(SimTools)
-
-def unregister():
-    bpy.utils.unregister_class(SimTools)
-    bpy.utils.unregister_class(GraphOperator)
-    bpy.utils.unregister_class(IMUGenerateOperator)
-    bpy.utils.unregister_class(RunSimulationOperator)
 
 if __name__ == "__main__":
     global path_to_this_file

@@ -1,4 +1,5 @@
 _modules = [
+    "file_operations",
     "graph_operator",
     "message_operators",
     "vertex_group_operator",
