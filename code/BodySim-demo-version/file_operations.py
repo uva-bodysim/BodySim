@@ -7,14 +7,14 @@ import bpy
 import glob
 import os
 import sys
-import builtins
+import shutil
 from queue import Queue, Empty
 from threading import Thread
 from xml.etree.ElementTree import ElementTree as ET
 from xml.etree.ElementTree import *
 import subprocess
-# TODO This should be shared between simtools panel
 NUMBER_OF_BASE_PLUGINS = 1
+session_element = None
 
 def indent(elem, level=0):
     """
@@ -35,17 +35,19 @@ def indent(elem, level=0):
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
 
-def write_simulation_xml(name, sensor_dict, sim_dict, path):
+def write_simulation_xml(name, sensor_dict, sim_dict, sim_path, session_path):
     """
     Writes the list of sensors and simulated variables to a simulation XML file.
     """
+    global session_element
 
     tree = ET()
     curr_simulation_element = Element('simulation')
     curr_simulation_name_element = Element('name')
     curr_simulation_name_element.text = name
     curr_simulation_element.append(curr_simulation_name_element)
-
+    session_element.append(curr_simulation_element)
+    update_session_file(session_element, session_path)
 
     sensors_element = Element('sensors')
 
@@ -75,7 +77,7 @@ def write_simulation_xml(name, sensor_dict, sim_dict, path):
         sensors_element.append(curr_sensor_element)
 
         indent(sensors_element)
-        file = open(path + os.sep + 'sensors.xml', 'wb')
+        file = open(sim_path + os.sep + 'sensors.xml', 'wb')
         file.write(tostring(sensors_element))
         file.flush()
         file.close()
@@ -123,9 +125,15 @@ def get_plugins(path, setTheAttrs):
     return (plugins_dict, unit_map)
 
 def update_session_file(session_element, session_path):
+    """
+    Updates the session file. Called when a new simulation is added to the session.
+
+    """
+
     with open(session_path + '.xml', 'wb') as f:
         indent(session_element)
         f.write(tostring(session_element))
+        f.flush()
         f.close()
 
 def execute_simulators(current_sim_path, bodysim_base_path, sim_dict):
@@ -151,3 +159,67 @@ def execute_simulators(current_sim_path, bodysim_base_path, sim_dict):
                      + plugins[simulator]['file'] + dbl_quotes + ' ' + dbl_quotes
                      + current_sim_path + os.sep + 'Trajectory' + os.sep + 'sensor_' + sensor + '.csv'
                      + dbl_quotes + ' ' + str(fps) + ' ' + args)
+
+def read_session_file(path):
+    """
+    Reads the session file to get a list of simulations.
+
+    """
+    global session_element
+
+    sim_list = []
+    tree = ET().parse(path)
+    session_element = tree
+
+    for simulation in tree.iter('simulation'):
+        sim_list.append(list(simulation)[0].text)
+
+    return sim_list
+
+def set_session_element(path):
+    """
+    Initializes the session element.
+
+    """
+
+    global session_element
+    session_element = Element('session', {'directory' : path})
+
+def save_session_to_file(temp_sim_ran, bodysim_base_path, path):
+    """
+    Saves the session file and creates the session directory.
+
+    """
+
+    global session_element
+
+    if temp_sim_ran:
+        session_element.set('directory', path.split(os.sep)[-1][:-4])
+        os.remove(bodysim_base_path + os.sep + 'tmp.xml')
+        shutil.move(bodysim_base_path + os.sep + 'tmp', path[:-4])
+    else:
+        set_session_element(path.split(os.sep)[-1][:-4])
+        os.mkdir(path[:-4])
+
+    update_session_file(session_element, path[:-4])
+
+def load_simulation(sensor_xml_path):
+    """
+    Loads a simulation file and returns a dictionary mapping sensors to simulated variables.
+    Not as efficient as reading the xml and processing sensors on the fly, but better separated
+    for modularity.
+
+    """
+    tree = ET().parse(sensor_xml_path)
+    sensor_map = {}
+
+    for sensor in tree.iter('sensor'):
+        sensor_map[sensor.attrib['location']] = {}
+        sensor_map[sensor.attrib['location']]['colors'] = list(sensor)[0].text
+        sensor_map[sensor.attrib['location']]['variables'] = []
+        if len(list(sensor)) > NUMBER_OF_BASE_PLUGINS:
+            for simulator in list(sensor)[NUMBER_OF_BASE_PLUGINS]:
+                for variable in simulator:
+                    sensor_map[sensor.attrib['location']]['variables'].append(simulator.attrib['name'] + variable.text)
+
+    return sensor_map

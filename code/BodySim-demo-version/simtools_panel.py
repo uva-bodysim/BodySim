@@ -11,22 +11,17 @@ import os
 import time
 import sys
 import glob
-import shutil
 import builtins
 try:
     import Bodysim.vertex_group_operator
     import Bodysim.file_operations
 except ImportError:
     raise ImportError()
-from xml.etree.ElementTree import ElementTree as ET
-from xml.etree.ElementTree import *
 dirname = os.path.dirname
 path_to_this_file = dirname(os.path.realpath(__file__))
 builtins.sim_dict = {}
-session_element = None
 simulation_ran = False
 temp_sim_ran = False
-NUMBER_OF_BASE_PLUGINS = 1
 sim_list = []
 
 class SaveOperator(bpy.types.Operator):
@@ -48,8 +43,7 @@ class WriteSessionToFileOperator(bpy.types.Operator):
         return context.object is not None
 
     def execute(self, context):
-        global session_element
-        global temp_sim_ran
+
         if not self.filepath[-4:] == '.xml':
             bpy.ops.bodysim.message('INVOKE_DEFAULT',
              msg_type = "Error", message = 'The session file must be saved with an xml extension.')
@@ -60,21 +54,11 @@ class WriteSessionToFileOperator(bpy.types.Operator):
              msg_type = "Error", message = 'A folder already exists with the desired session name.')
             return {'FINISHED'}            
 
-        tree = ET()
         model = context.scene.objects['model']
         model['session_path'] = self.filepath[:-4]
 
         # Handle the case when simulations have been run before a session is saved.
-        if temp_sim_ran:
-            session_element.set('directory', self.filepath.split(os.sep)[-1][:-4])
-            os.remove(path_to_this_file + os.sep + 'tmp.xml')
-            shutil.move(path_to_this_file + os.sep + 'tmp', self.filepath[:-4])
-
-        else:
-            session_element = Element('session', {'directory' : self.filepath.split(os.sep)[-1][:-4]})
-            os.mkdir(self.filepath[:-4])
-
-        Bodysim.file_operations.update_session_file(session_element, model['session_path'])
+        Bodysim.file_operations.save_session_to_file(temp_sim_ran, path_to_this_file,self.filepath)
         
         return {'FINISHED'}
 
@@ -108,12 +92,7 @@ class ReadFileOperator(bpy.types.Operator):
         model = context.scene.objects['model']
         model['sensor_info'] = {}
         model['session_path'] = self.filepath[:-4]
-        tree = ET().parse(self.filepath)
-        session_element = tree
-
-        # simulations_element = Element('simulations')
-        for simulation in tree.iter('simulation'):
-            sim_list.append(list(simulation)[0].text)
+        sim_list = Bodysim.file_operations.read_session_file(self.filepath)
 
         draw_previous_run_panel(sim_list)
         return {'FINISHED'}
@@ -172,7 +151,6 @@ class NameSimulationDialogOperator(bpy.types.Operator):
     simulation_name = bpy.props.StringProperty(name="Name: ", )
 
     def execute(self, context):
-        global session_element
         global simulation_ran
         global temp_sim_ran
         global sim_list
@@ -183,7 +161,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         if 'session_path' not in model:
             session_path = path_to_this_file + os.sep + 'tmp'
             os.mkdir(path_to_this_file + os.sep + 'tmp')
-            session_element = Element('session', {'directory' : session_path})
+            Bodysim.file_operations.set_session_element(session_path)
             temp_sim_ran = True
         else:
             session_path =  model['session_path']
@@ -199,24 +177,13 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         draw_previous_run_panel(sim_list)
         os.mkdir(path)
         os.mkdir(path + os.sep + 'Trajectory')
-        tree = ET()
-        if model['simulation_count'] == 0:
-            simulations_element = Element('simulations')
-
-        # TODO Most of this work is being duplicated inside write_simulation_xml.
-        curr_simulation_element = Element('simulation')
-        curr_simulation_name_element = Element('name')
-        curr_simulation_name_element.text = self.simulation_name
-        curr_simulation_element.append(curr_simulation_name_element)
-        session_element.append(curr_simulation_element)
-        Bodysim.file_operations.update_session_file(session_element, session_path)
 
         sensor_dict = context.scene.objects['model']['sensor_info']
         sensors_element = Element('sensors')
 
         builtins.sim_dict = get_sensor_plugin_mapping(context)
 
-        Bodysim.file_operations.write_simulation_xml(self.simulation_name, sensor_dict, builtins.sim_dict, path)
+        Bodysim.file_operations.write_simulation_xml(self.simulation_name, sensor_dict, builtins.sim_dict, path, session_path)
 
         model['simulation_count'] += 1
         scene = bpy.context.scene
@@ -317,24 +284,16 @@ class LoadSimulationOperator(bpy.types.Operator):
         model = context.scene.objects['model']
         sensor_xml_path = model['session_path'] + os.sep + self.simulation_name + os.sep + 'sensors.xml'
         model['current_simulation_path'] = model['session_path'] + os.sep + self.simulation_name
-        print(sensor_xml_path)
-        tree = ET().parse(sensor_xml_path)
+        sensor_map = Bodysim.file_operations.load_simulation(sensor_xml_path)
 
-        for sensor in tree.iter('sensor'):
-            sensor_subelements = list(sensor)
+        for sensor_location in sensor_map:
+            model['sensor_info'][sensor_location] = sensor_map[sensor_location]['colors']
+            Bodysim.vertex_group_operator.select_vertex_group(sensor_location, context)
+            Bodysim.vertex_group_operator.bind_to_text_vg(context,
+                tuple([float(color) for color in sensor_map[sensor_location]['colors'].split(',')]))
 
-            model['sensor_info'][sensor.attrib['location']] = (sensor_subelements[0].text)
-
-            Bodysim.vertex_group_operator.select_vertex_group(sensor.attrib['location'], context)
-
-            Bodysim.vertex_group_operator.bind_to_text_vg(context, tuple([float(color) for color in sensor_subelements[0].text.split(',')]))
-
-            # Loop through plugins, if there are any
-            if len(list(sensor)) > 1:
-                for simulator in list(sensor)[1]:
-                    # Loop through variables
-                    for variable in simulator:
-                        setattr(context.scene.objects['sensor_' + sensor.attrib['location']], simulator.attrib['name'] + variable.text, True)
+            for variable in sensor_map[sensor_location]['variables']:
+                setattr(context.scene.objects['sensor_' + sensor_location], variable, True)
 
             Bodysim.vertex_group_operator.draw_sensor_list_panel(model['sensor_info'])
 
