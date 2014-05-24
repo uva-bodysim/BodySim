@@ -105,7 +105,7 @@ def get_plugins(path, setTheAttrs):
         simulator_file = simulator.attrib['file']
         variables = []
         for unitGroup in simulator:
-            unitTuple = (unitGroup.attrib['x'], unitGroup.attrib['y'])
+            unitTuple = (simulator.attrib['x'], unitGroup.attrib['y'])
             unitgroup_list = [] if not unitTuple in unit_map else unit_map[unitTuple]
             for variable in unitGroup:
                 unitgroup_list.append(simulator_name + variable.text)
