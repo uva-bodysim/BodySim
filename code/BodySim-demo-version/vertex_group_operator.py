@@ -489,6 +489,8 @@ class BodySim_RESET_SENSORS(bpy.types.Operator):
         bpy.ops.object.delete()
         edit_mode()
         cancel_selection()
+        if not hasattr(bpy.types, "CurrentSensorsPanel"):
+            bpy.utils.register_class(CurrentSensorsPanel)
         return {'FINISHED'}
 
 class BodySim_DESELECT_BODY_PART(bpy.types.Operator):

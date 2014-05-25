@@ -299,12 +299,27 @@ class LoadSimulationOperator(bpy.types.Operator):
 
         return {'FINISHED'}
 
+class DeleteSimulationOperator(bpy.types.Operator):
+    bl_idname = "bodysim.delete_simulation"
+    bl_label = "Load a simulation."
+
+    simulation_name = bpy.props.StringProperty()
+
+    def execute(self, context):
+        model = context.scene.objects['model']
+        Bodysim.file_operations.remove_simulation(model['session_path'], self.simulation_name)
+        bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
+        sim_list = Bodysim.file_operations.read_session_file(model['session_path'] + '.xml')
+        draw_previous_run_panel(sim_list)
+        return {'FINISHED'}
 
 def _drawPreviousRunButtons(self, context):
     layout = self.layout
-
     for _previousRun in self.sim_runs:
-        layout.operator("bodysim.load_simulation", text = _previousRun).simulation_name = _previousRun
+        row = layout.row(align = True)
+        row.alignment = 'EXPAND'
+        row.operator("bodysim.load_simulation", text = _previousRun).simulation_name = _previousRun
+        row.operator("bodysim.delete_simulation", text = "Delete").simulation_name = _previousRun
 
 def draw_previous_run_panel(list_of_simulations):
     bl_space_type = 'VIEW_3D'

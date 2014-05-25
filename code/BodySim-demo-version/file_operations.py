@@ -41,7 +41,6 @@ def write_simulation_xml(name, sensor_dict, sim_dict, sim_path, session_path):
     """
     global session_element
 
-    tree = ET()
     curr_simulation_element = Element('simulation')
     curr_simulation_name_element = Element('name')
     curr_simulation_name_element.text = name
@@ -223,3 +222,22 @@ def load_simulation(sensor_xml_path):
                     sensor_map[sensor.attrib['location']]['variables'].append(simulator.attrib['name'] + variable.text)
 
     return sensor_map
+
+def remove_simulation(session_path, simulation_name):
+    """
+    Removes the simulation from the session file and the session folder.
+
+    """
+
+    tree = ET().parse(session_path + '.xml')
+    for simulation in tree.findall('simulation'):
+        if simulation.find('name').text == simulation_name:
+            tree.remove(simulation)
+
+    indent(tree)
+    file = open(session_path + '.xml', 'wb')
+    file.write(tostring(tree))
+    file.flush()
+    file.close()
+
+    shutil.rmtree(session_path + os.sep + simulation_name)
