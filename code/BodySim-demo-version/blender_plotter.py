@@ -151,9 +151,9 @@ def plot_file(fps, base_dir, string_graph_map):
         for plugin in graph_map[sensor]:
             data = get_data(base_dir + os.sep + plugin + os.sep +'sensor_' + sensor + '.csv')
             for variable_group in graph_map[sensor][plugin]:
-                fig_map[sensor]['subfig'].append(Subfig(sensor + ' ' + plugin,fig, 1, fig_map[sensor]['total_rows'] + 1, variable_group[0], variable_group[1], 't',
-                 [variable[0] for variable in graph_map[sensor][plugin][variable_group]],
-                 data[0],
+                fig_map[sensor]['subfig'].append(Subfig(plugin + ' ' + variable_group[2], fig, 1,
+                 fig_map[sensor]['total_rows'] + 1, variable_group[0], variable_group[1], 't',
+                 [variable[0] for variable in graph_map[sensor][plugin][variable_group]], data[0],
                  [data[variable[1]] for variable in graph_map[sensor][plugin][variable_group]]))
                 fig_map[sensor]['total_rows'] += 1
 

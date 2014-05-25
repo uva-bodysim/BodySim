@@ -96,8 +96,8 @@ def get_plugins(path, setTheAttrs):
         setattr(bpy.types.Object, 'Trajectory' + var, bpy.props.BoolProperty(default=True, name=var))
         setattr(bpy.types.Object, 'GRAPH_Trajectory' + var, bpy.props.BoolProperty(default=False, name='Trajectory_' + var))
 
-    unit_map[('frame no.', 'location(cm)')] = ['Trajectoryx', 'Trajectoryy', 'Trajectoryz']
-    unit_map[('frame no.', 'heading (rad)')] = ['Trajectoryw', 'Trajectoryrx', 'Trajectoryry', 'Trajectoryrz']
+    unit_map[('frame no.', 'location(cm)', 'location')] = ['Trajectoryx', 'Trajectoryy', 'Trajectoryz']
+    unit_map[('frame no.', 'heading (rad)', 'rotation')] = ['Trajectoryw', 'Trajectoryrx', 'Trajectoryry', 'Trajectoryrz']
 
     tree = ET().parse(path + os.sep + 'plugins.xml')
     for simulator in tree.iter('simulator'):
@@ -105,7 +105,7 @@ def get_plugins(path, setTheAttrs):
         simulator_file = simulator.attrib['file']
         variables = []
         for unitGroup in simulator:
-            unitTuple = (simulator.attrib['x'], unitGroup.attrib['y'])
+            unitTuple = (simulator.attrib['x'], unitGroup.attrib['y'], unitGroup.attrib['heading'])
             unitgroup_list = [] if not unitTuple in unit_map else unit_map[unitTuple]
             for variable in unitGroup:
                 unitgroup_list.append(simulator_name + variable.text)

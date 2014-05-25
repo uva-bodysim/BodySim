@@ -88,7 +88,6 @@ class ReadFileOperator(bpy.types.Operator):
         return context.object is not None
 
     def execute(self, context):
-        global session_element
         model = context.scene.objects['model']
         model['sensor_info'] = {}
         model['session_path'] = self.filepath[:-4]
@@ -179,7 +178,6 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         os.mkdir(path + os.sep + 'Trajectory')
 
         sensor_dict = context.scene.objects['model']['sensor_info']
-        sensors_element = Element('sensors')
 
         builtins.sim_dict = get_sensor_plugin_mapping(context)
 
