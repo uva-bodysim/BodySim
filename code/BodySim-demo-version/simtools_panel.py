@@ -108,7 +108,12 @@ class NewSimulationOperator(bpy.types.Operator):
         # TODO Let the user pick a previous simulation to use as a template.
         # For now, this will clear all sensors.
         global simulation_ran
-        if context.scene.objects['model']['sensor_info'] and not simulation_ran:
+        model = context.scene.objects['model']
+
+        if 'sensor_info' not in model:
+            return {'FINISHED'}
+
+        if model['sensor_info'] and not simulation_ran:
             bpy.ops.bodysim.not_ran_sim_dialog('INVOKE_DEFAULT')
         else:
             bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
@@ -140,6 +145,12 @@ class RunSimulationOperator(bpy.types.Operator):
         return context.active_object is not None
 
     def execute(self, context):
+        model = context.scene.objects['model']
+        if 'sensor_info' not in model or not model['sensor_info']:
+            bpy.ops.bodysim.message('INVOKE_DEFAULT', 
+                msg_type = "Error", message = 'No sensors were added.')
+            return {'CANCELLED'}
+
         bpy.ops.bodysim.name_simulation('INVOKE_DEFAULT')
         return {'FINISHED'}
 
