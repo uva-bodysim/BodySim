@@ -50,10 +50,10 @@ def write_simulation_xml(name, sensor_dict, sim_dict, sim_path, session_path):
 
     sensors_element = Element('sensors')
 
-    for location, color in sensor_dict.iteritems():
-        curr_sensor_element = Element('sensor', {'location' : location})
+    for location, color_and_name in sensor_dict.iteritems():
+        curr_sensor_element = Element('sensor', {'location' : location, 'name' : color_and_name[0]})
         curr_sensor_color_element = Element('color')
-        curr_sensor_color_element.text = color
+        curr_sensor_color_element.text = color_and_name[1]
 
         # Add information about plugins
         if len(sim_dict[location]) > NUMBER_OF_BASE_PLUGINS:
@@ -214,6 +214,7 @@ def load_simulation(sensor_xml_path):
 
     for sensor in tree.iter('sensor'):
         sensor_map[sensor.attrib['location']] = {}
+        sensor_map[sensor.attrib['location']]['name'] = sensor.attrib['name']
         sensor_map[sensor.attrib['location']]['colors'] = list(sensor)[0].text
         sensor_map[sensor.attrib['location']]['variables'] = []
         if len(list(sensor)) > NUMBER_OF_BASE_PLUGINS:

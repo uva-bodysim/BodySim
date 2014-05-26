@@ -285,10 +285,12 @@ class LoadSimulationOperator(bpy.types.Operator):
         sensor_map = Bodysim.file_operations.load_simulation(sensor_xml_path)
 
         for sensor_location in sensor_map:
-            model['sensor_info'][sensor_location] = sensor_map[sensor_location]['colors']
+            model['sensor_info'][sensor_location] = (sensor_map[sensor_location]['name'], sensor_map[sensor_location]['colors'])
             Bodysim.vertex_group_operator.select_vertex_group(sensor_location, context)
             Bodysim.vertex_group_operator.bind_to_text_vg(context,
                 tuple([float(color) for color in sensor_map[sensor_location]['colors'].split(',')]))
+
+            context.scene.objects['sensor_' + sensor_location].sensor_name = sensor_map[sensor_location]['name']
 
             for variable in sensor_map[sensor_location]['variables']:
                 setattr(context.scene.objects['sensor_' + sensor_location], variable, True)

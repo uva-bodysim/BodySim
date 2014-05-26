@@ -52,6 +52,8 @@ bpy.types.Object.sensor_color = FloatVectorProperty(name="sensor_color",
     update=update_color,
     )
 
+bpy.types.Object.sensor_name = StringProperty(name="sensor_name")
+
 '''
 Functions
 '''
@@ -235,6 +237,9 @@ def _drawAddSensorFirstPage(self, context):
 def _drawSingleSensorButtons(self, context):
     layout = self.layout
     for sensor in self.sensor_dict:
+        col = layout.column(align = True)
+        col.enabled = False
+        col.prop(context.scene.objects['sensor_' + sensor], "sensor_name")
         row = layout.row(align = True)
         row.alignment = 'EXPAND'
         row.operator("bodysim.locate_body_part", text = sensor).part = sensor
@@ -375,6 +380,7 @@ class BodySim_FINALIZE(bpy.types.Operator):
     bl_label = "Add sensor to the panel"
 
     sensorColor = bpy.props.FloatVectorProperty()
+    sensorName = bpy.props.StringProperty()
 
     def execute(self, context):
         for subpanel in plugin_panel_list:
@@ -387,7 +393,7 @@ class BodySim_FINALIZE(bpy.types.Operator):
         material.diffuse_color = r, g, b
         sensor.data.materials.append(material)
         model = context.scene.objects['model']
-        model['sensor_info'][model['current_vg']] = str(r) + ',' + str(g) + ',' + str(b)
+        model['sensor_info'][model['current_vg']] = (self.sensorName , str(r) + ',' + str(g) + ',' + str(b))
         del model['last_bound_sensor']
         redraw_addSensorPanel(_drawAddSensorFirstPage)
         draw_sensor_list_panel(model['sensor_info'])
@@ -409,7 +415,9 @@ def _draw_sensor_properties_page(self, context):
     prop = col.operator("bodysim.finalize", text="Finalize")
     col.operator("bodysim.cancel_add", text = "Cancel")
     col.prop(context.scene.objects['sensor_' + model['current_vg']], "sensor_color")
+    col.prop(context.scene.objects['sensor_' + model['current_vg']], "sensor_name")
     prop.sensorColor = context.scene.objects['sensor_' + model['current_vg']].sensor_color
+    prop.sensorName = context.scene.objects['sensor_' + model['current_vg']].sensor_name
 
 def redraw_addSensorPanel(draw_function):
     bl_label = "Add Sensor"
