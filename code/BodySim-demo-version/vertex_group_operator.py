@@ -244,6 +244,7 @@ def _drawSingleSensorButtons(self, context):
         row.alignment = 'EXPAND'
         row.operator("bodysim.locate_body_part", text = sensor).part = sensor
         row.prop(context.scene.objects['sensor_' + sensor], "sensor_color")
+        row.operator("bodysim.edit_sensor", text = "Edit").part = sensor
         row.operator("bodysim.delete_sensor", text = "Delete").part = sensor
         row.operator("bodysim.graph_select", text = "Graph Selection").part = sensor
 
@@ -286,6 +287,19 @@ class BodySim_LOCATE_BODY_PART(bpy.types.Operator):
 
     def execute(self, context):
         context.scene.objects.active = context.scene.objects['sensor_' + self.part]
+        model = context.scene.objects['model']
+        return {'FINISHED'}
+
+class Bodysim_EDIT_SENSOR(bpy.types.Operator):
+    bl_idname = "bodysim.edit_sensor"
+    bl_label = "BodySim Edit Sensor"
+    part = bpy.props.StringProperty()
+
+    def execute(self, context):
+        model = context.scene.objects['model']
+        model['current_vg'] = self.part
+        redraw_addSensorPanel(_draw_sensor_properties_page)
+        draw_plugins_subpanels(plugins)
         return {'FINISHED'}
 
 class BodySim_SELECT_BODY_PART(bpy.types.Operator):
@@ -394,7 +408,8 @@ class BodySim_FINALIZE(bpy.types.Operator):
         sensor.data.materials.append(material)
         model = context.scene.objects['model']
         model['sensor_info'][model['current_vg']] = (self.sensorName , str(r) + ',' + str(g) + ',' + str(b))
-        del model['last_bound_sensor']
+        if 'last_bound_sensor' in model:
+            del model['last_bound_sensor']
         redraw_addSensorPanel(_drawAddSensorFirstPage)
         draw_sensor_list_panel(model['sensor_info'])
         return {'FINISHED'}
