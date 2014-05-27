@@ -232,6 +232,7 @@ def _drawAddSensorFirstPage(self, context):
     layout = self.layout
     layout.operator("bodysim.new_sensor", text="Add Sensor")
     layout.operator("bodysim.reset_sensors", text="Reset Sensors")
+    layout.operator("bodysim.clear_selection", text="Clear Selection")
     model = context.scene.objects['model']
 
 def _drawSingleSensorButtons(self, context):
@@ -286,8 +287,8 @@ class BodySim_LOCATE_BODY_PART(bpy.types.Operator):
     part = bpy.props.StringProperty()
 
     def execute(self, context):
-        context.scene.objects.active = context.scene.objects['sensor_' + self.part]
-        model = context.scene.objects['model']
+        select_vertex_group(self.part, context)
+        bpy.ops.view3d.view_selected()
         return {'FINISHED'}
 
 class Bodysim_EDIT_SENSOR(bpy.types.Operator):
@@ -412,6 +413,15 @@ class BodySim_FINALIZE(bpy.types.Operator):
             del model['last_bound_sensor']
         redraw_addSensorPanel(_drawAddSensorFirstPage)
         draw_sensor_list_panel(model['sensor_info'])
+        return {'FINISHED'}
+
+class BodySim_CLEAR_SELECTION(bpy.types.Operator):
+    bl_idname = "bodysim.clear_selection"
+    bl_label = "Clear selected sensors"
+
+    def execute(self, context):
+        cancel_selection()
+        bpy.ops.view3d.view_all()
         return {'FINISHED'}
 
 class BodySim_NEW_SENSOR(bpy.types.Operator):
