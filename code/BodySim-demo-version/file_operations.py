@@ -75,11 +75,11 @@ def write_simulation_xml(name, sensor_dict, sim_dict, sim_path, session_path):
 
         sensors_element.append(curr_sensor_element)
 
-        indent(sensors_element)
-        file = open(sim_path + os.sep + 'sensors.xml', 'wb')
-        file.write(tostring(sensors_element))
-        file.flush()
-        file.close()
+    indent(sensors_element)
+    file = open(sim_path + os.sep + 'sensors.xml', 'wb')
+    file.write(tostring(sensors_element))
+    file.flush()
+    file.close()
 
 def get_plugins(path, setTheAttrs):
     """
@@ -157,7 +157,7 @@ def execute_simulators(current_sim_path, bodysim_base_path, sim_dict):
                     subprocess.check_call("python " + dbl_quotes + bodysim_base_path + os.sep + "plugins" + os.sep
                      + plugins[simulator]['file'] + dbl_quotes + ' ' + dbl_quotes
                      + current_sim_path + os.sep + 'Trajectory' + os.sep + 'sensor_' + sensor + '.csv'
-                     + dbl_quotes + ' ' + str(fps) + ' ' + args)
+                     + dbl_quotes + ' ' + str(fps) + ' ' + args, shell=True)
 
 def read_session_file(path):
     """
