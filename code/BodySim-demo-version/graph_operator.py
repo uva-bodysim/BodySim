@@ -58,11 +58,12 @@ class GraphOperator(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        # Get the files ending with .csv extension.'
+        # Get the files ending with .csv extension.
         model = context.scene.objects['model']
         curr_sim_path = model['current_simulation_path']
 
         # Graphing: one tab per sensor. One plot per unit group per plugin.
+        # For every variable in the simulation, get its column position in the csv file.
         plugins_tuple = Bodysim.file_operations.get_plugins(path_to_this_file, False)
         graph_var_map = {}
         sim_dict = builtins.sim_dict
@@ -86,7 +87,8 @@ class GraphOperator(bpy.types.Operator):
                         if curr_pair not in graph_var_map[sensor][plugin]:
                             graph_var_map[sensor][plugin][curr_pair] = []
 
-                        graph_var_map[sensor][plugin][curr_pair].append((variable, sim_dict[sensor][plugin].index(variable)))
+                        # The first column of the log is reserved for the independent variable.
+                        graph_var_map[sensor][plugin][curr_pair].append((variable, sim_dict[sensor][plugin].index(variable) + 1))
 
         print(graph_var_map)
         self._pipe = Bodysim.blender_caller.plot_csv(str(30), curr_sim_path, graph_var_map)

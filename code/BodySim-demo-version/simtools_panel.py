@@ -88,6 +88,8 @@ class ReadFileOperator(bpy.types.Operator):
         return context.object is not None
 
     def execute(self, context):
+        global sim_list
+
         model = context.scene.objects['model']
         model['sensor_info'] = {}
         model['session_path'] = self.filepath[:-4]
@@ -105,8 +107,6 @@ class NewSimulationOperator(bpy.types.Operator):
     bl_label = "Create a new simulation"
 
     def execute(self, context):
-        # TODO Let the user pick a previous simulation to use as a template.
-        # For now, this will clear all sensors.
         global simulation_ran
         model = context.scene.objects['model']
 
