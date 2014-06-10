@@ -11,215 +11,238 @@ import os
 import time
 import sys
 import glob
-from queue import Queue, Empty
-from threading import Thread
-import subprocess
-from multiprocessing import Pool
-q = Queue()
-
+import builtins
+try:
+    import Bodysim.vertex_group_operator
+    import Bodysim.file_operations
+except ImportError:
+    raise ImportError()
 dirname = os.path.dirname
+path_to_this_file = dirname(os.path.realpath(__file__))
+builtins.sim_dict = {}
+simulation_ran = False
+temp_sim_ran = False
+sim_list = []
 
-#Imports blender_caller.py
-sys.path.insert(0, dirname(dirname(__file__)))
-
-def plot_csv(plot_type, fps, filenames):
-    #pool = Pool(processes=1)
-    plotter_file_path = os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/blender_plotter.py")
-    print(plotter_file_path)
-    print(filenames)
-    pipe = subprocess.Popen(["python", plotter_file_path, plot_type, fps] + filenames, 
-            stdout=subprocess.PIPE, bufsize=1)
-    return pipe
-
-
-def run_imu_sims(filenames):
-    imu_sim_file_path = os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/imu_simulator.py")
-    pipe = subprocess.Popen(["python", imu_sim_file_path] + filenames,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
-    return pipe
-
-def read_most_recent_run():
-    f = open(dirname(dirname(__file__)) + os.sep +'mmr', 'r')
-    mmr = f.read() + os.sep
-    f.close()
-    return mmr
-
-def run_channel_sims(filenames):
-    channel_sim_file_path = os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/channel_simulator.py")
-    pipe = subprocess.Popen(["python", channel_sim_file_path] + filenames,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
-    return pipe
-
-
-class GraphOperator(bpy.types.Operator):
-    """Get input from graph."""
-    bl_idname = "bodysim.plot_motion"
-    bl_label = "Graph Modal Operator"
-    plot_type = bpy.props.StringProperty()    
-    _timer = None
-    _pipe = None
-    _thread = None
-
-    def modal(self, context, event):
-        scene = bpy.context.scene
-        if event.type == 'ESC':
-            return self.cancel(context)
-
-        if event.type == 'TIMER':
-            try:
-                line = q.get_nowait()
-            except Empty:
-                pass
-            else:
-                # Stop the operator if the graph window is closed.
-                if str(line.strip()) == "b'quit'":
-                    return self.cancel(context)
-
-                # Move the animation to the desired frame.
-                scene.frame_current = int(float(line))
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.object.mode_set(mode='OBJECT')
-                bpy.ops.render.render()
-                bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
-
-        return {'PASS_THROUGH'}
+class SaveOperator(bpy.types.Operator):
+    bl_idname = "bodysim.save"
+    bl_label = "Save Session"
 
     def execute(self, context):
-        # Get the files ending with .csv extension.'
-        most_recent_run = read_most_recent_run()
-        print ("MRR: " + most_recent_run)
-        sensor_files = []
+        bpy.ops.bodysim.save_session_to_file('INVOKE_DEFAULT')
+        return {'FINISHED'}
 
-        if (self.plot_type == '-imu'):
-            sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'sim' + os.sep + '*-i.csv')
+class WriteSessionToFileOperator(bpy.types.Operator):
+    bl_idname = "bodysim.save_session_to_file"
+    bl_label = "Save to file"
 
-        if (self.plot_type == '-raw'):
-            sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'raw' + os.sep + '*csv')
+    filepath = bpy.props.StringProperty(subtype="FILE_PATH")
 
-        if (self.plot_type == '-chan'):
-            sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'sim' + os.sep + '*-c.csv')
+    @classmethod
+    def poll(cls, context):
+        return context.object is not None
 
-        self._pipe = plot_csv(self.plot_type, str(30), sensor_files)
+    def execute(self, context):
+
+        if not self.filepath[-4:] == '.xml':
+            bpy.ops.bodysim.message('INVOKE_DEFAULT',
+             msg_type = "Error", message = 'The session file must be saved with an xml extension.')
+            return {'FINISHED'}
+
+        if os.path.exists(self.filepath):
+            bpy.ops.bodysim.error_message('INVOKE_DEFAULT',
+             msg_type = "Error", message = 'A folder already exists with the desired session name.')
+            return {'FINISHED'}            
+
+        model = context.scene.objects['model']
+        model['session_path'] = self.filepath[:-4]
+
+        # Handle the case when simulations have been run before a session is saved.
+        Bodysim.file_operations.save_session_to_file(temp_sim_ran, path_to_this_file,self.filepath)
         
-        # A separate thread must be started to keep track of the blocking pipe
-        # so the script does not freeze blender.
-        self._thread = Thread(target=enqueue_output, args=(self._pipe.stdout, q))
-        self._thread.daemon = True
-        self._thread.start()
-        self._timer = context.window_manager.event_timer_add(0.2, context.window)
-        context.window_manager.modal_handler_add(self)
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        self.filepath = 'session' + time.strftime('-%Y%m%d%H%M%S') + '.xml'
         return {'RUNNING_MODAL'}
 
-    def cancel(self, context):
-        context.window_manager.event_timer_remove(self._timer)
-        return {'CANCELLED'}
 
-def enqueue_output(out, queue):
-    for line in iter(out.readline, b''):
-        queue.put(line)
-    out.close()
+class LoadOperator(bpy.types.Operator):
 
-#Imports blender_caller.py
-sys.path.insert(0, dirname(dirname(__file__)))
-
-class IMUGenerateOperator(bpy.types.Operator):
-    """Tooltip"""
-    bl_idname = "bodysim.generate_imu"
-    bl_label = "IMU Generator Operator"
+    bl_idname = "bodysim.load"
+    bl_label = "Load Session"
 
     def execute(self, context):
-        most_recent_run = read_most_recent_run()
-        print ("MRR: " + most_recent_run)
-        sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'raw' + os.sep + '*csv')
-        print(sensor_files)
-        pipe = run_imu_sims(sensor_files)
-        pipe.wait()
+        bpy.ops.bodysim.read_from_file('INVOKE_DEFAULT')
         return {'FINISHED'}
 
-class ChannelGenerateOperator(bpy.types.Operator):
-    """Tooltip"""
-    bl_idname = "bodysim.generate_channel"
-    bl_label = "Channel Generator Operator"
+class ReadFileOperator(bpy.types.Operator):
+    bl_idname = "bodysim.read_from_file"
+    bl_label = "Read from file"
 
-    '''
+    filepath = bpy.props.StringProperty(subtype="FILE_PATH")
+
     @classmethod
-    def poll(self, context):
-        return context.scene.objects['model']['sensors'] > 1
-    '''
+    def poll(cls, context):
+        return context.object is not None
 
     def execute(self, context):
-        most_recent_run = read_most_recent_run()
-        print ("MRR: " + most_recent_run)
-        sensor_files = glob.glob(os.path.realpath(most_recent_run) + os.sep + 'raw' + os.sep + '*csv')
-        print(sensor_files)
-        print('running channel sim')
-        pipe = run_channel_sims(sensor_files)
-        pipe.wait()
-        print(pipe)
-        print("done")
+        global sim_list
+
+        model = context.scene.objects['model']
+        model['sensor_info'] = {}
+        model['session_path'] = self.filepath[:-4]
+        sim_list = Bodysim.file_operations.read_session_file(self.filepath)
+
+        draw_previous_run_panel(sim_list)
         return {'FINISHED'}
 
-def read_most_recent_run():
-    f = open(dirname(dirname(__file__)) + os.sep +'mmr', 'r')
-    mmr = f.read() + os.sep
-    f.close()
-    return mmr
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
-dirname = os.path.dirname
-path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
+class NewSimulationOperator(bpy.types.Operator):
+    bl_idname = "bodysim.new_sim"
+    bl_label = "Create a new simulation"
 
-def main(context):
-    scene = bpy.context.scene
-    for ob in context.scene.objects:
-        print(ob)
+    def execute(self, context):
+        global simulation_ran
+        model = context.scene.objects['model']
+
+        if 'sensor_info' not in model:
+            return {'FINISHED'}
+
+        if model['sensor_info'] and not simulation_ran:
+            bpy.ops.bodysim.not_ran_sim_dialog('INVOKE_DEFAULT')
+        else:
+            bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
+        return {'FINISHED'}
+
+class NotRanSimDialogOperator(bpy.types.Operator):
+    bl_idname = "bodysim.not_ran_sim_dialog"
+    bl_label = "Simulation not ran yet on these sensors."
 
 
-class TrackSensorOperator(bpy.types.Operator):
-    """Tooltip"""
-    bl_idname = "bodysim.track_sensors"
-    bl_label = "Track Sensors"
+    def execute(self, context):
+        bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column()
+        col.label(text="Are you sure you want to reset?")
+
+class RunSimulationOperator(bpy.types.Operator):
+    bl_idname = "bodysim.run_sim"
+    bl_label = "Run Simulation"
 
     @classmethod
     def poll(cls, context):
         return context.active_object is not None
 
     def execute(self, context):
-        num_sensors = context.scene.objects['model']['sensors']
-        file_name = 'Sensor'
-        scene = bpy.context.scene
-        sensor_objects = populate_sensor_list(num_sensors)
-        track_sensors(1, 100, num_sensors, file_name, sensor_objects, scene)       
-        return {'FINISHED'}
-    
-def populate_sensor_list(num_sensors):
-    """ Get all the sensors in the scene."""
-    sensor_objects = []
-    for i in range(num_sensors):
-        sensor_objects.append(bpy.data.objects["Sensor_" + str(i)])
-    return sensor_objects
-        
-def save_run_time():
-    sim_out_dir = path_to_this_file + os.sep + time.strftime(
-            'simout-%Y%m%d%H%M%S')
-    f = open(path_to_this_file + os.sep + 'mmr', 'w')
-    f.write(sim_out_dir)
-    f.close()
-    tracking_out_dir = sim_out_dir + os.sep + 'raw'
-    os.mkdir(sim_out_dir)
-    os.mkdir(tracking_out_dir)
-    return tracking_out_dir
+        model = context.scene.objects['model']
+        if 'sensor_info' not in model or not model['sensor_info']:
+            bpy.ops.bodysim.message('INVOKE_DEFAULT', 
+                msg_type = "Error", message = 'No sensors were added.')
+            return {'CANCELLED'}
 
-def track_sensors(frame_start, frame_end, num_sensors, file_name, sensor_objects, scene):
+        bpy.ops.bodysim.name_simulation('INVOKE_DEFAULT')
+        return {'FINISHED'}
+
+class NameSimulationDialogOperator(bpy.types.Operator):
+    bl_idname = "bodysim.name_simulation"
+    bl_label = "Enter a name for this simulation."
+
+    simulation_name = bpy.props.StringProperty(name="Name: ", )
+
+    def execute(self, context):
+        global simulation_ran
+        global temp_sim_ran
+        global sim_list
+        simulation_ran = True
+        model = context.scene.objects['model']
+        num_sensors = len(model['sensor_info'])
+
+        if 'session_path' not in model:
+            session_path = path_to_this_file + os.sep + 'tmp'
+            os.mkdir(path_to_this_file + os.sep + 'tmp')
+            Bodysim.file_operations.set_session_element(session_path)
+            temp_sim_ran = True
+        else:
+            session_path =  model['session_path']
+
+        path = session_path + os.sep + self.simulation_name
+        model['current_simulation_path'] = path
+        if os.path.exists(path):
+            bpy.ops.bodysim.message('INVOKE_DEFAULT',
+             msg_type = "Error", message = 'A simulation with that name already exists!')
+            return {'CANCELLED'}
+
+        sim_list.append(self.simulation_name)
+        draw_previous_run_panel(sim_list)
+        os.mkdir(path)
+        os.mkdir(path + os.sep + 'Trajectory')
+
+        sensor_dict = context.scene.objects['model']['sensor_info']
+
+        builtins.sim_dict = get_sensor_plugin_mapping(context)
+
+        Bodysim.file_operations.write_simulation_xml(self.simulation_name, sensor_dict, builtins.sim_dict, path, session_path)
+
+        model['simulation_count'] += 1
+        scene = bpy.context.scene
+        sensor_objects = populate_sensor_list(num_sensors, context)
+        track_sensors(1, 100, num_sensors, sensor_objects, scene, path + os.sep + 'Trajectory')
+        Bodysim.file_operations.execute_simulators(context.scene.objects['model']['current_simulation_path'], path_to_this_file, builtins.sim_dict)
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        model = context.scene.objects['model']
+        if 'simulation_count' not in model: 
+            model['simulation_count'] = 0
+        self.simulation_name = "simulation_" + str(model['simulation_count'])
+        return context.window_manager.invoke_props_dialog(self)
+
+def populate_sensor_list(num_sensors, context):
+    """ Get all the sensors in the scene."""
+    print(bpy.data.objects)
+    sensor_objects = []
+    for i in context.scene.objects['model']['sensor_info']:
+        sensor_objects.append(bpy.data.objects['sensor_' + i])
+    return sensor_objects
+
+def get_sensor_plugin_mapping(context):
+    plugins = Bodysim.file_operations.get_plugins(path_to_this_file, False)[0]
+    model = context.scene.objects['model']
+    sim_dict = {}
+    for sensor in model['sensor_info']:
+        for plugin in plugins:
+            for variable in plugins[plugin]['variables']:
+                if getattr(context.scene.objects['sensor_' + sensor], plugin + variable):
+                    if sensor not in sim_dict:
+                        sim_dict[sensor] = {}
+
+                    if plugin not in sim_dict[sensor]:
+                        sim_dict[sensor][plugin] = []
+                    sim_dict[sensor][plugin].append(variable)
+
+    return sim_dict
+
+
+def track_sensors(frame_start, frame_end, num_sensors, sensor_objects, scene, path):
     """Print location and rotation of sensors along respective paths.
 
     Rotation in quaternions.
 
     """
-    tracking_out_dir = save_run_time()
     data_files = []
-    for i in range(num_sensors):
-        data_files.append(open(tracking_out_dir + os.sep + file_name + '_' + str(i) + '.csv', 'w'))
-        print(os.path.realpath(data_files[i].name))
+    for i in sensor_objects:
+        data_files.append(open(path + os.sep + i.name + '.csv', 'w'))
 
     for i in range(frame_end - frame_start + 1):
         current_frame = frame_start + i
@@ -257,27 +280,86 @@ def track_sensors(frame_start, frame_end, num_sensors, file_name, sensor_objects
         data_files[i].flush()
         data_files[i].close()
 
+class LoadSimulationOperator(bpy.types.Operator):
+    bl_idname = "bodysim.load_simulation"
+    bl_label = "Load a simulation."
+
+    simulation_name = bpy.props.StringProperty()
+
+    def execute(self, context):
+        # TODO Check if there were any unsaved modifications first.
+        bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
+        # Navigate to correct folder to load the correct sensors.xml
+        model = context.scene.objects['model']
+        sensor_xml_path = model['session_path'] + os.sep + self.simulation_name + os.sep + 'sensors.xml'
+        model['current_simulation_path'] = model['session_path'] + os.sep + self.simulation_name
+        sensor_map = Bodysim.file_operations.load_simulation(sensor_xml_path)
+
+        for sensor_location in sensor_map:
+            model['sensor_info'][sensor_location] = (sensor_map[sensor_location]['name'], sensor_map[sensor_location]['colors'])
+            Bodysim.vertex_group_operator.select_vertex_group(sensor_location, context)
+            Bodysim.vertex_group_operator.bind_to_text_vg(context,
+                tuple([float(color) for color in sensor_map[sensor_location]['colors'].split(',')]))
+
+            context.scene.objects['sensor_' + sensor_location].sensor_name = sensor_map[sensor_location]['name']
+
+            for variable in sensor_map[sensor_location]['variables']:
+                setattr(context.scene.objects['sensor_' + sensor_location], variable, True)
+
+            Bodysim.vertex_group_operator.draw_sensor_list_panel(model['sensor_info'])
+
+        builtins.sim_dict = get_sensor_plugin_mapping(context)
+
+        return {'FINISHED'}
+
+class DeleteSimulationOperator(bpy.types.Operator):
+    bl_idname = "bodysim.delete_simulation"
+    bl_label = "Load a simulation."
+
+    simulation_name = bpy.props.StringProperty()
+
+    def execute(self, context):
+        model = context.scene.objects['model']
+        Bodysim.file_operations.remove_simulation(model['session_path'], self.simulation_name)
+        bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
+        sim_list = Bodysim.file_operations.read_session_file(model['session_path'] + '.xml')
+        draw_previous_run_panel(sim_list)
+        return {'FINISHED'}
+
+def _drawPreviousRunButtons(self, context):
+    layout = self.layout
+    for _previousRun in self.sim_runs:
+        row = layout.row(align = True)
+        row.alignment = 'EXPAND'
+        row.operator("bodysim.load_simulation", text = _previousRun).simulation_name = _previousRun
+        row.operator("bodysim.delete_simulation", text = "Delete").simulation_name = _previousRun
+
+def draw_previous_run_panel(list_of_simulations):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'TOOLS'
+
+    panel = type("SimulationSelectPanel", (bpy.types.Panel,),{
+        "bl_label": "Previous Simulations",
+        "bl_space_type": bl_space_type,
+        "bl_region_type": bl_region_type,
+        "sim_runs": list_of_simulations,
+        "draw": _drawPreviousRunButtons},)
+
+    bpy.utils.register_class(panel)
+
 class SimTools(bpy.types.Panel):
     bl_label = "Sim Tools"
     bl_space_type = "VIEW_3D"
     bl_region_type = "TOOLS"
  
     def draw(self, context):
-        self.layout.operator("bodysim.track_sensors", text = "Run Motion Simulation")
-        self.layout.operator("bodysim.generate_imu", text = "Run IMU Simulation")
-        self.layout.operator("bodysim.generate_channel", text = "Run Channel Simulation")
-        self.layout.operator("bodysim.plot_motion", text = "Plot Motion Data").plot_type = "-raw"
-        self.layout.operator("bodysim.plot_motion", text = "Plot IMU Data").plot_type = "-imu"
-        self.layout.operator("bodysim.plot_motion", text = "Plot Channel Data").plot_type = "-chan"
+        self.layout.operator("bodysim.run_sim", text = "Run Simulation")
+        self.layout.operator("bodysim.graph", text = "Graph Variables")
+        self.layout.operator("bodysim.save", text = "Save Session")
+        self.layout.operator("bodysim.load", text = "Load Session")
+        self.layout.operator("bodysim.new_sim", text = "New Simulation")
 
-def register():
-    bpy.utils.register_class(TrackSensorOperator)
-    bpy.utils.register_class(IMUGenerateOperator)
-    bpy.utils.register_class(GraphOperator)
-    bpy.utils.register_class(SimTools)
-
-def unregister():
-    bpy.utils.unregister_class(SimTools)
-    bpy.utils.unregister_class(GraphOperator)
-    bpy.utils.unregister_class(IMUGenerateOperator)
-    bpy.utils.unregister_class(TrackSensorOperator)
+if __name__ == "__main__":
+    global path_to_this_file
+    bpy.utils.register_module(__name__)
+    path_to_this_file = dirname(dirname(os.path.realpath(__file__)))

@@ -5,30 +5,16 @@ import subprocess
 import sys
 import os
 
-def plot_csv(plot_type, fps, filenames):
+def plot_csv(fps, curr_sim_path, graph_dict):
     plotter_file_path = os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/blender_plotter.py")
-    pipe = subprocess.Popen(["python", plotter_file_path, plot_type, fps] + filenames,
-            stdout=subprocess.PIPE, bufsize=1)
+    # For each unit group of each sensor, create a csv file with the variables belonging to that
+    # group.
+
+    # Note: Assuming that the variables are in the the same column order as they appear in
+    # in the plugins.xml file.
+    # Note: Assuming one independent variable (first column) per simulation
+
+    pipe = subprocess.Popen(["python", plotter_file_path, fps, curr_sim_path, str(graph_dict)],
+             stdout=subprocess.PIPE, bufsize=1)
     return pipe
 
-
-def run_imu_sims(filenames):
-    imu_sim_file_path = os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/imu_simulator.py")
-    pipe = subprocess.Popen(["python", imu_sim_file_path] + filenames,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
-    return pipe
-
-def run_channel_sims(filenames):
-    channel_sim_file_path = os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/channel_simulator.py")
-    pipe = subprocess.Popen(["python", channel_sim_file_path] + filenames,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
-    return pipe
-
-'''
-if __name__ == "__main__":
-    proc = plot_csv(sys.argv[1])
-    while True:
-        line = proc.stdout.readline()
-        if line != '':
-            print line
-'''
