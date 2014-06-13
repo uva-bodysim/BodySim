@@ -16,6 +16,9 @@ import subprocess
 NUMBER_OF_BASE_PLUGINS = 1
 session_element = None
 
+# Folder containing plugins
+bodysim_conf_path = os.path.expanduser('~') + os.sep + '.bodysim'
+
 def indent(elem, level=0):
     """
     Properly indents XML file.
@@ -81,7 +84,7 @@ def write_simulation_xml(name, sensor_dict, sim_dict, sim_path, session_path):
     file.flush()
     file.close()
 
-def get_plugins(path, setTheAttrs):
+def get_plugins(setTheAttrs):
     """
     Reads the plugins.xml file for the list of available external simulators to run.
     """
@@ -98,7 +101,7 @@ def get_plugins(path, setTheAttrs):
     unit_map[('frame no.', 'location(cm)', 'location')] = ['Trajectoryx', 'Trajectoryy', 'Trajectoryz']
     unit_map[('frame no.', 'heading (rad)', 'rotation')] = ['Trajectoryw', 'Trajectoryrx', 'Trajectoryry', 'Trajectoryrz']
 
-    tree = ET().parse(path + os.sep + 'plugins.xml')
+    tree = ET().parse(bodysim_conf_path + os.sep + 'plugins.xml')
     for simulator in tree.iter('simulator'):
         simulator_name = simulator.attrib['name']
         simulator_file = simulator.attrib['file']
@@ -135,12 +138,12 @@ def update_session_file(session_element, session_path):
         f.flush()
         f.close()
 
-def execute_simulators(current_sim_path, bodysim_base_path, sim_dict):
+def execute_simulators(current_sim_path, sim_dict):
     """
     Run simulators depending sensor and variables selected.
 
     """
-    plugins = get_plugins(bodysim_base_path, False)[0]
+    plugins = get_plugins(bodysim_conf_path, False)[0]
     # TODO Put fps somewhere else. Should it be set by the user?
     fps = 30
     for sensor in sim_dict:
@@ -154,7 +157,7 @@ def execute_simulators(current_sim_path, bodysim_base_path, sim_dict):
                     dbl_quotes = '"'
 
                     # Run the simulator
-                    subprocess.check_call("python " + dbl_quotes + bodysim_base_path + os.sep + "plugins" + os.sep
+                    subprocess.check_call("python " + dbl_quotes + bodysim_conf_path + os.sep + "plugins" + os.sep
                      + plugins[simulator]['file'] + dbl_quotes + ' ' + dbl_quotes
                      + current_sim_path + os.sep + 'Trajectory' + os.sep + 'sensor_' + sensor + '.csv'
                      + dbl_quotes + ' ' + str(fps) + ' ' + args, shell=True)
@@ -184,7 +187,7 @@ def set_session_element(path):
     global session_element
     session_element = Element('session', {'directory' : path})
 
-def save_session_to_file(temp_sim_ran, bodysim_base_path, path):
+def save_session_to_file(temp_sim_ran, path):
     """
     Saves the session file and creates the session directory.
 
@@ -194,8 +197,8 @@ def save_session_to_file(temp_sim_ran, bodysim_base_path, path):
 
     if temp_sim_ran:
         session_element.set('directory', path.split(os.sep)[-1][:-4])
-        os.remove(bodysim_base_path + os.sep + 'tmp.xml')
-        shutil.move(bodysim_base_path + os.sep + 'tmp', path[:-4])
+        os.remove(bodysim_conf_path + os.sep + 'tmp.xml')
+        shutil.move(bodysim_conf_path + os.sep + 'tmp', path[:-4])
     else:
         set_session_element(path.split(os.sep)[-1][:-4])
         os.mkdir(path[:-4])

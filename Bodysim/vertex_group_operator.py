@@ -15,8 +15,6 @@ from mathutils import *
 from math import *
 from xml.etree.ElementTree import ElementTree as ET
 from xml.etree.ElementTree import *
-dirname = os.path.dirname
-path_to_this_file = dirname(os.path.realpath(__file__))
 
 # List of vertices for a model.
 # Note that this must be cleared each time a new model is loaded (different
@@ -536,8 +534,6 @@ class BodySim_DESELECT_BODY_PART(bpy.types.Operator):
         return {'FINISHED'}
 
 def register():
-    global path_to_this_file
-    path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
     bpy.utils.register_module(__name__)
 
 def unregister():
@@ -547,6 +543,6 @@ def unregister():
 if __name__ == "__main__":
     register()
 
-plugins_tuple = Bodysim.file_operations.get_plugins(path_to_this_file, True)
+plugins_tuple = Bodysim.file_operations.get_plugins(True)
 plugins = plugins_tuple[0]
 unit_map = plugins_tuple[1]

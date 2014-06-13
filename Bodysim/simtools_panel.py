@@ -17,8 +17,6 @@ try:
     import Bodysim.file_operations
 except ImportError:
     raise ImportError()
-dirname = os.path.dirname
-path_to_this_file = dirname(os.path.realpath(__file__))
 builtins.sim_dict = {}
 simulation_ran = False
 temp_sim_ran = False
@@ -58,7 +56,7 @@ class WriteSessionToFileOperator(bpy.types.Operator):
         model['session_path'] = self.filepath[:-4]
 
         # Handle the case when simulations have been run before a session is saved.
-        Bodysim.file_operations.save_session_to_file(temp_sim_ran, path_to_this_file,self.filepath)
+        Bodysim.file_operations.save_session_to_file(temp_sim_ran,self.filepath)
         
         return {'FINISHED'}
 
@@ -169,8 +167,8 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         num_sensors = len(model['sensor_info'])
 
         if 'session_path' not in model:
-            session_path = path_to_this_file + os.sep + 'tmp'
-            os.mkdir(path_to_this_file + os.sep + 'tmp')
+            session_path = Bodysim.file_operations.bodysim_conf_path + os.sep + 'tmp'
+            os.mkdir(Bodysim.file_operations.bodysim_conf_path + os.sep + 'tmp')
             Bodysim.file_operations.set_session_element(session_path)
             temp_sim_ran = True
         else:
@@ -198,7 +196,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         scene = bpy.context.scene
         sensor_objects = populate_sensor_list(num_sensors, context)
         track_sensors(1, 100, num_sensors, sensor_objects, scene, path + os.sep + 'Trajectory')
-        Bodysim.file_operations.execute_simulators(context.scene.objects['model']['current_simulation_path'], path_to_this_file, builtins.sim_dict)
+        Bodysim.file_operations.execute_simulators(context.scene.objects['model']['current_simulation_path'], builtins.sim_dict)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -217,7 +215,7 @@ def populate_sensor_list(num_sensors, context):
     return sensor_objects
 
 def get_sensor_plugin_mapping(context):
-    plugins = Bodysim.file_operations.get_plugins(path_to_this_file, False)[0]
+    plugins = Bodysim.file_operations.get_plugins(False)[0]
     model = context.scene.objects['model']
     sim_dict = {}
     for sensor in model['sensor_info']:
@@ -360,6 +358,4 @@ class SimTools(bpy.types.Panel):
         self.layout.operator("bodysim.new_sim", text = "New Simulation")
 
 if __name__ == "__main__":
-    global path_to_this_file
     bpy.utils.register_module(__name__)
-    path_to_this_file = dirname(dirname(os.path.realpath(__file__)))

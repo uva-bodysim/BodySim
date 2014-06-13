@@ -17,8 +17,6 @@ from queue import Queue, Empty
 from threading import Thread
 import Bodysim.vertex_group_operator
 import Bodysim.file_operations
-dirname = os.path.dirname
-path_to_this_file = dirname(os.path.realpath(__file__))
 q = Queue()
 
 import Bodysim.blender_caller
@@ -64,7 +62,7 @@ class GraphOperator(bpy.types.Operator):
 
         # Graphing: one tab per sensor. One plot per unit group per plugin.
         # For every variable in the simulation, get its column position in the csv file.
-        plugins_tuple = Bodysim.file_operations.get_plugins(path_to_this_file, False)
+        plugins_tuple = Bodysim.file_operations.get_plugins(False)
         graph_var_map = {}
         sim_dict = builtins.sim_dict
         for sensor in model['sensor_info']:
@@ -107,9 +105,7 @@ class GraphOperator(bpy.types.Operator):
         return {'CANCELLED'}
 
 def register():
-    global path_to_this_file
     bpy.utils.register_class(GraphOperator)
-    path_to_this_file = dirname(dirname(os.path.realpath(__file__)))
 
 def unregister():
     bpy.utils.unregister_class(GraphOperator)
