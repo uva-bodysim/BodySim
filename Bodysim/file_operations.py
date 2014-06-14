@@ -143,7 +143,7 @@ def execute_simulators(current_sim_path, sim_dict):
     Run simulators depending sensor and variables selected.
 
     """
-    plugins = get_plugins(bodysim_conf_path, False)[0]
+    plugins = get_plugins(False)[0]
     # TODO Put fps somewhere else. Should it be set by the user?
     fps = 30
     for sensor in sim_dict:
