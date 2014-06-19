@@ -12,7 +12,7 @@ ECHO "Unstalling Bodysim..."
 :: Delete Bodysim startup folder
 RD /S/Q "C:\Program Files\Blender Foundation\Blender\2.70\scripts\startup\Bodysim"
 :: Restore original Blender panels
-XCOPY %CD%\installation\__init__Original.py /Y "C:\Program Files\Blender Foundation\Blender\2.70\scripts\startup\bl_ui\__init__.py"
+XCOPY %~dp0\installation\__init__Original.py /Y "C:\Program Files\Blender Foundation\Blender\2.70\scripts\startup\bl_ui\__init__.py"
 :: Delete Bodysim config folder
 RD /S/Q %USERPROFILE%\.bodysim
 

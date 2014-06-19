@@ -47,7 +47,7 @@ pip install simpy==2.3.1
 CD %~dp0\installation
 python setup.py install
 :: Copy the maths folder into the appdata path; the pyd files were not copied in the previous step.
-XCOPY /e /Y %~dp0\imusim\maths %LOCALAPPDATA%\Enthought\Canopy\User\Lib\site-packages\imusim-0.2-py2.7.egg\imusim\maths
+XCOPY /e /Y %CD%\imusim\maths %LOCALAPPDATA%\Enthought\Canopy\User\Lib\site-packages\imusim-0.2-py2.7.egg\imusim\maths
 
 ECHO "Installation Done!"
 PAUSE
