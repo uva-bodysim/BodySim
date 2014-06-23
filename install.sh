@@ -30,6 +30,17 @@ sudo cp installation/__init__Stripped.py /usr/share/blender/scripts/startup/bl_u
 mkdir -p ~/.bodysim
 cp -r .bodysim ~/.bodysim
 
+# Create Launcher... for whatever reason we cannot access environment vars from .desktop.
+echo """[Desktop Entry]
+Name=BodySim
+Comment=Simulator for Body Sensor Networks
+Keywords=scientific;
+Exec=blender $HOME/.bodysim/demo.blend
+Icon=$HOME/.bodysim/bodysim.png
+Terminal=True
+Type=Application
+Categories=Science;""" > BodySim.desktop
+
 # Copy launcher
 sudo cp BodySim.desktop /usr/share/applications/BodySim.desktop
 
