@@ -17,7 +17,7 @@ XCOPY %~dp0\installation\__init__Original.py /Y "C:\Program Files\Blender Founda
 RD /S/Q %USERPROFILE%\.bodysim
 
 :: Delete Shortcut
-DEL %USERPROFILE%\Desktop\Bodysim.bat
+DEL %USERPROFILE%\Desktop\BodySim.lnk
 
 ECHO "Uninstall Done!"
 PAUSE

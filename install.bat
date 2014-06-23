@@ -39,8 +39,17 @@ XCOPY %~dp0\installation\__init__Stripped.py /Y "C:\Program Files\Blender Founda
 MKDIR %USERPROFILE%\.bodysim
 XCOPY /e %~dp0\.bodysim %USERPROFILE%\.bodysim
 
-:: Create launcher
-ECHO "C:\Program Files\Blender Foundation\Blender\Blender.exe" %USERPROFILE%\.bodysim\demo.blend > %USERPROFILE%\Desktop\Bodysim.bat
+:: Create launcher... first creates a vb script used to create the shortcut
+set SCRIPT="%TEMP%\%RANDOM%-%RANDOM%-%RANDOM%-%RANDOM%.vbs"
+echo Set oWS = WScript.CreateObject("WScript.Shell") >> %SCRIPT%
+echo sLinkFile = "%USERPROFILE%\Desktop\BodySim.lnk" >> %SCRIPT%
+echo Set oLink = oWS.CreateShortcut(sLinkFile) >> %SCRIPT%
+echo oLink.TargetPath = "%USERPROFILE%\.bodysim\demo.blend" >> %SCRIPT%
+echo oLink.WorkingDirectory = "%USERPROFILE%\.bodysim\" >> %SCRIPT%
+echo oLink.IconLocation = "%USERPROFILE%\.bodysim\bodysim.ico" >> %SCRIPT%
+echo oLink.Save >> %SCRIPT%
+cscript /nologo %SCRIPT%
+del %SCRIPT%
 
 :: Install IMUSim
 pip install simpy==2.3.1
