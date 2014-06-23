@@ -35,6 +35,6 @@ sudo cp BodySim.desktop /usr/share/applications/BodySim.desktop
 
 # Install IMUSim
 pip install simpy==2.3.1
-pip install imusim-0.2.tar.gz
+pip install installation/imusim-0.2.tar.gz
 
 echo "Installation Done!"
