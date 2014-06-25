@@ -28,4 +28,7 @@ After installing Blender using the appropriate package manager, install the foll
 
 Then, navigate to the root of the downloaded BodySim folder using the terminal and run `install.sh`. A new desktop entry will be located under the Science category.
 
+## Getting Started
+For a tour of BodySim's capabilities, check out the [Getting Started](../../wiki/Getting-Started) guide.
+
 If you have any questions, please email spt9np@virginia.edu or pka6qz@virginia.edu.
