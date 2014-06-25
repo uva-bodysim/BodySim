@@ -1,3 +1,8 @@
+"""
+Provides operator to show error messages to the user.
+
+"""
+
 import bpy
 
 class BodysimMessageOperator(bpy.types.Operator):

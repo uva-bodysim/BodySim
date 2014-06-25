@@ -1,10 +1,7 @@
 """
-IMPORTANT!
-Script that creates the Sim Tools panel. Note that the operators that it uses
-must be registered first before this panel can be registered. These files are:
-    graph_operator.py (for plotting, both IMU and motion)
-    IMUGenerateOperator.py (for IMU data generation)
-    TrackSensorOperator.py (for motion data generation)
+Generates the Sim Tools panel to allow saving and loading of a session, graphing of variables, creation of new
+simulations, and keeping track of past simulations.
+
 """
 import bpy
 import os
@@ -22,15 +19,7 @@ simulation_ran = False
 temp_sim_ran = False
 sim_list = []
 
-class SaveOperator(bpy.types.Operator):
-    bl_idname = "bodysim.save"
-    bl_label = "Save Session"
-
-    def execute(self, context):
-        bpy.ops.bodysim.save_session_to_file('INVOKE_DEFAULT')
-        return {'FINISHED'}
-
-class WriteSessionToFileOperator(bpy.types.Operator):
+class WriteSessionToFileInterface(bpy.types.Operator):
     bl_idname = "bodysim.save_session_to_file"
     bl_label = "Save to file"
 
@@ -65,17 +54,7 @@ class WriteSessionToFileOperator(bpy.types.Operator):
         self.filepath = 'session' + time.strftime('-%Y%m%d%H%M%S') + '.xml'
         return {'RUNNING_MODAL'}
 
-
-class LoadOperator(bpy.types.Operator):
-
-    bl_idname = "bodysim.load"
-    bl_label = "Load Session"
-
-    def execute(self, context):
-        bpy.ops.bodysim.read_from_file('INVOKE_DEFAULT')
-        return {'FINISHED'}
-
-class ReadFileOperator(bpy.types.Operator):
+class ReadFileInterface(bpy.types.Operator):
     bl_idname = "bodysim.read_from_file"
     bl_label = "Read from file"
 
@@ -324,14 +303,6 @@ class DeleteSimulationOperator(bpy.types.Operator):
         draw_previous_run_panel(sim_list)
         return {'FINISHED'}
 
-def _drawPreviousRunButtons(self, context):
-    layout = self.layout
-    for _previousRun in self.sim_runs:
-        row = layout.row(align = True)
-        row.alignment = 'EXPAND'
-        row.operator("bodysim.load_simulation", text = _previousRun).simulation_name = _previousRun
-        row.operator("bodysim.delete_simulation", text = "Delete").simulation_name = _previousRun
-
 def draw_previous_run_panel(list_of_simulations):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
@@ -345,6 +316,14 @@ def draw_previous_run_panel(list_of_simulations):
 
     bpy.utils.register_class(panel)
 
+def _drawPreviousRunButtons(self, context):
+    layout = self.layout
+    for _previousRun in self.sim_runs:
+        row = layout.row(align = True)
+        row.alignment = 'EXPAND'
+        row.operator("bodysim.load_simulation", text = _previousRun).simulation_name = _previousRun
+        row.operator("bodysim.delete_simulation", text = "Delete").simulation_name = _previousRun
+
 class SimTools(bpy.types.Panel):
     bl_label = "Sim Tools"
     bl_space_type = "VIEW_3D"
@@ -353,8 +332,8 @@ class SimTools(bpy.types.Panel):
     def draw(self, context):
         self.layout.operator("bodysim.run_sim", text = "Run Simulation")
         self.layout.operator("bodysim.graph", text = "Graph Variables")
-        self.layout.operator("bodysim.save", text = "Save Session")
-        self.layout.operator("bodysim.load", text = "Load Session")
+        self.layout.operator("bodysim.save_session_to_file", text = "Save Session")
+        self.layout.operator("bodysim.read_from_file", text = "Load Session")
         self.layout.operator("bodysim.new_sim", text = "New Simulation")
 
 if __name__ == "__main__":
