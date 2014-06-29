@@ -77,6 +77,14 @@ def _draw(self, context):
     for _part in self.v_list:
         layout.operator("bodysim.select_body_part", text=_part).part = _part
 
+class BodySim_SELECT_BODY_PART(bpy.types.Operator):
+    bl_idname = "bodysim.select_body_part"
+    bl_label = "BodySim Select Body Part"
+    part = bpy.props.StringProperty()
+    
+    def execute(self, context):
+        Bodysim.vertex_operations.select_vertex_group(self.part, context)
+        return {'FINISHED'}
 
 class BodySim_BIND_SENSOR(bpy.types.Operator):
     """Operator that advances the user to second stage of adding a sensor.

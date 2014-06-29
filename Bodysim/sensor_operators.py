@@ -1,9 +1,5 @@
 """
-Script that binds a cube to a vertex group.
-
-The wire frame of the blender object this is working on must
-    have the name "model". The vertex groups must be of this
-    "model" object.
+Provides operators for different sensor actions (e.g. delete, select, edit).
 """ 
 
 import bpy
@@ -16,9 +12,12 @@ from bpy.props import FloatVectorProperty, StringProperty
 from xml.etree.ElementTree import ElementTree as ET
 from xml.etree.ElementTree import *
 
+# Keeps track of the current graphing panel. This panel is unregistered (replaced with the current_sensors_panel) when
+# user wants to return to the current_sensors_panel. See current_sensors_panel for more details.
 current_graph_panel = None
 
 def update_color(self, context):
+    """Updates the currently active sensor's color when user is selecting a color."""
     context.scene.objects.active = context.scene.objects[self.name]
     while self.data.materials:
         self.data.materials.pop()
@@ -38,6 +37,7 @@ bpy.types.Object.sensor_color = FloatVectorProperty(name="sensor_color",
 bpy.types.Object.sensor_name = StringProperty(name="sensor_name")
 
 class BodySim_LOCATE_BODY_PART(bpy.types.Operator):
+    """Operator that zooms into the desired vertex group."""
     bl_idname = "bodysim.locate_body_part"
     bl_label = "BodySim Locate Body Part"
     part = bpy.props.StringProperty()
@@ -48,6 +48,7 @@ class BodySim_LOCATE_BODY_PART(bpy.types.Operator):
         return {'FINISHED'}
 
 class Bodysim_EDIT_SENSOR(bpy.types.Operator):
+    """Operator that takes the user back to the configuration page of AddSensorPanel to change sensor configuration."""
     bl_idname = "bodysim.edit_sensor"
     bl_label = "BodySim Edit Sensor"
     part = bpy.props.StringProperty()
@@ -59,17 +60,8 @@ class Bodysim_EDIT_SENSOR(bpy.types.Operator):
         Bodysim.sensor_addition.draw_plugins_subpanels(Bodysim.plugins_info.plugins)
         return {'FINISHED'}
 
-class BodySim_SELECT_BODY_PART(bpy.types.Operator):
-    bl_idname = "bodysim.select_body_part"
-    bl_label = "BodySim Select Body Part"
-    part = bpy.props.StringProperty()
-    
-    def execute(self, context):
-        Bodysim.vertex_operations.select_vertex_group(self.part, context)
-        return {'FINISHED'}
-
-
 class BodySim_DELETE_SENSOR(bpy.types.Operator):
+    """Operator that removes a sensor from a simulation."""
     bl_idname = "bodysim.delete_sensor"
     bl_label = "BodySim Delete Sensor"
     part = bpy.props.StringProperty()
@@ -91,7 +83,6 @@ class BodySim_DELETE_SENSOR(bpy.types.Operator):
             Bodysim.current_sensors_panel.draw_sensor_list_panel(None)
         return {'FINISHED'}
 
-
 class BodySim_CLEAR_SELECTION(bpy.types.Operator):
     bl_idname = "bodysim.clear_selection"
     bl_label = "Clear selected sensors"
@@ -101,7 +92,19 @@ class BodySim_CLEAR_SELECTION(bpy.types.Operator):
         bpy.ops.view3d.view_all()
         return {'FINISHED'}
 
+class GraphButton(bpy.types.Operator):
+    """Operator that takes user to the graphing panel for a specified sensor."""
+    bl_idname = "bodysim.graph_select"
+    bl_label = "Select variables to graph"
+    part = bpy.props.StringProperty()
+
+    def execute(self, context):
+        bpy.utils.unregister_class(Bodysim.current_sensors_panel.current_sensor_panel)
+        draw_GraphSelectionPanel(self.part)
+        return {'FINISHED'}
+
 def draw_GraphSelectionPanel(part):
+    """Draws the list of variables that can be graphed for the current sensor."""
     bl_label = "Graph Sensors"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -119,6 +122,9 @@ def draw_GraphSelectionPanel(part):
     bpy.utils.register_class(current_graph_panel)
 
 def _draw_selected_simvars(self, context):
+    """Draws the individual checkboxes for each graphable variable.
+    Only variables that have been selected during sensor addition will be shown.
+    """
     layout = self.layout
     column = layout.column()
     plugins = Bodysim.plugins_info.plugins
@@ -129,17 +135,8 @@ def _draw_selected_simvars(self, context):
 
     column.operator("bodysim.graph_return", text = "Return")
 
-class GraphButton(bpy.types.Operator):
-    bl_idname = "bodysim.graph_select"
-    bl_label = "Select variables to graph"
-    part = bpy.props.StringProperty()
-
-    def execute(self, context):
-        bpy.utils.unregister_class(Bodysim.current_sensors_panel.current_sensor_panel)
-        draw_GraphSelectionPanel(self.part)
-        return {'FINISHED'}
-
 class ReturnToCurrentSensors(bpy.types.Operator):
+    """Returns the user from the graphing panel to the CurrentSensorsPanel."""
     bl_idname = "bodysim.graph_return"
     bl_label = "Return to current sensor list"
 
@@ -149,6 +146,11 @@ class ReturnToCurrentSensors(bpy.types.Operator):
         return {'FINISHED'}
 
 class BodySim_RESET_SENSORS(bpy.types.Operator):
+    """Operator that removes all sensors from a simulation.
+    Note that after a simulation has been run, it becomes read-only. Therefore, calling this after a simulation has been
+    run does remove sensors from CurrentSensorsPanel but the user can always reload the simulation to bring back the 
+    sensors.
+    """
     bl_idname = "bodysim.reset_sensors"
     bl_label = "BodySim Reset All Sensors"
 
@@ -168,15 +170,6 @@ class BodySim_RESET_SENSORS(bpy.types.Operator):
         Bodysim.vertex_operations.cancel_selection()
         if not hasattr(bpy.types, "CurrentSensorsPanel"):
             bpy.utils.register_class(CurrentSensorsPanel)
-        return {'FINISHED'}
-
-class BodySim_DESELECT_BODY_PART(bpy.types.Operator):
-    bl_idname = "bodysim.deselect_body_part"
-    bl_label = "BodySim Deselect Body Part"
-
-    def execute(self, context):
-        bpy.ops.object.mode_set(mode="OBJECT")
-
         return {'FINISHED'}
 
 def register():
