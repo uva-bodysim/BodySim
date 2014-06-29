@@ -1,3 +1,7 @@
+"""
+Provides operations on vertex groups of the model.
+"""
+
 import bpy
 from mathutils import *
 from math import *
@@ -15,7 +19,10 @@ def parse_vertex_group(groups):
         categories[body_part].append(i)
     return categories
 
-def bind_to_text_vg(context, color_tuple):
+def bind_sensor_to_active_vg(context, color_tuple):
+    """Binds a sensor to the active vertex group
+    Optionally adds color to the sensor if color_tuple is specified.
+    """
     object_mode()
         
     model = context.scene.objects['model']
@@ -39,17 +46,34 @@ def bind_to_text_vg(context, color_tuple):
         sensor.data.materials.append(material)
         context.scene.objects[sensor.name].sensor_color = color_tuple
     
-    # TODO Change the motion type and color
     bpy.context.scene.objects.active = model
     edit_mode()
     sensor.name = 'sensor_' + context.object.vertex_groups.active.name
     model['current_vg'] = context.object.vertex_groups.active.name
-    bind_to_vertex_group(sensor, context)
+    _bind_to_vertex_group(sensor, context)
     object_mode()
     return sensor.name
 
+def _bind_to_vertex_group(obj, context):
+    """Binds the object passed in to the currently selected vertex group"""
+    vg = context.object.vertex_groups.active
+    body_obj = bpy.data.objects['model']
+
+    # Bind the obj to a vertex group
+    if len(obj.constraints.items()) != 0: 
+        print("WARNING: object already has constraint, constraint removed!")
+        obj.constraints.clear()
+    obj_const = obj.constraints.new(type="CHILD_OF")
+    obj_const.target = body_obj
+    obj_const.subtarget = vg.name
+
+    # Reset the cube's relative location.
+    obj.location = (0.0, 0.0, 0.0)
+
+    cancel_selection()
+
 def select_vertex_group(vg_name, context):
-    """Given a vertex group name, selects and displays it on the screen"""
+    """Given a vertex group name vg_name, selects and displays it on the screen"""
     bpy.ops.object.mode_set(mode="OBJECT")
     obj = bpy.data.objects["model"]
     context.scene.objects.active = obj
@@ -71,21 +95,3 @@ def cancel_selection():
     """Go back to object mode after selection"""
     bpy.ops.object.mode_set(mode="OBJECT")
 
-def bind_to_vertex_group(obj, context):
-    """ Binds the object passed in to the currently selected vertex group"""
-    vg = context.object.vertex_groups.active
-    print(vg)
-    body_obj = bpy.data.objects['model']
-
-    # Bind the obj to a vertex group
-    if len(obj.constraints.items()) != 0: 
-        print("WARNING: object already has constraint, constraint removed!")
-        obj.constraints.clear()
-    obj_const = obj.constraints.new(type="CHILD_OF")
-    obj_const.target = body_obj
-    obj_const.subtarget = vg.name
-
-    # Reset the cube's relative location.
-    obj.location = (0.0, 0.0, 0.0)
-
-    cancel_selection()
