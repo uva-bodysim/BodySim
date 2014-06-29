@@ -1,8 +1,11 @@
 _modules = [
     "file_operations",
+    "plugins_info",
+    "current_sensors_panel",
     "graph_operator",
     "message_operators",
-    "vertex_group_operator",
+    "sensor_addition",
+    "sensor_operators",
     "simtools_panel"
 ]
 

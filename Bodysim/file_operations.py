@@ -116,10 +116,8 @@ def get_plugins(setTheAttrs):
                 # Append simulator name to allow variables of the same name over different
                 # simulations.
                 if setTheAttrs:
-                    setattr(bpy.types.Object, simulator_name + variable.text,
-                            bpy.props.BoolProperty(default=False, name=variable.text))
-                    setattr(bpy.types.Object, 'GRAPH_' + simulator_name + variable.text,
-                            bpy.props.BoolProperty(default=False, name=simulator_name + variable.text))
+                    setattr(bpy.types.Object, simulator_name + variable.text, bpy.props.BoolProperty(default=False, name=variable.text))
+                    setattr(bpy.types.Object, 'GRAPH_' + simulator_name + variable.text, bpy.props.BoolProperty(default=False, name=simulator_name + variable.text))
 
             if not unitTuple in unit_map:
                 unit_map[unitTuple] = unitgroup_list 

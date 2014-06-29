@@ -10,8 +10,10 @@ import sys
 import glob
 import builtins
 try:
-    import Bodysim.vertex_group_operator
     import Bodysim.file_operations
+    import Bodysim.vertex_operations
+    import Bodysim.plugins_info
+    import Bodysim.current_sensors_panel
 except ImportError:
     raise ImportError()
 builtins.sim_dict = {}
@@ -194,7 +196,7 @@ def populate_sensor_list(num_sensors, context):
     return sensor_objects
 
 def get_sensor_plugin_mapping(context):
-    plugins = Bodysim.file_operations.get_plugins(False)[0]
+    plugins = Bodysim.plugins_info.plugins
     model = context.scene.objects['model']
     sim_dict = {}
     for sensor in model['sensor_info']:
@@ -274,8 +276,8 @@ class LoadSimulationOperator(bpy.types.Operator):
 
         for sensor_location in sensor_map:
             model['sensor_info'][sensor_location] = (sensor_map[sensor_location]['name'], sensor_map[sensor_location]['colors'])
-            Bodysim.vertex_group_operator.select_vertex_group(sensor_location, context)
-            Bodysim.vertex_group_operator.bind_to_text_vg(context,
+            Bodysim.vertex_operations.select_vertex_group(sensor_location, context)
+            Bodysim.vertex_operations.bind_to_text_vg(context,
                 tuple([float(color) for color in sensor_map[sensor_location]['colors'].split(',')]))
 
             context.scene.objects['sensor_' + sensor_location].sensor_name = sensor_map[sensor_location]['name']
@@ -283,7 +285,7 @@ class LoadSimulationOperator(bpy.types.Operator):
             for variable in sensor_map[sensor_location]['variables']:
                 setattr(context.scene.objects['sensor_' + sensor_location], variable, True)
 
-            Bodysim.vertex_group_operator.draw_sensor_list_panel(model['sensor_info'])
+            Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'])
 
         builtins.sim_dict = get_sensor_plugin_mapping(context)
 
