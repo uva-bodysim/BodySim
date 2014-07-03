@@ -1,7 +1,6 @@
 BodySim
 =======
-
-Repository for BodySim Project.
+Copyright (C) 2014 UVa Center for Wireless Health.
 
 ##Installation
 To clone the repository, 
@@ -31,4 +30,4 @@ Then, navigate to the root of the downloaded BodySim folder using the terminal a
 ## Getting Started
 For a tour of BodySim's capabilities, check out the [Getting Started](../../wiki/Getting-Started) guide.
 
-If you have any questions, please email spt9np@virginia.edu or pka6qz@virginia.edu.
+Please email Philip Asare at pka6qz@virginia.edu for project related questions or Scott Tepsuporn at spt9np@virginia.edu for software related questions.

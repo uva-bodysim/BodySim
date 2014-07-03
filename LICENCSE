@@ -1,10 +1,18 @@
 BodySim: Modeling and simulation framework for body sensor networks.
-Copyright (C) 2014; See CONTRIBUTORS.md.
+Copyright (C) 2014 UVa Center for Wireless Health.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
+
+Any academic publication that makes use of this software must cite the
+following paper: Philip Asare, Robert F. Dickerson, Xianyue Wu,
+John Lach, John A. Stankovic, "BodySim: A Multi-Domain Modeling and
+Simulation Framework for Body Sensor Networks Research and Design"
+8th ICST International Conference on Body Area Networks (BodyNets),
+October 2013, Boston, MA. Available at
+EUDL: http://eudl.eu/doi/10.4108/icst.bodynets.2013.253694
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
