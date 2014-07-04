@@ -3,11 +3,11 @@ BodySim
 Copyright (C) 2014 UVa Center for Wireless Health.
 
 ##Installation
-To clone the repository, 
-
+If you use git, you can clone the repository:
 ```
-git clone https://github.com/scteps/BodySim.git
+git clone https://github.com/uva-bodysim/BodySim.git
 ```
+otherwise, simply download the zip file [here](https://github.com/uva-bodysim/BodySim/archive/master.zip).
 
 BodySim simulation runs on top of Blender using a set of Python scripts, and requires several Python libraries to work. Installation on all platforms requries one to first install Blender 2.70 first. On Linux platforms with package managers, simply run either `sudo apt-get install blender` for Debian based distros (e.g. Ubuntu) or `sudo yum install blender` for RPM based distros (e.g. Fedora).
 
