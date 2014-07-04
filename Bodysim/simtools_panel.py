@@ -115,6 +115,29 @@ class NotRanSimDialogOperator(bpy.types.Operator):
         col = layout.column()
         col.label(text="Are you sure you want to reset?")
 
+class DryRunOperator(bpy.types.Operator):
+    """Operator for animating the model without logging sensor data."""
+
+    bl_idname = "bodysim.dry_run"
+    bl_label = "Dry Run"
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def _stop(self, context):
+        scene = bpy.context.scene
+        if scene.frame_current == scene.frame_end:
+            bpy.ops.screen.animation_cancel(restore_frame=True)
+            bpy.app.handlers.frame_change_pre.remove(self._stop)
+
+    def execute(self, context):
+        # Blender can only stop the animation via a frame event handler...
+        bpy.app.handlers.frame_change_pre.append(self._stop)
+        bpy.ops.screen.animation_play()
+
+        return {'FINISHED'}
+
 class RunSimulationOperator(bpy.types.Operator):
     bl_idname = "bodysim.run_sim"
     bl_label = "Run Simulation"
@@ -332,10 +355,11 @@ class SimTools(bpy.types.Panel):
     bl_region_type = "TOOLS"
  
     def draw(self, context):
-        self.layout.operator("bodysim.run_sim", text = "Run Simulation")
-        self.layout.operator("bodysim.graph", text = "Graph Variables")
         self.layout.operator("bodysim.save_session_to_file", text = "Save Session")
         self.layout.operator("bodysim.read_from_file", text = "Load Session")
+        self.layout.operator("bodysim.dry_run", text = "Dry Run")
+        self.layout.operator("bodysim.run_sim", text = "Run Simulation")
+        self.layout.operator("bodysim.graph", text = "Graph Variables")
         self.layout.operator("bodysim.new_sim", text = "New Simulation")
 
 if __name__ == "__main__":
