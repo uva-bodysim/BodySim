@@ -19,12 +19,21 @@ fi
 echo "Installing BodySim..."
 
 # Copy Bodysim scripts into startup folder
-echo "Root priviledges are required to access /usr/share/blender/scripts/startup/"
-sudo mkdir -p /usr/share/blender/scripts/startup/Bodysim
-sudo cp -r Bodysim /usr/share/blender/scripts/startup/Bodysim
+
+echo "Root priviledges are required to access /usr/share/blender/"
+version=`blender --help | head -1 | awk '{ print $2 }'`
+scripts_path=/usr/share/blender/$version/scripts
+# Ubuntu has a different installation path
+if lsb_release -a | grep -q Debian
+then
+    scripts_path=/usr/share/blender/scripts
+fi
+
+sudo mkdir -p $scripts_path/startup/Bodysim
+sudo cp -r Bodysim $scripts_path/startup/Bodysim
 
 # Remove panels
-sudo cp installation/__init__Stripped.py /usr/share/blender/scripts/startup/bl_ui/__init__.py
+sudo cp installation/__init__Stripped.py $scripts_path/startup/bl_ui/__init__.py
 
 # Copy Bodysim conf folder
 mkdir -p ~/.bodysim

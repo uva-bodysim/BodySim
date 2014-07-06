@@ -1,6 +1,6 @@
 BodySim
 =======
-Copyright (C) 2014 UVa Center for Wireless Health.
+Copyright (C) 2014 [UVa Center for Wireless Health](http://wirelesshealth.virginia.edu/content/bodysim).
 
 ##Installation
 If you use git, you can clone the repository:
