@@ -103,7 +103,10 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
         model['sensor_selected'] = False
         sensor_name = Bodysim.vertex_operations.bind_sensor_to_active_vg(context, None)
         context.scene.objects.active = context.scene.objects[sensor_name]
+
+        # Keep track of the sensor to bind in case user needs to cancel.
         model['last_bound_sensor'] = sensor_name
+
         redraw_addSensorPanel(_draw_sensor_properties_page)
         draw_plugins_subpanels(Bodysim.plugins_info.plugins)
         for panel in panel_list:
@@ -240,7 +243,11 @@ def _draw_sensor_properties_page(self, context):
     model = context.scene.objects['model']
     col = layout.column()
     prop = col.operator("bodysim.finalize", text="Finalize")
-    col.operator("bodysim.cancel_add", text = "Cancel")
+
+    # Draw cancel button (to cancel sensor addition) if user is adding a sensor, (but not editing the sensor)
+    if 'last_bound_sensor' in model:
+        col.operator("bodysim.cancel_add", text = "Cancel")
+
     col.prop(context.scene.objects['sensor_' + model['current_vg']], "sensor_color")
     col.prop(context.scene.objects['sensor_' + model['current_vg']], "sensor_name")
     prop.sensorColor = context.scene.objects['sensor_' + model['current_vg']].sensor_color
