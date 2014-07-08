@@ -22,6 +22,8 @@ temp_sim_ran = False
 sim_list = []
 
 class WriteSessionToFileInterface(bpy.types.Operator):
+    """Operator that first validates the name of the session to save and then saves the session file."""
+
     bl_idname = "bodysim.save_session_to_file"
     bl_label = "Save to file"
 
@@ -57,6 +59,8 @@ class WriteSessionToFileInterface(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 class ReadFileInterface(bpy.types.Operator):
+    """Operator that launches interface to load a saved session file."""
+
     bl_idname = "bodysim.read_from_file"
     bl_label = "Read from file"
 
@@ -82,6 +86,8 @@ class ReadFileInterface(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 class NewSimulationOperator(bpy.types.Operator):
+    """Operator that clears all existing sensors to allow user to create a new simulation."""
+
     bl_idname = "bodysim.new_sim"
     bl_label = "Create a new simulation"
 
@@ -99,6 +105,8 @@ class NewSimulationOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class NotRanSimDialogOperator(bpy.types.Operator):
+    """Operator that is invoked when user wants to clear sensors without running a simulation on them yet."""
+
     bl_idname = "bodysim.not_ran_sim_dialog"
     bl_label = "Simulation not ran yet on these sensors."
 
@@ -139,6 +147,10 @@ class DryRunOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class RunSimulationOperator(bpy.types.Operator):
+    """Operator that  first checks to see if sensors were added before allowing the user to name a simulation 
+    and running it.
+    """
+
     bl_idname = "bodysim.run_sim"
     bl_label = "Run Simulation"
 
@@ -157,6 +169,8 @@ class RunSimulationOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class NameSimulationDialogOperator(bpy.types.Operator):
+    """Operator that launches popup for naming the simulation and finally running the simulation."""
+
     bl_idname = "bodysim.name_simulation"
     bl_label = "Enter a name for this simulation."
 
@@ -180,6 +194,8 @@ class NameSimulationDialogOperator(bpy.types.Operator):
 
         path = session_path + os.sep + self.simulation_name
         model['current_simulation_path'] = path
+
+        # Make sure the named simulation does not already exist.
         if os.path.exists(path):
             bpy.ops.bodysim.message('INVOKE_DEFAULT',
              msg_type = "Error", message = 'A simulation with that name already exists!')
@@ -211,7 +227,8 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         return context.window_manager.invoke_props_dialog(self)
 
 def populate_sensor_list(num_sensors, context):
-    """ Get all the sensors in the scene."""
+    """Get all the sensors in the scene."""
+
     print(bpy.data.objects)
     sensor_objects = []
     for i in context.scene.objects['model']['sensor_info']:
@@ -219,6 +236,10 @@ def populate_sensor_list(num_sensors, context):
     return sensor_objects
 
 def get_sensor_plugin_mapping(context):
+    """For each sensor in the current simulation, gets the variables that the user desires to have simulated.
+    Variables are grouped by the plugins that keep track of them.
+    """
+
     plugins = Bodysim.plugins_info.plugins
     model = context.scene.objects['model']
     sim_dict = {}
@@ -237,11 +258,10 @@ def get_sensor_plugin_mapping(context):
 
 
 def track_sensors(frame_start, frame_end, num_sensors, sensor_objects, scene, path):
-    """Print location and rotation of sensors along respective paths.
-
+    """Logs location and rotation of sensors along respective paths.
     Rotation in quaternions.
-
     """
+
     data_files = []
     for i in sensor_objects:
         data_files.append(open(path + os.sep + i.name + '.csv', 'w'))
@@ -283,6 +303,8 @@ def track_sensors(frame_start, frame_end, num_sensors, sensor_objects, scene, pa
         data_files[i].close()
 
 class LoadSimulationOperator(bpy.types.Operator):
+    """Loads a previously run simulation along with corresponding sensor data."""
+
     bl_idname = "bodysim.load_simulation"
     bl_label = "Load a simulation."
 
@@ -315,6 +337,8 @@ class LoadSimulationOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class DeleteSimulationOperator(bpy.types.Operator):
+    """Operator that deletes a simulation from the current session."""
+
     bl_idname = "bodysim.delete_simulation"
     bl_label = "Load a simulation."
 
@@ -329,27 +353,37 @@ class DeleteSimulationOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 def draw_previous_run_panel(list_of_simulations):
+    """Draws the list of previously run simulations; one row of buttons per simulation.
+    Using this panel, the user can load or delete previous simulations.
+    Note that this panel is updated a) when loading a session and b) after successful execution of a simulation.
+    """
+
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
+
+    def _draw_previous_run_buttons(self, context):
+        """Function that draws the individual rows of previous simulations."""
+
+        layout = self.layout
+        for _previousRun in self.sim_runs:
+            row = layout.row(align = True)
+            row.alignment = 'EXPAND'
+            row.operator("bodysim.load_simulation", text = _previousRun).simulation_name = _previousRun
+            row.operator("bodysim.delete_simulation", text = "Delete").simulation_name = _previousRun
 
     panel = type("SimulationSelectPanel", (bpy.types.Panel,),{
         "bl_label": "Previous Simulations",
         "bl_space_type": bl_space_type,
         "bl_region_type": bl_region_type,
         "sim_runs": list_of_simulations,
-        "draw": _drawPreviousRunButtons},)
+        "draw": _draw_previous_run_buttons},)
 
     bpy.utils.register_class(panel)
 
-def _drawPreviousRunButtons(self, context):
-    layout = self.layout
-    for _previousRun in self.sim_runs:
-        row = layout.row(align = True)
-        row.alignment = 'EXPAND'
-        row.operator("bodysim.load_simulation", text = _previousRun).simulation_name = _previousRun
-        row.operator("bodysim.delete_simulation", text = "Delete").simulation_name = _previousRun
 
 class SimTools(bpy.types.Panel):
+    """Panel that allows user to save and load sessions, run simulations, and graph variables."""
+
     bl_label = "Sim Tools"
     bl_space_type = "VIEW_3D"
     bl_region_type = "TOOLS"

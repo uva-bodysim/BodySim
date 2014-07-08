@@ -39,9 +39,8 @@ def indent(elem, level=0):
             elem.tail = i
 
 def write_simulation_xml(name, sensor_dict, sim_dict, sim_path, session_path):
-    """
-    Writes the list of sensors and simulated variables to a simulation XML file.
-    """
+    """Writes the list of sensors and simulated variables to a simulation XML file."""
+
     global session_element
 
     curr_simulation_element = Element('simulation')
@@ -85,9 +84,8 @@ def write_simulation_xml(name, sensor_dict, sim_dict, sim_path, session_path):
     file.close()
 
 def get_plugins(setTheAttrs):
-    """
-    Reads the plugins.xml file for the list of available external simulators to run.
-    """
+    """Reads the plugins.xml file for the list of available external simulators to run."""
+
     # TODO Error checking (existance of plugins.xml, duplicate plugins)
     # Hard coded plugin: Trajectory
     unit_map = {}
@@ -127,10 +125,7 @@ def get_plugins(setTheAttrs):
     return (plugins_dict, unit_map)
 
 def update_session_file(session_element, session_path):
-    """
-    Updates the session file. Called when a new simulation is added to the session.
-
-    """
+    """Updates the session file. Called when a new simulation is added to the session."""
 
     with open(session_path + '.xml', 'wb') as f:
         indent(session_element)
@@ -139,10 +134,8 @@ def update_session_file(session_element, session_path):
         f.close()
 
 def execute_simulators(current_sim_path, sim_dict):
-    """
-    Run simulators depending sensor and variables selected.
+    """Run simulators depending sensor and variables selected."""
 
-    """
     plugins = get_plugins(False)[0]
     # TODO Put fps somewhere else. Should it be set by the user?
     fps = 30
@@ -163,10 +156,8 @@ def execute_simulators(current_sim_path, sim_dict):
                      + dbl_quotes + ' ' + str(fps) + ' ' + args, shell=True)
 
 def read_session_file(path):
-    """
-    Reads the session file to get a list of simulations.
+    """Reads the session file to get a list of simulations."""
 
-    """
     global session_element
 
     sim_list = []
@@ -179,19 +170,13 @@ def read_session_file(path):
     return sim_list
 
 def set_session_element(path):
-    """
-    Initializes the session element.
-
-    """
+    """Initializes the session element."""
 
     global session_element
     session_element = Element('session', {'directory' : path})
 
 def save_session_to_file(temp_sim_ran, path):
-    """
-    Saves the session file and creates the session directory.
-
-    """
+    """Saves the session file and creates the session directory."""
 
     global session_element
 
@@ -206,12 +191,11 @@ def save_session_to_file(temp_sim_ran, path):
     update_session_file(session_element, path[:-4])
 
 def load_simulation(sensor_xml_path):
-    """
-    Loads a simulation file and returns a dictionary mapping sensors to simulated variables.
+    """Loads a simulation file and returns a dictionary mapping sensors to simulated variables.
     Not as efficient as reading the xml and processing sensors on the fly, but better separated
     for modularity.
-
     """
+
     tree = ET().parse(sensor_xml_path)
     sensor_map = {}
 
@@ -228,10 +212,7 @@ def load_simulation(sensor_xml_path):
     return sensor_map
 
 def remove_simulation(session_path, simulation_name):
-    """
-    Removes the simulation from the session file and the session folder.
-
-    """
+    """Removes the simulation from the session file and the session folder."""
 
     tree = ET().parse(session_path + '.xml')
     for simulation in tree.findall('simulation'):

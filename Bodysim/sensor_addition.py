@@ -17,6 +17,7 @@ plugin_panel_list = []
 
 class AddSensorPanel(bpy.types.Panel):
     """Panel that guides the user through the stages of adding sensors"""
+
     bl_label = "Add Sensor"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -37,6 +38,7 @@ class BodySim_NEW_SENSOR(bpy.types.Operator):
     """Operator that initiates the first stage of adding a sensor.
     In this stage, Bodysim draws panels containing the different body parts for the user to select.
     """
+
     bl_idname = "bodysim.new_sensor"
     bl_label = "Create a new sensor"
     
@@ -47,10 +49,19 @@ class BodySim_NEW_SENSOR(bpy.types.Operator):
 
 def draw_body_part_panels():
     """Draws one panel per body part group."""
+
     global panel_list
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_context = "objectmode"
+
+    def _draw(self, context):
+        """Draws the individual buttons corresponding to the vertex group of the body part."""
+
+        layout = self.layout
+        for _part in self.v_list:
+            layout.operator("bodysim.select_body_part", text=_part).part = _part
+
     if not panel_list:
         v_list = Bodysim.vertex_operations.parse_vertex_group(Bodysim.vertex_operations.list_vertex_group())
         for group in v_list:
@@ -71,12 +82,6 @@ def draw_body_part_panels():
         for panel in panel_list:
             bpy.utils.register_class(panel)
 
-def _draw(self, context):
-    """Draws the individual buttons corresponding to the vertex group of the body part."""
-    layout = self.layout
-    for _part in self.v_list:
-        layout.operator("bodysim.select_body_part", text=_part).part = _part
-
 class BodySim_SELECT_BODY_PART(bpy.types.Operator):
     bl_idname = "bodysim.select_body_part"
     bl_label = "BodySim Select Body Part"
@@ -91,6 +96,7 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
     In this stage, a sensor is bound to the selected body part (vertex group) and the body part panels are removed.
     Then, the user is allowed to select the color and name of the sensor, as well as what plugins he/she wants to use. 
     """
+
     bl_idname = "bodysim.bind_sensor"
     bl_label = "BodySim Bind Sensor"
 
@@ -115,10 +121,25 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
 
 def draw_plugins_subpanels(plugins):
     """Draws the panels of plugins."""
+
     global plugin_panel_list
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_context = "objectmode"
+
+    def _draw_plugin_panels(self, context):
+        """Draws the individual plugin panels."""
+
+        model = context.scene.objects['model']
+        layout = self.layout
+        for var in self.var_list:
+            # Hard coded plugin: Trajectory
+            if self.sim_name == 'Trajectory':
+                layout.enabled = False
+                layout.prop(context.scene.objects['sensor_' + model['current_vg']], self.sim_name + var)
+            else:
+                layout.prop(context.scene.objects['sensor_' + model['current_vg']], self.sim_name + var)
+
     if not plugin_panel_list:
         for simulator in Bodysim.plugins_info.plugins:
             subpanel = type("SimulationSubPanel%s" % simulator,
@@ -138,20 +159,9 @@ def draw_plugins_subpanels(plugins):
         for subpanel in plugin_panel_list:
             bpy.utils.register_class(subpanel)
 
-def _draw_plugin_panels(self, context):
-    """Draws the individual plugin panels."""
-    model = context.scene.objects['model']
-    layout = self.layout
-    for var in self.var_list:
-        # Hard coded plugin: Trajectory
-        if self.sim_name == 'Trajectory':
-            layout.enabled = False
-            layout.prop(context.scene.objects['sensor_' + model['current_vg']], self.sim_name + var)
-        else:
-            layout.prop(context.scene.objects['sensor_' + model['current_vg']], self.sim_name + var)
-
 class BodySim_CANCEL_ADD_SENSOR(bpy.types.Operator):
     """Operator that returns the user to the introductory AddSensorPanel and removes any bound sensors."""
+
     bl_idname = "bodysim.cancel_add"
     bl_label = "Bodysim Cancel Add Sensor"
 
@@ -188,6 +198,7 @@ class BodySim_FINALIZE(bpy.types.Operator):
     """Operator that adds the sensor and its configurations to Bodysim's internal dictionary.
     The sensor will now be included in simulations and graphing.
     """
+
     bl_idname = "bodysim.finalize"
     bl_label = "Add sensor to the panel"
 
@@ -214,6 +225,7 @@ class BodySim_FINALIZE(bpy.types.Operator):
 
 def redraw_addSensorPanel(draw_function):
     """Function that takes in another function to specify how to draw the AddSensorPanel during each stage."""
+
     bl_label = "Add Sensor"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -231,6 +243,7 @@ def _draw_bind_button(self, context):
     """Draws buttons to either advance the user to the second stage.
     Choices are: Binding the sensor and choosing configuration or cancel.
     """
+
     layout = self.layout
     layout.operator("bodysim.bind_sensor", text="Next")
     layout.operator("bodysim.cancel_add", text="Cancel")
@@ -239,6 +252,7 @@ def _draw_sensor_properties_page(self, context):
     """Draws the configuration panel on the AddSensorPanel to allow user to choose color and name.
     Also draws buttons to allow user to finalize configuration and simulate the sensor or to cancel.
     """
+
     layout = self.layout
     model = context.scene.objects['model']
     col = layout.column()

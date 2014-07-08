@@ -18,6 +18,7 @@ current_graph_panel = None
 
 def update_color(self, context):
     """Updates the currently active sensor's color when user is selecting a color."""
+
     context.scene.objects.active = context.scene.objects[self.name]
     while self.data.materials:
         self.data.materials.pop()
@@ -38,6 +39,7 @@ bpy.types.Object.sensor_name = StringProperty(name="sensor_name")
 
 class BodySim_LOCATE_BODY_PART(bpy.types.Operator):
     """Operator that zooms into the desired vertex group."""
+
     bl_idname = "bodysim.locate_body_part"
     bl_label = "BodySim Locate Body Part"
     part = bpy.props.StringProperty()
@@ -49,6 +51,7 @@ class BodySim_LOCATE_BODY_PART(bpy.types.Operator):
 
 class Bodysim_EDIT_SENSOR(bpy.types.Operator):
     """Operator that takes the user back to the configuration page of AddSensorPanel to change sensor configuration."""
+
     bl_idname = "bodysim.edit_sensor"
     bl_label = "BodySim Edit Sensor"
     part = bpy.props.StringProperty()
@@ -62,6 +65,7 @@ class Bodysim_EDIT_SENSOR(bpy.types.Operator):
 
 class BodySim_DELETE_SENSOR(bpy.types.Operator):
     """Operator that removes a sensor from a simulation."""
+
     bl_idname = "bodysim.delete_sensor"
     bl_label = "BodySim Delete Sensor"
     part = bpy.props.StringProperty()
@@ -94,6 +98,7 @@ class BodySim_CLEAR_SELECTION(bpy.types.Operator):
 
 class GraphButton(bpy.types.Operator):
     """Operator that takes user to the graphing panel for a specified sensor."""
+
     bl_idname = "bodysim.graph_select"
     bl_label = "Select variables to graph"
     part = bpy.props.StringProperty()
@@ -105,6 +110,7 @@ class GraphButton(bpy.types.Operator):
 
 def draw_GraphSelectionPanel(part):
     """Draws the list of variables that can be graphed for the current sensor."""
+
     bl_label = "Graph Sensors"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -125,6 +131,7 @@ def _draw_selected_simvars(self, context):
     """Draws the individual checkboxes for each graphable variable.
     Only variables that have been selected during sensor addition will be shown.
     """
+
     layout = self.layout
     column = layout.column()
     plugins = Bodysim.plugins_info.plugins
@@ -137,6 +144,7 @@ def _draw_selected_simvars(self, context):
 
 class ReturnToCurrentSensors(bpy.types.Operator):
     """Returns the user from the graphing panel to the CurrentSensorsPanel."""
+
     bl_idname = "bodysim.graph_return"
     bl_label = "Return to current sensor list"
 
@@ -151,6 +159,7 @@ class BodySim_RESET_SENSORS(bpy.types.Operator):
     run does remove sensors from CurrentSensorsPanel but the user can always reload the simulation to bring back the 
     sensors.
     """
+
     bl_idname = "bodysim.reset_sensors"
     bl_label = "BodySim Reset All Sensors"
 

@@ -8,10 +8,12 @@ from math import *
 
 def list_vertex_group():
     """Returns a list of names to vertex groups"""
+
     return bpy.data.objects["model"].vertex_groups.keys()
 
 def parse_vertex_group(groups):
     """Takes in the list of vertex groups and splits them by body part"""
+
     categories = {}
     for i in groups:
         body_part = i.split("-")[0]
@@ -23,6 +25,7 @@ def bind_sensor_to_active_vg(context, color_tuple):
     """Binds a sensor to the active vertex group
     Optionally adds color to the sensor if color_tuple is specified.
     """
+
     object_mode()
         
     model = context.scene.objects['model']
@@ -56,6 +59,7 @@ def bind_sensor_to_active_vg(context, color_tuple):
 
 def _bind_to_vertex_group(obj, context):
     """Binds the object passed in to the currently selected vertex group"""
+
     vg = context.object.vertex_groups.active
     body_obj = bpy.data.objects['model']
 
@@ -74,6 +78,7 @@ def _bind_to_vertex_group(obj, context):
 
 def select_vertex_group(vg_name, context):
     """Given a vertex group name vg_name, selects and displays it on the screen"""
+
     bpy.ops.object.mode_set(mode="OBJECT")
     obj = bpy.data.objects["model"]
     context.scene.objects.active = obj
@@ -93,5 +98,6 @@ def edit_mode():
     
 def cancel_selection():
     """Go back to object mode after selection"""
+
     bpy.ops.object.mode_set(mode="OBJECT")
 

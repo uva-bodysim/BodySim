@@ -8,6 +8,7 @@ current_sensor_panel = None
 
 class CurrentSensorsPanel(bpy.types.Panel):
     """Panel that displays the sensors of a given simulation."""
+
     bl_label = "Current Sensors"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -19,10 +20,30 @@ class CurrentSensorsPanel(bpy.types.Panel):
 
 def draw_sensor_list_panel(sensor_dict):
     """Draws the list of sensors currently ready for simulation."""
+
     bl_label = "Current Sensors"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_context = "objectmode"
+
+    def _draw_single_sensor_buttons(self, context):
+        """Draws the individual entries for each simulation.
+        Each entry includes the name and color of the sensor, as well as the position and individual buttons for deletion
+        and a button to bring up selection of variables to graph after the simulation has run.
+        """
+
+        layout = self.layout
+        for sensor in self.sensor_dict:
+            col = layout.column(align = True)
+            col.enabled = False
+            col.prop(context.scene.objects['sensor_' + sensor], "sensor_name")
+            row = layout.row(align = True)
+            row.alignment = 'EXPAND'
+            row.operator("bodysim.locate_body_part", text = sensor).part = sensor
+            row.prop(context.scene.objects['sensor_' + sensor], "sensor_color")
+            row.operator("bodysim.edit_sensor", text = "Edit").part = sensor
+            row.operator("bodysim.delete_sensor", text = "Delete").part = sensor
+            row.operator("bodysim.graph_select", text = "Graph Selection").part = sensor
 
     global current_sensor_panel
     if sensor_dict:
@@ -31,26 +52,10 @@ def draw_sensor_list_panel(sensor_dict):
             "bl_space_type": bl_space_type,
             "bl_region_type": bl_region_type,
             "sensor_dict": sensor_dict,
-            "draw": _drawSingleSensorButtons},)
+            "draw": _draw_single_sensor_buttons},)
         bpy.utils.register_class(current_sensor_panel)
 
     else:
         bpy.utils.register_class(CurrentSensorsPanel)
 
-def _drawSingleSensorButtons(self, context):
-    """Draws the individual entries for each simulation.
-    Each entry includes the name and color of the sensor, as well as the position and individual buttons for deletion
-    and a button to bring up selection of variables to graph after the simulation has run.
-    """
-    layout = self.layout
-    for sensor in self.sensor_dict:
-        col = layout.column(align = True)
-        col.enabled = False
-        col.prop(context.scene.objects['sensor_' + sensor], "sensor_name")
-        row = layout.row(align = True)
-        row.alignment = 'EXPAND'
-        row.operator("bodysim.locate_body_part", text = sensor).part = sensor
-        row.prop(context.scene.objects['sensor_' + sensor], "sensor_color")
-        row.operator("bodysim.edit_sensor", text = "Edit").part = sensor
-        row.operator("bodysim.delete_sensor", text = "Delete").part = sensor
-        row.operator("bodysim.graph_select", text = "Graph Selection").part = sensor
+
