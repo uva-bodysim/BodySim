@@ -30,12 +30,6 @@ def bind_sensor_to_active_vg(context, color_tuple):
         
     model = context.scene.objects['model']
     
-    if('sensor_info' not in model.keys()):
-        model['sensor_info'] = {}
-
-    if('current_vg' not in model.keys()):
-        model['current_vg'] = ""
-    
     context.scene.objects.active = None
     # add cube and scale
     bpy.ops.mesh.primitive_cube_add(location=(0,0,0))

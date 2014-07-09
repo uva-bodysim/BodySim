@@ -185,6 +185,7 @@ class BodySim_CANCEL_ADD_SENSOR(bpy.types.Operator):
             bpy.context.scene.objects.active = model
             bpy.data.objects[model['last_bound_sensor']]
             bpy.ops.object.delete()
+            del model['last_bound_sensor']
             Bodysim.vertex_operations.edit_mode()
             Bodysim.vertex_operations.cancel_selection()
             return {'FINISHED'}
@@ -216,6 +217,9 @@ class BodySim_FINALIZE(bpy.types.Operator):
         material.diffuse_color = r, g, b
         sensor.data.materials.append(material)
         model = context.scene.objects['model']
+        if 'sensor_info' not in model:
+            model['sensor_info'] = {}
+
         model['sensor_info'][model['current_vg']] = (self.sensorName , str(r) + ',' + str(g) + ',' + str(b))
         if 'last_bound_sensor' in model:
             del model['last_bound_sensor']
