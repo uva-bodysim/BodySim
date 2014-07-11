@@ -1,10 +1,17 @@
 set -e
+
+if [ $(id -u) = 0 ]; then
+   echo "Please do not run this script as root. It will automatically ask for"
+   echo "permissions if required."
+   exit
+fi
+
 echo "Before installing BodySim, have you installed:"
-echo "- Blender, either via 'sudo apt-get install blender' or 'sudo yum install blender, "
+echo "- Blender, via 'sudo apt-get install blender' or 'sudo yum install blender, "
 echo "- Python development packages (python-dev or python-devel), and"
 echo "- Enthought Canopy Full (Academic)?"
-echo "If not, please install these dependencies first; otherwise the installation will fail."
-printf "See Wiki for more details.\n"
+echo "If not, please install these dependencies first; otherwise the installation"
+printf " will fail. See Wiki for more details.\n"
 echo "Proceed with installation?"
 echo "y / n: "
 read -n 1 -r -p "$1"
