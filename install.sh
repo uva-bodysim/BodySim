@@ -26,25 +26,29 @@ fi
 echo "Installing BodySim..."
 
 # Copy Bodysim scripts into startup folder
-
-echo "Root priviledges are required to access /usr/share/blender/"
 version=`blender --help | head -1 | awk '{ print $2 }'`
-scripts_path=/usr/share/blender/$version/scripts
-# Ubuntu has a different installation path
-if lsb_release -a | grep -q Debian
+
+# Path for Debian distros
+scripts_path=/usr/share/blender/scripts
+
+# Debian and RPM have a different installation paths
+if [ -f /etc/redhat-release ]
 then
-    scripts_path=/usr/share/blender/scripts
+    # Path for RPM distros
+    scripts_path=/usr/share/blender/$version/scripts
 fi
 
-sudo mkdir -p $scripts_path/startup/Bodysim
-sudo cp -r Bodysim $scripts_path/startup/Bodysim
+echo $scripts_path
+exit
+
+echo "Root priviledges are required to access /usr/share/blender/"
+sudo cp -r Bodysim $scripts_path/startup/
 
 # Remove panels
 sudo cp installation/__init__Stripped.py $scripts_path/startup/bl_ui/__init__.py
 
 # Copy Bodysim conf folder
-mkdir -p ~/.bodysim
-cp -r .bodysim ~/.bodysim
+cp -r .bodysim ~/
 
 # Create Launcher... for whatever reason we cannot access environment vars from .desktop.
 echo """[Desktop Entry]
@@ -58,7 +62,7 @@ Type=Application
 Categories=Science;""" > BodySim.desktop
 
 # Copy launcher
-sudo cp BodySim.desktop /usr/share/applications/BodySim.desktop
+sudo cp BodySim.desktop /usr/share/applications/
 
 # Install IMUSim
 pip install simpy==2.3.1

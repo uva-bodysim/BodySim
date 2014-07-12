@@ -2,13 +2,12 @@ set -e
 echo "Uninstalling Bodysim..."
 
 version=`blender --help | head -1 | awk '{ print $2 }'`
-scripts_path=/usr/share/blender/$version/scripts
-# Ubuntu has a different installation path
-if lsb_release -a | grep -q Debian
+scripts_path=/usr/share/blender/scripts
+if [ -f /etc/redhat-release ]
 then
-    scripts_path=/usr/share/blender/scripts
+    # Path for RPM distros
+    scripts_path=/usr/share/blender/$version/scripts
 fi
-
 
 # Delete Bodysim startup folder
 sudo rm -rf $scripts_path/startup/Bodysim
