@@ -78,10 +78,8 @@ def write_simulation_xml(name, sensor_dict, sim_dict, sim_path, session_path):
         sensors_element.append(curr_sensor_element)
 
     indent(sensors_element)
-    file = open(sim_path + os.sep + 'sensors.xml', 'wb')
-    file.write(tostring(sensors_element))
-    file.flush()
-    file.close()
+    with open(sim_path + os.sep + 'sensors.xml', 'wb') as f:
+        f.write(tostring(sensors_element))
 
 def get_plugins(setTheAttrs):
     """Reads the plugins.xml file for the list of available external simulators to run."""
@@ -130,8 +128,6 @@ def update_session_file(session_element, session_path):
     with open(session_path + '.xml', 'wb') as f:
         indent(session_element)
         f.write(tostring(session_element))
-        f.flush()
-        f.close()
 
 def execute_simulators(current_sim_path, sim_dict):
     """Run simulators depending sensor and variables selected."""
@@ -220,9 +216,8 @@ def remove_simulation(session_path, simulation_name):
             tree.remove(simulation)
 
     indent(tree)
-    file = open(session_path + '.xml', 'wb')
-    file.write(tostring(tree))
-    file.flush()
-    file.close()
+
+    with open(session_path + '.xml', 'wb') as f:
+        f.write(tostring(tree))
 
     shutil.rmtree(session_path + os.sep + simulation_name)

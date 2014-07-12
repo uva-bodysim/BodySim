@@ -38,9 +38,6 @@ then
     scripts_path=/usr/share/blender/$version/scripts
 fi
 
-echo $scripts_path
-exit
-
 echo "Root priviledges are required to access /usr/share/blender/"
 sudo cp -r Bodysim $scripts_path/startup/
 
