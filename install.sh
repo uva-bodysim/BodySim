@@ -8,7 +8,9 @@ fi
 
 echo "Before installing BodySim, have you installed:"
 echo "- Blender, via 'sudo apt-get install blender' or 'sudo yum install blender, "
-echo "- Python development packages (python-dev or python-devel), and"
+echo "- Python development packages (python-dev or python-devel),"
+echo "- libpng and libpng development packages (libpng and either libpng-dev or"
+echo "  libpng-devel), and"
 echo "- Enthought Canopy Full (Academic)?"
 echo "If not, please install these dependencies first; otherwise the installation"
 printf " will fail. See Wiki for more details.\n"
@@ -16,7 +18,7 @@ echo "Proceed with installation?"
 echo "y / n: "
 read -n 1 -r -p "$1"
 printf "\n"
-echo $REPLY
+
 if ! [[ $REPLY == "y" ]]
 then
     echo "Exiting"
