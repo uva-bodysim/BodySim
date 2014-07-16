@@ -11,17 +11,4 @@
         <variable>z_gyro</variable>
     </unitGroup>
 </simulator>
-
-<simulator name="ABC" file="imusimulator.py" x="time(s)">
-    <unitGroup heading="Acceleration" y="acceleration (m/s^2)">
-        <variable>x_acc</variable>
-        <variable>y_acc</variable>
-        <variable>z_acc</variable>
-    </unitGroup>
-    <unitGroup heading="Rotation" y="angular velocity (deg/s)">
-        <variable>x_gyro</variable>
-        <variable>y_gyro</variable>
-        <variable>z_gyro</variable>
-    </unitGroup>
-</simulator>
 </plugins>
