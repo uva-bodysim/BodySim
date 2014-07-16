@@ -1,9 +1,16 @@
-"""Generates the CurrentSensorsPanel which displays the list of sensors currently added to a simulation."""
+"""
+Generates the CurrentSensorsPanel which displays the list of
+sensors currently added to a simulation.
+"""
 
 import bpy
 
-# Keeps track of the CurrentSensorsPanel. This panel is unregistered (replaced with the graphing panel) when the
-# user wants to select which variables he/she wants to graph. See sensor_operators.py for more details.
+"""
+Keeps track of the CurrentSensorsPanel. This panel is unregistered
+ (replaced with the graphing panel) when the user wants to select which
+ variables he/she wants to graph. See sensor_operators.py for more
+ details.
+"""
 current_sensor_panel = None
 
 class CurrentSensorsPanel(bpy.types.Panel):
@@ -28,8 +35,10 @@ def draw_sensor_list_panel(sensor_dict):
 
     def _draw_single_sensor_buttons(self, context):
         """Draws the individual entries for each simulation.
-        Each entry includes the name and color of the sensor, as well as the position and individual buttons for deletion
-        and a button to bring up selection of variables to graph after the simulation has run.
+        Each entry includes the name and color of the sensor, as well
+         as the position and individual buttons for deletion and a
+         button to bring up selection of variables to graph after the
+         simulation has run.
         """
 
         layout = self.layout

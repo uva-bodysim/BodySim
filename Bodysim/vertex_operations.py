@@ -1,10 +1,7 @@
-"""
-Provides operations on vertex groups of the model.
-"""
+"""Provides operations on vertex groups of the model."""
 
 import bpy
 from mathutils import *
-from math import *
 
 def list_vertex_group():
     """Returns a list of names to vertex groups"""
@@ -12,7 +9,9 @@ def list_vertex_group():
     return bpy.data.objects["model"].vertex_groups.keys()
 
 def parse_vertex_group(groups):
-    """Takes in the list of vertex groups and splits them by body part"""
+    """Takes in the list of vertex groups and splits them by body
+     part.
+    """
 
     categories = {}
     for i in groups:
@@ -23,7 +22,7 @@ def parse_vertex_group(groups):
 
 def bind_sensor_to_active_vg(context, color_tuple):
     """Binds a sensor to the active vertex group
-    Optionally adds color to the sensor if color_tuple is specified.
+     Optionally adds color to the sensor if color_tuple is specified.
     """
 
     object_mode()
@@ -52,7 +51,9 @@ def bind_sensor_to_active_vg(context, color_tuple):
     return sensor.name
 
 def _bind_to_vertex_group(obj, context):
-    """Binds the object passed in to the currently selected vertex group"""
+    """Binds the object passed in to the currently selected vertex
+     group.
+    """
 
     vg = context.object.vertex_groups.active
     body_obj = bpy.data.objects['model']
@@ -71,7 +72,9 @@ def _bind_to_vertex_group(obj, context):
     cancel_selection()
 
 def select_vertex_group(vg_name, context):
-    """Given a vertex group name vg_name, selects and displays it on the screen"""
+    """Given a vertex group name vg_name, selects and displays it on
+     the screen.
+    """
 
     bpy.ops.object.mode_set(mode="OBJECT")
     obj = bpy.data.objects["model"]

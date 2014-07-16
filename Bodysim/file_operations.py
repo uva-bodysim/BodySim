@@ -1,15 +1,10 @@
 """
 Contains file writing, reading, and execution methods.
-
 """
 
 import bpy
-import glob
 import os
-import sys
 import shutil
-from queue import Queue, Empty
-from threading import Thread
 from xml.etree.ElementTree import ElementTree as ET
 from xml.etree.ElementTree import *
 import subprocess
@@ -20,9 +15,7 @@ session_element = None
 bodysim_conf_path = os.path.expanduser('~') + os.sep + '.bodysim'
 
 def indent(elem, level=0):
-    """
-    Properly indents XML file.
-    """
+    """Properly indents XML file."""
 
     i = "\n" + level*"  "
     if len(elem):
@@ -39,7 +32,9 @@ def indent(elem, level=0):
             elem.tail = i
 
 def write_simulation_xml(name, sensor_dict, sim_dict, sim_path, session_path):
-    """Writes the list of sensors and simulated variables to a simulation XML file."""
+    """Writes the list of sensors and simulated variables to a
+     simulation XML file.
+    """
 
     global session_element
 
@@ -53,7 +48,7 @@ def write_simulation_xml(name, sensor_dict, sim_dict, sim_path, session_path):
     sensors_element = Element('sensors')
 
     for location, color_and_name in sensor_dict.iteritems():
-        curr_sensor_element = Element('sensor', {'location' : location, 'name' : color_and_name[0]})
+        curr_sensor_element = Element('sensor', {'location': location, 'name': color_and_name[0]})
         curr_sensor_color_element = Element('color')
         curr_sensor_color_element.text = color_and_name[1]
 
@@ -63,7 +58,7 @@ def write_simulation_xml(name, sensor_dict, sim_dict, sim_path, session_path):
                 if plugin == 'Trajectory':
                     continue
                 curr_sensor_type_element = Element('plugins_used')
-                curr_plugin_element = Element('plugin', {'name' : plugin})
+                curr_plugin_element = Element('plugin', {'name': plugin})
                 curr_sensor_type_element.extend([curr_plugin_element])
                 for variable in sim_dict[location][plugin]:
                     curr_variable_element = Element('variable')
@@ -82,7 +77,9 @@ def write_simulation_xml(name, sensor_dict, sim_dict, sim_path, session_path):
         f.write(tostring(sensors_element))
 
 def get_plugins(setTheAttrs):
-    """Reads the plugins.xml file for the list of available external simulators to run."""
+    """Reads the plugins.xml file for the list of available external
+     simulators to run.
+    """
 
     # TODO Error checking (existance of plugins.xml, duplicate plugins)
     # Hard coded plugin: Trajectory
@@ -92,10 +89,12 @@ def get_plugins(setTheAttrs):
     plugins_dict['Trajectory'] = {'file' : None, 'variables' : trajectory_vars}
     for var in trajectory_vars:
         setattr(bpy.types.Object, 'Trajectory' + var, bpy.props.BoolProperty(default=True, name=var))
-        setattr(bpy.types.Object, 'GRAPH_Trajectory' + var, bpy.props.BoolProperty(default=False, name='Trajectory_' + var))
+        setattr(bpy.types.Object, 'GRAPH_Trajectory' + var,
+                bpy.props.BoolProperty(default=False, name='Trajectory_' + var))
 
     unit_map[('frame no.', 'location(cm)', 'location')] = ['Trajectoryx', 'Trajectoryy', 'Trajectoryz']
-    unit_map[('frame no.', 'heading (rad)', 'rotation')] = ['Trajectoryw', 'Trajectoryrx', 'Trajectoryry', 'Trajectoryrz']
+    unit_map[('frame no.', 'heading (rad)', 'rotation')] = ['Trajectoryw', 'Trajectoryrx', 'Trajectoryry',
+                                                            'Trajectoryrz']
 
     tree = ET().parse(bodysim_conf_path + os.sep + 'plugins.xml')
     for simulator in tree.iter('simulator'):
@@ -112,18 +111,22 @@ def get_plugins(setTheAttrs):
                 # Append simulator name to allow variables of the same name over different
                 # simulations.
                 if setTheAttrs:
-                    setattr(bpy.types.Object, simulator_name + variable.text, bpy.props.BoolProperty(default=False, name=variable.text))
-                    setattr(bpy.types.Object, 'GRAPH_' + simulator_name + variable.text, bpy.props.BoolProperty(default=False, name=simulator_name + variable.text))
+                    setattr(bpy.types.Object, simulator_name + variable.text,
+                            bpy.props.BoolProperty(default=False, name=variable.text))
+                    setattr(bpy.types.Object, 'GRAPH_' + simulator_name + variable.text,
+                            bpy.props.BoolProperty(default=False, name=simulator_name + variable.text))
 
             if not unitTuple in unit_map:
                 unit_map[unitTuple] = unitgroup_list 
 
-        plugins_dict[simulator_name] = {'file' : simulator_file, 'variables' : variables}
+        plugins_dict[simulator_name] = {'file': simulator_file, 'variables': variables}
 
-    return (plugins_dict, unit_map)
+    return plugins_dict, unit_map
 
 def update_session_file(session_element, session_path):
-    """Updates the session file. Called when a new simulation is added to the session."""
+    """Updates the session file. Called when a new simulation is added
+     to the session.
+    """
 
     with open(session_path + '.xml', 'wb') as f:
         indent(session_element)
@@ -187,9 +190,8 @@ def save_session_to_file(temp_sim_ran, path):
     update_session_file(session_element, path[:-4])
 
 def load_simulation(sensor_xml_path):
-    """Loads a simulation file and returns a dictionary mapping sensors to simulated variables.
-    Not as efficient as reading the xml and processing sensors on the fly, but better separated
-    for modularity.
+    """Loads a simulation file and returns a dictionary mapping
+     sensors to simulated variables.
     """
 
     tree = ET().parse(sensor_xml_path)
@@ -208,7 +210,9 @@ def load_simulation(sensor_xml_path):
     return sensor_map
 
 def remove_simulation(session_path, simulation_name):
-    """Removes the simulation from the session file and the session folder."""
+    """Removes the simulation from the session file and the session
+     folder.
+    """
 
     tree = ET().parse(session_path + '.xml')
     for simulation in tree.findall('simulation'):

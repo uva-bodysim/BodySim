@@ -1,8 +1,6 @@
 import sys, os, ast
 import matplotlib
-import weakref
 matplotlib.use('Qt4Agg')
-import pylab
 
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as NavigationToolbar
@@ -46,20 +44,23 @@ class MainWindow(QtGui.QWidget):
         def onclick(event):
             # If click in axis and toolbar mode is nothing
             if event.inaxes is not None and self.toolbars[fig].mode == "":
-                #removes all existing lines
+                # Removes all existing lines
                 for line in self.lines:
                     l = line.pop(0)
-                    wl = weakref.ref(l)
                     l.remove()
                     del l
                 self.lines = []
 
                 for plot in self.plots:
                     if event.inaxes.get_xlim()[1] == plot.get_xlim()[1]:
-                        self.lines.append(plot.plot([event.xdata]*2, [plot.get_ylim()[0], plot.get_ylim()[1]], c="black"))
+                        self.lines.append(plot.plot([event.xdata]*2,
+                                                    [plot.get_ylim()[0], plot.get_ylim()[1]],
+                                                    c="black"))
                     else:
-                        self.lines.append(plot.plot([event.xdata / float(event.inaxes.get_xlim()[1]) * plot.get_xlim()[1]]*2,
-                                          [plot.get_ylim()[0], plot.get_ylim()[1]], c="black"))
+                        self.lines.append(
+                            plot.plot([event.xdata / float(event.inaxes.get_xlim()[1]) * plot.get_xlim()[1]]*2,
+                                      [plot.get_ylim()[0],plot.get_ylim()[1]],
+                                      c="black"))
 
                 for figure in self.toolbars:
                     figure.canvas.draw()
@@ -68,7 +69,7 @@ class MainWindow(QtGui.QWidget):
                 sys.stdout.flush()
 
 
-        cid = fig.canvas.mpl_connect('button_press_event', onclick)
+        fig.canvas.mpl_connect('button_press_event', onclick)
 
 def plot_file(fps, base_dir, string_graph_map):
     app = QtGui.QApplication('Bodysim')
@@ -98,7 +99,7 @@ def plot_file(fps, base_dir, string_graph_map):
                 axes.set_xlabel(variable_group[0])
                 axes.set_ylabel(variable_group[1])
 
-                # place plot components in a layout
+                # Place plot components in a layout
                 plotLayout = QtGui.QVBoxLayout()
                 plotLayout.addWidget(canvas)
                 plotLayout.addWidget(toolbar)
@@ -122,7 +123,6 @@ def get_data(filename):
         data = zip(*values)
     except:
         print("Bad file format! Each row must have the same number of values.")
-        return
 
     return data
 

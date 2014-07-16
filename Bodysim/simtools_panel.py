@@ -1,13 +1,10 @@
-"""
-Generates the Sim Tools panel to allow saving and loading of a session, graphing of variables, creation of new
-simulations, and keeping track of past simulations.
-
+"""Generates the Sim Tools panel to allow saving and loading of a
+ session, graphing of variables, creation of new simulations, and
+ keeping track of past simulations.
 """
 import bpy
 import os
 import time
-import sys
-import glob
 import builtins
 try:
     import Bodysim.file_operations
@@ -22,7 +19,9 @@ temp_sim_ran = False
 sim_list = []
 
 class WriteSessionToFileInterface(bpy.types.Operator):
-    """Operator that first validates the name of the session to save and then saves the session file."""
+    """Operator that first validates the name of the session to save
+     and then saves the session file.
+    """
 
     bl_idname = "bodysim.save_session_to_file"
     bl_label = "Save to file"
@@ -59,7 +58,9 @@ class WriteSessionToFileInterface(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 class ReadFileInterface(bpy.types.Operator):
-    """Operator that launches interface to load a saved session file."""
+    """Operator that launches interface to load a saved session
+     file.
+    """
 
     bl_idname = "bodysim.read_from_file"
     bl_label = "Read from file"
@@ -86,7 +87,9 @@ class ReadFileInterface(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 class NewSimulationOperator(bpy.types.Operator):
-    """Operator that clears all existing sensors to allow user to create a new simulation."""
+    """Operator that clears all existing sensors to allow user to
+     create a new simulation.
+    """
 
     bl_idname = "bodysim.new_sim"
     bl_label = "Create a new simulation"
@@ -105,7 +108,9 @@ class NewSimulationOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class NotRanSimDialogOperator(bpy.types.Operator):
-    """Operator that is invoked when user wants to clear sensors without running a simulation on them yet."""
+    """Operator that is invoked when user wants to clear sensors
+     without running a simulation on them yet.
+    """
 
     bl_idname = "bodysim.not_ran_sim_dialog"
     bl_label = "Simulation not ran yet on these sensors."
@@ -147,8 +152,8 @@ class DryRunOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class RunSimulationOperator(bpy.types.Operator):
-    """Operator that  first checks to see if sensors were added before allowing the user to name a simulation 
-    and running it.
+    """Operator that  first checks to see if sensors were added before
+     allowing the user to name a simulation and running it.
     """
 
     bl_idname = "bodysim.run_sim"
@@ -169,7 +174,9 @@ class RunSimulationOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class NameSimulationDialogOperator(bpy.types.Operator):
-    """Operator that launches popup for naming the simulation and finally running the simulation."""
+    """Operator that launches popup for naming the simulation and
+     finally running the simulation.
+    """
 
     bl_idname = "bodysim.name_simulation"
     bl_label = "Enter a name for this simulation."
@@ -210,13 +217,18 @@ class NameSimulationDialogOperator(bpy.types.Operator):
 
         builtins.sim_dict = get_sensor_plugin_mapping(context)
 
-        Bodysim.file_operations.write_simulation_xml(self.simulation_name, sensor_dict, builtins.sim_dict, path, session_path)
+        Bodysim.file_operations.write_simulation_xml(self.simulation_name,
+                                                     sensor_dict,
+                                                     builtins.sim_dict,
+                                                     path,
+                                                     session_path)
 
         model['simulation_count'] += 1
         scene = bpy.context.scene
         sensor_objects = populate_sensor_list(num_sensors, context)
         track_sensors(1, 100, num_sensors, sensor_objects, scene, path + os.sep + 'Trajectory')
-        Bodysim.file_operations.execute_simulators(context.scene.objects['model']['current_simulation_path'], builtins.sim_dict)
+        Bodysim.file_operations.execute_simulators(context.scene.objects['model']['current_simulation_path'],
+                                                   builtins.sim_dict)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -236,8 +248,9 @@ def populate_sensor_list(num_sensors, context):
     return sensor_objects
 
 def get_sensor_plugin_mapping(context):
-    """For each sensor in the current simulation, gets the variables that the user desires to have simulated.
-    Variables are grouped by the plugins that keep track of them.
+    """For each sensor in the current simulation, gets the variables
+     that the user desires to have simulated. Variables are grouped
+     by the plugins that keep track of them.
     """
 
     plugins = Bodysim.plugins_info.plugins
@@ -259,7 +272,7 @@ def get_sensor_plugin_mapping(context):
 
 def track_sensors(frame_start, frame_end, num_sensors, sensor_objects, scene, path):
     """Logs location and rotation of sensors along respective paths.
-    Rotation in quaternions.
+     Rotation in quaternions.
     """
 
     data_files = []
@@ -303,7 +316,9 @@ def track_sensors(frame_start, frame_end, num_sensors, sensor_objects, scene, pa
         data_files[i].close()
 
 class LoadSimulationOperator(bpy.types.Operator):
-    """Loads a previously run simulation along with corresponding sensor data."""
+    """Loads a previously run simulation along with corresponding
+     sensor data.
+    """
 
     bl_idname = "bodysim.load_simulation"
     bl_label = "Load a simulation."
@@ -320,7 +335,8 @@ class LoadSimulationOperator(bpy.types.Operator):
         sensor_map = Bodysim.file_operations.load_simulation(sensor_xml_path)
 
         for sensor_location in sensor_map:
-            model['sensor_info'][sensor_location] = (sensor_map[sensor_location]['name'], sensor_map[sensor_location]['colors'])
+            model['sensor_info'][sensor_location] = (sensor_map[sensor_location]['name'],
+                                                     sensor_map[sensor_location]['colors'])
             Bodysim.vertex_operations.select_vertex_group(sensor_location, context)
             Bodysim.vertex_operations.bind_sensor_to_active_vg(context,
                 tuple([float(color) for color in sensor_map[sensor_location]['colors'].split(',')]))
@@ -353,16 +369,20 @@ class DeleteSimulationOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 def draw_previous_run_panel(list_of_simulations):
-    """Draws the list of previously run simulations; one row of buttons per simulation.
-    Using this panel, the user can load or delete previous simulations.
-    Note that this panel is updated a) when loading a session and b) after successful execution of a simulation.
+    """Draws the list of previously run simulations; one row of buttons
+     per simulation.
+     Using this panel, the user can load or delete previous
+     simulations. Note that this panel is updated a) when loading
+     a session and b) after successful execution of a simulation.
     """
 
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
 
     def _draw_previous_run_buttons(self, context):
-        """Function that draws the individual rows of previous simulations."""
+        """Function that draws the individual rows of previous
+         simulations.
+        """
 
         layout = self.layout
         for _previousRun in self.sim_runs:
@@ -382,7 +402,9 @@ def draw_previous_run_panel(list_of_simulations):
 
 
 class SimTools(bpy.types.Panel):
-    """Panel that allows user to save and load sessions, run simulations, and graph variables."""
+    """Panel that allows user to save and load sessions, run
+     simulations, and graph variables.
+    """
 
     bl_label = "Sim Tools"
     bl_space_type = "VIEW_3D"

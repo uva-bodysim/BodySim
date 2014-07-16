@@ -1,7 +1,4 @@
-"""
-Provides operator to show error messages to the user.
-
-"""
+"""Provides operator to show error messages to the user."""
 
 import bpy
 
@@ -28,7 +25,6 @@ class BodysimMessageOperator(bpy.types.Operator):
 
 def register():
     bpy.utils.register_module(__name__)
-
 
 def unregister():
     bpy.utils.unregister_module(__name__)

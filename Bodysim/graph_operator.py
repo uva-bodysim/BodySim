@@ -1,17 +1,14 @@
-"""
-A modal operator in blender that takes cursor data from the plotter and moves
-the animation to the desired time. Implementation is non-blocking so blender
-does not freeze while it is running. See wiki for more details.
+"""A modal operator in blender that takes cursor data from the plotter
+ and moves the animation to the desired time. Implementation is
+ non-blocking so blender does not freeze while it is running. See wiki
+ for more details.
 
-NOTE: Simulators must output to a folder within the simulation folder with the
-exact same name as specified in the name attribute of the simulator element
-in plugins.xml.
+ NOTE: Simulators must output to a folder within the simulation folder
+ with the exact same name as specified in the name attribute of the
+ simulator element in plugins.xml.
 """
 
 import bpy
-import glob
-import os
-import sys
 import builtins
 from queue import Queue, Empty
 from threading import Thread
@@ -55,12 +52,17 @@ class GraphOperator(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        # Get the files ending with .csv extension.
+        """Produce a dictionary holding information about what sensor
+         data to be graphed and passes it to the plotter. Goes through
+         each sensor and sees which variables it needs to plot, as
+         well as what column in the csv log it can get data from.
+
+         NOTE: Assuming that the columns that correspond to the logged
+         variables are in the same order as specified in plugins.xml.
+         The first column is reserved for the independent variable.
+        """
         model = context.scene.objects['model']
         curr_sim_path = model['current_simulation_path']
-
-        # Graphing: one tab per sensor. One plot per unit group per plugin.
-        # For every variable in the simulation, get its column position in the csv file.
         plugins_tuple = Bodysim.plugins_info.plugins_tuple
         graph_var_map = {}
         sim_dict = builtins.sim_dict
@@ -85,7 +87,8 @@ class GraphOperator(bpy.types.Operator):
                             graph_var_map[sensor][plugin][curr_pair] = []
 
                         # The first column of the log is reserved for the independent variable.
-                        graph_var_map[sensor][plugin][curr_pair].append((variable, sim_dict[sensor][plugin].index(variable) + 1))
+                        graph_var_map[sensor][plugin][curr_pair].append((variable,
+                                                                         sim_dict[sensor][plugin].index(variable) + 1))
 
         print(graph_var_map)
         self._pipe = Bodysim.blender_caller.plot_csv(str(30), curr_sim_path, graph_var_map)

@@ -1,23 +1,22 @@
-"""
-Provides operators for different sensor actions (e.g. delete, select, edit).
+"""Provides operators for different sensor actions (e.g. delete,
+ select, edit).
 """ 
 
 import bpy
-import os
 import Bodysim.sensor_addition
 import Bodysim.vertex_operations
 import Bodysim.current_sensors_panel
 import Bodysim.plugins_info
 from bpy.props import FloatVectorProperty, StringProperty
-from xml.etree.ElementTree import ElementTree as ET
-from xml.etree.ElementTree import *
 
 # Keeps track of the current graphing panel. This panel is unregistered (replaced with the current_sensors_panel) when
 # user wants to return to the current_sensors_panel. See current_sensors_panel for more details.
 current_graph_panel = None
 
 def update_color(self, context):
-    """Updates the currently active sensor's color when user is selecting a color."""
+    """Updates the currently active sensor's color when user is
+     selecting a color.
+    """
 
     context.scene.objects.active = context.scene.objects[self.name]
     while self.data.materials:
@@ -50,7 +49,9 @@ class BodySim_LOCATE_BODY_PART(bpy.types.Operator):
         return {'FINISHED'}
 
 class Bodysim_EDIT_SENSOR(bpy.types.Operator):
-    """Operator that takes the user back to the configuration page of AddSensorPanel to change sensor configuration."""
+    """Operator that takes the user back to the configuration page of
+     AddSensorPanel to change sensor configuration.
+    """
 
     bl_idname = "bodysim.edit_sensor"
     bl_label = "BodySim Edit Sensor"
@@ -97,7 +98,9 @@ class BodySim_CLEAR_SELECTION(bpy.types.Operator):
         return {'FINISHED'}
 
 class GraphButton(bpy.types.Operator):
-    """Operator that takes user to the graphing panel for a specified sensor."""
+    """Operator that takes user to the graphing panel for a specified
+     sensor.
+    """
 
     bl_idname = "bodysim.graph_select"
     bl_label = "Select variables to graph"
@@ -109,7 +112,9 @@ class GraphButton(bpy.types.Operator):
         return {'FINISHED'}
 
 def draw_GraphSelectionPanel(part):
-    """Draws the list of variables that can be graphed for the current sensor."""
+    """Draws the list of variables that can be graphed for the current
+     sensor.
+    """
 
     bl_label = "Graph Sensors"
     bl_space_type = 'VIEW_3D'
@@ -129,7 +134,8 @@ def draw_GraphSelectionPanel(part):
 
 def _draw_selected_simvars(self, context):
     """Draws the individual checkboxes for each graphable variable.
-    Only variables that have been selected during sensor addition will be shown.
+     Only variables that have been selected during sensor addition will
+     be shown.
     """
 
     layout = self.layout
@@ -143,7 +149,9 @@ def _draw_selected_simvars(self, context):
     column.operator("bodysim.graph_return", text = "Return")
 
 class ReturnToCurrentSensors(bpy.types.Operator):
-    """Returns the user from the graphing panel to the CurrentSensorsPanel."""
+    """Returns the user from the graphing panel to the
+     CurrentSensorsPanel.
+    """
 
     bl_idname = "bodysim.graph_return"
     bl_label = "Return to current sensor list"
@@ -155,9 +163,10 @@ class ReturnToCurrentSensors(bpy.types.Operator):
 
 class BodySim_RESET_SENSORS(bpy.types.Operator):
     """Operator that removes all sensors from a simulation.
-    Note that after a simulation has been run, it becomes read-only. Therefore, calling this after a simulation has been
-    run does remove sensors from CurrentSensorsPanel but the user can always reload the simulation to bring back the 
-    sensors.
+     Note that after a simulation has been run, it becomes read-only.
+     Therefore, calling this after a simulation has been run does
+     remove sensors from CurrentSensorsPanel but the user can always
+     reload the simulation to bring back the sensors.
     """
 
     bl_idname = "bodysim.reset_sensors"
@@ -178,7 +187,7 @@ class BodySim_RESET_SENSORS(bpy.types.Operator):
         Bodysim.vertex_operations.edit_mode()
         Bodysim.vertex_operations.cancel_selection()
         if not hasattr(bpy.types, "CurrentSensorsPanel"):
-            bpy.utils.register_class(CurrentSensorsPanel)
+            bpy.utils.register_class(Bodysim.current_sensors_panel.current_sensor_panel)
         return {'FINISHED'}
 
 def register():
