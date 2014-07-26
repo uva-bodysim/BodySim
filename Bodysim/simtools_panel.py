@@ -143,13 +143,17 @@ class DryRunOperator(bpy.types.Operator):
         if scene.frame_current == scene.frame_end:
             bpy.ops.screen.animation_cancel(restore_frame=True)
             bpy.app.handlers.frame_change_pre.remove(self._stop)
+            return {'CANCELLED'}
+
+        return {'PASS_THROUGH'}
 
     def execute(self, context):
         # Blender can only stop the animation via a frame event handler...
+        bpy.context.scene.frame_set(1)
         bpy.app.handlers.frame_change_pre.append(self._stop)
         bpy.ops.screen.animation_play()
 
-        return {'FINISHED'}
+        return {'RUNNING_MODAL'}
 
 class RunSimulationOperator(bpy.types.Operator):
     """Operator that  first checks to see if sensors were added before
@@ -189,7 +193,6 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         global sim_list
         simulation_ran = True
         model = context.scene.objects['model']
-        num_sensors = len(model['sensor_info'])
 
         if 'session_path' not in model:
             session_path = Bodysim.file_operations.bodysim_conf_path + os.sep + 'tmp'
@@ -225,8 +228,9 @@ class NameSimulationDialogOperator(bpy.types.Operator):
 
         model['simulation_count'] += 1
         scene = bpy.context.scene
-        sensor_objects = populate_sensor_list(num_sensors, context)
-        track_sensors(1, 100, num_sensors, sensor_objects, scene, path + os.sep + 'Trajectory')
+        sensor_objects = populate_sensor_list(context)
+        bpy.ops.bodysim.track_sensors('EXEC_DEFAULT', frame_start=1, frame_end=100,
+                                      path=path + os.sep + 'Trajectory')
         Bodysim.file_operations.execute_simulators(context.scene.objects['model']['current_simulation_path'],
                                                    builtins.sim_dict)
         return {'FINISHED'}
@@ -238,7 +242,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         self.simulation_name = "simulation_" + str(model['simulation_count'])
         return context.window_manager.invoke_props_dialog(self)
 
-def populate_sensor_list(num_sensors, context):
+def populate_sensor_list(context):
     """Get all the sensors in the scene."""
 
     print(bpy.data.objects)
@@ -269,36 +273,36 @@ def get_sensor_plugin_mapping(context):
 
     return sim_dict
 
-
-def track_sensors(frame_start, frame_end, num_sensors, sensor_objects, scene, path):
+class TrackSensorOperator(bpy.types.Operator):
     """Logs location and rotation of sensors along respective paths.
      Rotation in quaternions.
     """
 
-    data_files = []
-    for i in sensor_objects:
-        data_files.append(open(path + os.sep + i.name + '.csv', 'w'))
+    bl_idname = "bodysim.track_sensors"
+    bl_label = "Track Sensors"
 
-    for i in range(frame_end - frame_start + 1):
-        current_frame = frame_start + i
-        scene.frame_current = current_frame
-        bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.object.mode_set(mode='OBJECT')
+    frame_start = bpy.props.IntProperty()
+    frame_end = bpy.props.IntProperty()
+    path = bpy.props.StringProperty()
+    sensor_objects = None
+    data = []
 
-        # Refresh frame. Resolution must be low for window update to be fast.
-        bpy.ops.render.render()
-        bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+    @classmethod
+    def poll(cls, context):
+        return True
 
-        for j in range(num_sensors):
+    def _stop(self, context):
+        scene = bpy.context.scene
+        for j in range(len(self.sensor_objects)):
             # World space coordinates
-            translation_vector = sensor_objects[
+            translation_vector = self.sensor_objects[
                 j].matrix_world.to_translation()
             x = translation_vector[0]
             y = translation_vector[1]
             z = translation_vector[2]
 
             # Rotation
-            rotation_vector = sensor_objects[
+            rotation_vector = self.sensor_objects[
                 j].matrix_world.to_quaternion()
             w = rotation_vector[0]
             rx = rotation_vector[1]
@@ -307,13 +311,27 @@ def track_sensors(frame_start, frame_end, num_sensors, sensor_objects, scene, pa
 
             # Buffer to file
             output = "{0},{1},{2},{3},{4},{5},{6},{7}\n".format(
-                current_frame, x, y, z, w, rx, ry, rz)
-            data_files[j].write(output)
+                scene.frame_current, x, y, z, w, rx, ry, rz)
+            self.data[j].append(output)
 
-    # Close files
-    for i in range(num_sensors):
-        data_files[i].flush()
-        data_files[i].close()
+        if scene.frame_current == self.frame_end + 1:
+            bpy.ops.screen.animation_cancel(restore_frame=True)
+            bpy.app.handlers.frame_change_pre.remove(self._stop)
+            Bodysim.file_operations.write_results(self.data, self.sensor_objects, self.path)
+            return {'CANCELLED'}
+
+        return {'PASS_THROUGH'}
+
+    def execute(self, context):
+        # Blender can only stop the animation via a frame event handler...
+        self.sensor_objects = populate_sensor_list(context)
+        for i in self.sensor_objects:
+            self.data.append([])
+        bpy.app.handlers.frame_change_pre.append(self._stop)
+        bpy.context.scene.frame_set(self.frame_start)
+        bpy.ops.screen.animation_play()
+
+        return {'RUNNING_MODAL'}
 
 class LoadSimulationOperator(bpy.types.Operator):
     """Loads a previously run simulation along with corresponding
