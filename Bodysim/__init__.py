@@ -6,6 +6,7 @@ _modules = [
     "message_operators",
     "sensor_addition",
     "sensor_operators",
+    "los_sim",
     "simtools_panel"
 ]
 

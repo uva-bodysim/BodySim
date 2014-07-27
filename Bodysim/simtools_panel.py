@@ -418,7 +418,6 @@ def draw_previous_run_panel(list_of_simulations):
 
     bpy.utils.register_class(panel)
 
-
 class SimTools(bpy.types.Panel):
     """Panel that allows user to save and load sessions, run
      simulations, and graph variables.
@@ -435,6 +434,7 @@ class SimTools(bpy.types.Panel):
         self.layout.operator("bodysim.run_sim", text = "Run Simulation")
         self.layout.operator("bodysim.graph", text = "Graph Variables")
         self.layout.operator("bodysim.new_sim", text = "New Simulation")
+        self.layout.operator("bodysim.los_sim", text = "LOS Simulation")
 
 if __name__ == "__main__":
     bpy.utils.register_module(__name__)
