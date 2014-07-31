@@ -231,8 +231,6 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         sensor_objects = populate_sensor_list(context)
         bpy.ops.bodysim.track_sensors('EXEC_DEFAULT', frame_start=1, frame_end=100,
                                       path=path + os.sep + 'Trajectory')
-        Bodysim.file_operations.execute_simulators(context.scene.objects['model']['current_simulation_path'],
-                                                   builtins.sim_dict)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -318,6 +316,9 @@ class TrackSensorOperator(bpy.types.Operator):
             bpy.ops.screen.animation_cancel(restore_frame=True)
             bpy.app.handlers.frame_change_pre.remove(self._stop)
             Bodysim.file_operations.write_results(self.data, self.sensor_objects, self.path)
+            # Run the external simulators once all results have been written.
+            Bodysim.file_operations.execute_simulators(scene.objects['model']['current_simulation_path'],
+                                                       builtins.sim_dict)
             return {'CANCELLED'}
 
         return {'PASS_THROUGH'}
