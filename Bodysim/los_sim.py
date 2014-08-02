@@ -23,19 +23,12 @@ class LOSSimulationOperator(bpy.types.Operator):
         ray = self.sensor_objects[0].matrix_world.to_translation() - \
               self.sensor_objects[1].matrix_world.to_translation()
         for triangle in self.triangles:
-            my_new_verts = [copy.deepcopy(triangle[i].co) for i in range(3)]
-
-            for i in range(len(my_new_verts)):
-                my_new_verts[i].rotate(ob.rotation_euler)
-                my_new_verts[i] = my_new_verts[i] + ob.matrix_world.to_translation()
-
-            if geometry.intersect_ray_tri(my_new_verts[0], my_new_verts[1], my_new_verts[2], 
+            if geometry.intersect_ray_tri(triangle[0], triangle[1], triangle[2],
                                  ray, self.sensor_objects[1].matrix_world.to_translation(), True) is not None:
                 intersection = True
                 break
 
         print(intersection)
-
 
         if scene.frame_current == 101:
             bpy.ops.screen.animation_cancel(restore_frame=True)
@@ -47,11 +40,18 @@ class LOSSimulationOperator(bpy.types.Operator):
     def execute(self, context):
         # Blender can only stop the animation via a frame event handler...
         self.triangles = get_triangles()
+        print(str(get_max_height(self.triangles)))
         self.sensor_objects = populate_sensor_list(context)
         bpy.app.handlers.frame_change_pre.append(self._stop)
         bpy.context.scene.frame_set(1)
         bpy.ops.screen.animation_play()
         return {'RUNNING_MODAL'}
+
+def vert_to_real_world(my_vertex, ob):
+    new_vert = copy.deepcopy(my_vertex.co)
+    new_vert.rotate(ob.rotation_euler)
+    new_vert = new_vert + ob.matrix_world.to_translation()
+    return new_vert
 
 def get_triangles():
     ob = bpy.data.objects["model"]
@@ -70,29 +70,33 @@ def get_triangles():
            
     triangles = []
     for vert_group in verts:
-        triangles.append([ob.data.vertices[verts[vert_group][i]] for i in range(3)])
+        real_world_vert_group = [vert_to_real_world(ob.data.vertices[verts[vert_group][i]], ob)
+                                 for i in range(len(verts[vert_group]))]
+        triangles.append([real_world_vert_group[i] for i in range(3)])
         if len(verts[vert_group]) > 3:
-            my_new_verts = [copy.deepcopy(ob.data.vertices[verts[vert_group][i]].co)
-                            for i in range(4)]
-
-            for vert in my_new_verts:
-                vert.rotate(ob.rotation_euler)
-
-            for i in range(len(my_new_verts)):
-                my_new_verts[i] = my_new_verts[i] + ob.matrix_world.to_translation()
-
             # First check distances between first point to the other two.
-            dist_a_b = (my_new_verts[0] - my_new_verts[1]).length
-            dist_a_c = (my_new_verts[0] - my_new_verts[2]).length
+            dist_a_b = (real_world_vert_group[0] - real_world_vert_group[1]).length
+            dist_a_c = (real_world_vert_group[0] - real_world_vert_group[2]).length
 
-            other_half = [ob.data.vertices[verts[vert_group][0]],
-                          ob.data.vertices[verts[vert_group][3]], 
-                          ob.data.vertices[verts[vert_group][2]] if dist_a_c > dist_a_b else
-                          ob.data.vertices[verts[vert_group][1]]]
+            other_half = [real_world_vert_group[0],
+                          real_world_vert_group[3],
+                          real_world_vert_group[2] if dist_a_c > dist_a_b else
+                          real_world_vert_group[1]]
 
             triangles.append(other_half)
 
     return triangles
+
+def get_max_height(triangles):
+    max_z = 0
+    min_z = 1000
+    for triangle in triangles:
+        for vertex in triangle:
+            z_position = vertex[2]
+            max_z = z_position if z_position > max_z else max_z
+            min_z = z_position if z_position < min_z else min_z
+
+    return max_z - min_z
 
 # TODO This method is already defined in simtools panel, so get rid of one of the 
 # copies in the future.
