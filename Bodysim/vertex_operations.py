@@ -26,7 +26,7 @@ def bind_sensor_to_active_vg(context, color_tuple):
     """
 
     object_mode()
-        
+
     model = context.scene.objects['model']
     
     context.scene.objects.active = None

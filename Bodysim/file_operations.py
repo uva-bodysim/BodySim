@@ -226,9 +226,9 @@ def remove_simulation(session_path, simulation_name):
 
     shutil.rmtree(session_path + os.sep + simulation_name)
 
-def write_results(data, sensor_objects, path):
-    """Writes trajectory simulation results to csv file."""
+def write_results(data, sensor_objects, sim_path):
+    """Writes simulation results to csv file."""
     for i in range(len(sensor_objects)):
-        with open(path + os.sep + sensor_objects[i].name + '.csv', 'w') as f:
+        with open(sim_path + os.sep + sensor_objects[i].name + '.csv', 'w') as f:
             for output_line in data[i]:
                 f.write(output_line);

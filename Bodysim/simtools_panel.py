@@ -215,6 +215,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         draw_previous_run_panel(sim_list)
         os.mkdir(path)
         os.mkdir(path + os.sep + 'Trajectory')
+        os.mkdir(path + os.sep + 'BodyInterference')
 
         sensor_dict = context.scene.objects['model']['sensor_info']
 
@@ -230,7 +231,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         scene = bpy.context.scene
         sensor_objects = populate_sensor_list(context)
         bpy.ops.bodysim.track_sensors('EXEC_DEFAULT', frame_start=1, frame_end=100,
-                                      path=path + os.sep + 'Trajectory')
+                                      path=path)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -270,69 +271,6 @@ def get_sensor_plugin_mapping(context):
                     sim_dict[sensor][plugin].append(variable)
 
     return sim_dict
-
-class TrackSensorOperator(bpy.types.Operator):
-    """Logs location and rotation of sensors along respective paths.
-     Rotation in quaternions.
-    """
-
-    bl_idname = "bodysim.track_sensors"
-    bl_label = "Track Sensors"
-
-    frame_start = bpy.props.IntProperty()
-    frame_end = bpy.props.IntProperty()
-    path = bpy.props.StringProperty()
-    sensor_objects = None
-    data = []
-
-    @classmethod
-    def poll(cls, context):
-        return True
-
-    def _stop(self, context):
-        scene = bpy.context.scene
-        for j in range(len(self.sensor_objects)):
-            # World space coordinates
-            translation_vector = self.sensor_objects[
-                j].matrix_world.to_translation()
-            x = translation_vector[0]
-            y = translation_vector[1]
-            z = translation_vector[2]
-
-            # Rotation
-            rotation_vector = self.sensor_objects[
-                j].matrix_world.to_quaternion()
-            w = rotation_vector[0]
-            rx = rotation_vector[1]
-            ry = rotation_vector[2]
-            rz = rotation_vector[3]
-
-            # Buffer to file
-            output = "{0},{1},{2},{3},{4},{5},{6},{7}\n".format(
-                scene.frame_current, x, y, z, w, rx, ry, rz)
-            self.data[j].append(output)
-
-        if scene.frame_current == self.frame_end + 1:
-            bpy.ops.screen.animation_cancel(restore_frame=True)
-            bpy.app.handlers.frame_change_pre.remove(self._stop)
-            Bodysim.file_operations.write_results(self.data, self.sensor_objects, self.path)
-            # Run the external simulators once all results have been written.
-            Bodysim.file_operations.execute_simulators(scene.objects['model']['current_simulation_path'],
-                                                       builtins.sim_dict)
-            return {'CANCELLED'}
-
-        return {'PASS_THROUGH'}
-
-    def execute(self, context):
-        # Blender can only stop the animation via a frame event handler...
-        self.sensor_objects = populate_sensor_list(context)
-        for i in self.sensor_objects:
-            self.data.append([])
-        bpy.app.handlers.frame_change_pre.append(self._stop)
-        bpy.context.scene.frame_set(self.frame_start)
-        bpy.ops.screen.animation_play()
-
-        return {'RUNNING_MODAL'}
 
 class LoadSimulationOperator(bpy.types.Operator):
     """Loads a previously run simulation along with corresponding
@@ -435,7 +373,6 @@ class SimTools(bpy.types.Panel):
         self.layout.operator("bodysim.run_sim", text = "Run Simulation")
         self.layout.operator("bodysim.graph", text = "Graph Variables")
         self.layout.operator("bodysim.new_sim", text = "New Simulation")
-        self.layout.operator("bodysim.los_sim", text = "LOS Simulation")
 
 if __name__ == "__main__":
     bpy.utils.register_module(__name__)
