@@ -2,8 +2,8 @@ import bpy
 import copy
 import math
 import os
-import Bodysim.simtools_panel
 import mathutils
+import Bodysim.file_operations
 # TODO Stop using this!
 import builtins
 
@@ -23,7 +23,12 @@ class TrackSensorOperator(bpy.types.Operator):
     triangles = None
     sample_count = 300
     sphere_samples = None
+
+    # Stores free space wireless channel model data
     body_interference_data = []
+
+    # Stores direct LOS data between sensors
+    direct_los_data = []
 
     @classmethod
     def poll(cls, context):
@@ -31,17 +36,17 @@ class TrackSensorOperator(bpy.types.Operator):
 
     def _stop(self, context):
         scene = bpy.context.scene
-        for j in range(len(self.sensor_objects)):
+        for i in range(len(self.sensor_objects)):
             # World space coordinates
             translation_vector = self.sensor_objects[
-                j].matrix_world.to_translation()
+                i].matrix_world.to_translation()
             x = translation_vector[0]
             y = translation_vector[1]
             z = translation_vector[2]
 
             # Rotation
             rotation_vector = self.sensor_objects[
-                j].matrix_world.to_quaternion()
+                i].matrix_world.to_quaternion()
             w = rotation_vector[0]
             rx = rotation_vector[1]
             ry = rotation_vector[2]
@@ -50,7 +55,7 @@ class TrackSensorOperator(bpy.types.Operator):
             # Store trajectory data
             output = "{0},{1},{2},{3},{4},{5},{6},{7}\n".format(
                 scene.frame_current, x, y, z, w, rx, ry, rz)
-            self.trajectory_data[j].append(output)
+            self.trajectory_data[i].append(output)
 
             # Deal with the sphere
             no_los_count = 0
@@ -60,18 +65,32 @@ class TrackSensorOperator(bpy.types.Operator):
                                                             z + sample[2]))
                 # Check if any part of the body interferes with this ray
                 for triangle in self.triangles:
-                    if mathutils.geometry.intersect_ray_tri(triangle[0],
-                                                            triangle[1],
-                                                            triangle[2],
-                                                            ray,
-                                                            translation_vector,
-                                                            True) is not None:
+                    if not has_los(triangle, ray, translation_vector):
                         no_los_count += 1
                         break
 
             # Output the ratio of lines that got blocked to the total number of samples.
             output = "{0},{1}\n".format(scene.frame_current, no_los_count / self.sample_count)
-            self.body_interference_data[j].append(output)
+            self.body_interference_data[i].append(output)
+
+            # Deal with direct LOS between this and other sensors
+            # TODO Should probably add a header to label columns
+            direct_los_row = str(scene.frame_current)
+            for j in range(len(self.sensor_objects)):
+                if j == i:
+                    continue
+
+                ray = translation_vector - self.sensor_objects[j].matrix_world.to_translation()
+                los = True
+                for triangle in self.triangles:
+                    if not has_los(triangle, ray, translation_vector):
+                        los = False
+                        break
+
+                direct_los_row = direct_los_row + ',' + str(los)
+
+            # Output the los row
+            self.direct_los_data[i].append(direct_los_row + '\n')
 
         if scene.frame_current == self.frame_end + 1:
             bpy.ops.screen.animation_cancel(restore_frame=True)
@@ -82,6 +101,9 @@ class TrackSensorOperator(bpy.types.Operator):
             Bodysim.file_operations.write_results(self.body_interference_data,
                                                   self.sensor_objects,
                                                   self.path + os.sep + 'BodyInterference')
+            Bodysim.file_operations.write_results(self.direct_los_data,
+                                                  self.sensor_objects,
+                                                  self.path + os.sep + 'DirectLOS')
             # Run the external simulators once all results have been written.
             Bodysim.file_operations.execute_simulators(scene.objects['model']['current_simulation_path'],
                                                        builtins.sim_dict)
@@ -93,17 +115,33 @@ class TrackSensorOperator(bpy.types.Operator):
         self.triangles = get_triangles()
         # In blender, the z - "dimension" is strangely at index 1, not 2;
         # The matrix world z is at index 2...
-        self.sphere_samples = get_sphere_samples(self.sample_count , max(bpy.data.objects["model"].dimensions))
+        self.sphere_samples = get_sphere_samples(self.sample_count,
+                                                max(bpy.data.objects["model"].dimensions))
         # Blender can only stop the animation via a frame event handler...
-        self.sensor_objects = Bodysim.simtools_panel.populate_sensor_list(context)
+        self.sensor_objects = populate_sensor_list(context)
         for i in self.sensor_objects:
             self.trajectory_data.append([])
             self.body_interference_data.append([])
+            self.direct_los_data.append([])
         bpy.app.handlers.frame_change_pre.append(self._stop)
         bpy.context.scene.frame_set(self.frame_start)
         bpy.ops.screen.animation_play()
 
         return {'RUNNING_MODAL'}
+
+def has_los(triangle, ray, origin):
+    """Clean wrapper for intersect_ray_tri."""
+    return (mathutils.geometry.intersect_ray_tri(triangle[0], triangle[1],
+                                                 triangle[2], ray, origin, True) is None)
+
+def populate_sensor_list(context):
+    """Get all the sensors in the scene."""
+
+    print(bpy.data.objects)
+    sensor_objects = []
+    for i in context.scene.objects['model']['sensor_info']:
+        sensor_objects.append(bpy.data.objects['sensor_' + i])
+    return sensor_objects
 
 def vert_to_real_world(my_vertex, ob):
     new_vert = copy.deepcopy(my_vertex.co)
@@ -112,6 +150,9 @@ def vert_to_real_world(my_vertex, ob):
     return new_vert
 
 def get_triangles():
+    """Converts all vertex groups of the model into triangles if necessary.
+       This is needed because some vertex groups have four vertices.
+    """
     ob = bpy.data.objects["model"]
 
     # Dictionary mapping vertex group index to its name

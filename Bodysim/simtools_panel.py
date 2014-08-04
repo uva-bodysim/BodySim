@@ -216,6 +216,7 @@ class NameSimulationDialogOperator(bpy.types.Operator):
         os.mkdir(path)
         os.mkdir(path + os.sep + 'Trajectory')
         os.mkdir(path + os.sep + 'BodyInterference')
+        os.mkdir(path + os.sep + 'DirectLOS')
 
         sensor_dict = context.scene.objects['model']['sensor_info']
 
@@ -229,7 +230,6 @@ class NameSimulationDialogOperator(bpy.types.Operator):
 
         model['simulation_count'] += 1
         scene = bpy.context.scene
-        sensor_objects = populate_sensor_list(context)
         bpy.ops.bodysim.track_sensors('EXEC_DEFAULT', frame_start=1, frame_end=100,
                                       path=path)
         return {'FINISHED'}
@@ -240,15 +240,6 @@ class NameSimulationDialogOperator(bpy.types.Operator):
             model['simulation_count'] = 0
         self.simulation_name = "simulation_" + str(model['simulation_count'])
         return context.window_manager.invoke_props_dialog(self)
-
-def populate_sensor_list(context):
-    """Get all the sensors in the scene."""
-
-    print(bpy.data.objects)
-    sensor_objects = []
-    for i in context.scene.objects['model']['sensor_info']:
-        sensor_objects.append(bpy.data.objects['sensor_' + i])
-    return sensor_objects
 
 def get_sensor_plugin_mapping(context):
     """For each sensor in the current simulation, gets the variables
