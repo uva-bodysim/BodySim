@@ -21,7 +21,7 @@ class TrackSensorOperator(bpy.types.Operator):
     sensor_objects = None
     trajectory_data = []
     triangles = None
-    sample_count = 300
+    sample_count = bpy.props.IntProperty()
     sphere_samples = None
 
     # Stores free space wireless channel model data

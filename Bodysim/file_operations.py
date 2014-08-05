@@ -149,10 +149,19 @@ def execute_simulators(current_sim_path, sim_dict):
                     dbl_quotes = '"'
 
                     # Run the simulator
-                    subprocess.check_call("python " + dbl_quotes + bodysim_conf_path + os.sep + "plugins" + os.sep
-                     + plugins[simulator]['file'] + dbl_quotes + ' ' + dbl_quotes
-                     + current_sim_path + os.sep + 'Trajectory' + os.sep + 'sensor_' + sensor + '.csv'
-                     + dbl_quotes + ' ' + str(fps) + ' ' + args, shell=True)
+                    try:
+                        subprocess.check_call("python " + dbl_quotes + bodysim_conf_path + os.sep + "plugins" + os.sep
+                         + plugins[simulator]['file'] + dbl_quotes + ' ' + dbl_quotes
+                         + current_sim_path + os.sep + 'Trajectory' + os.sep + 'sensor_' + sensor + '.csv'
+                         + dbl_quotes + ' ' + str(fps) + ' ' + args, shell=True)
+
+                    except:
+                        bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Error",
+                                                message = 'An external simulation encountered an error.')
+                        return
+
+    bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Sucess!",
+                            message = 'All simulations finished.')
 
 def read_session_file(path):
     """Reads the session file to get a list of simulations."""
@@ -175,7 +184,11 @@ def set_session_element(path):
     session_element = Element('session', {'directory' : path})
 
 def save_session_to_file(temp_sim_ran, path):
-    """Saves the session file and creates the session directory."""
+    """Saves the session file and creates the session directory.
+     Saves data in tmp folder if a simulation was ran without first saving the
+     session file.
+     When user saves, any data in tmp will be moved to the specifed location.
+    """
 
     global session_element
 

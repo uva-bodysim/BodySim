@@ -174,25 +174,33 @@ class RunSimulationOperator(bpy.types.Operator):
                 msg_type = "Error", message = 'No sensors were added.')
             return {'CANCELLED'}
 
-        bpy.ops.bodysim.name_simulation('INVOKE_DEFAULT')
+        bpy.ops.bodysim.simulation_dialog('INVOKE_DEFAULT')
         return {'FINISHED'}
 
-class NameSimulationDialogOperator(bpy.types.Operator):
-    """Operator that launches popup for naming the simulation and
-     finally running the simulation.
+class SimulationDialogOperator(bpy.types.Operator):
+    """Operator that launches popup for naming the simulation, choosing a frame
+     range, and number of samples. After error checking, it finally runs the
+     simulation.
     """
 
-    bl_idname = "bodysim.name_simulation"
-    bl_label = "Enter a name for this simulation."
-
+    bl_idname = "bodysim.simulation_dialog"
+    bl_label = "Enter properties for this simulation."
     simulation_name = bpy.props.StringProperty(name="Name: ", )
+    samples = bpy.props.IntProperty(name="LOS Free Space Samples: ",
+                                    default=300,
+                                    min=1)
+    start_frame = bpy.props.IntProperty(name="Start Frame No.: ", default=1,
+                                        min=1)
+    end_frame = bpy.props.IntProperty(name="End Frame No.: ", default=100,
+                                      min=1)
 
     def execute(self, context):
         global simulation_ran
         global temp_sim_ran
         global sim_list
-        simulation_ran = True
+        simulation_ran = False
         model = context.scene.objects['model']
+        scene = bpy.context.scene
 
         if 'session_path' not in model:
             session_path = Bodysim.file_operations.bodysim_conf_path + os.sep + 'tmp'
@@ -207,8 +215,19 @@ class NameSimulationDialogOperator(bpy.types.Operator):
 
         # Make sure the named simulation does not already exist.
         if os.path.exists(path):
-            bpy.ops.bodysim.message('INVOKE_DEFAULT',
-             msg_type = "Error", message = 'A simulation with that name already exists!')
+            bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Error",
+                                    message = 'A simulation with that name already exists!')
+            return {'CANCELLED'}
+
+        # Frame range error checking
+        if self.end_frame <= self.start_frame:
+            bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Error",
+                                    message = 'Invalid frame range.')
+            return {'CANCELLED'}
+
+        if self.end_frame > scene.frame_end or self.start_frame > scene.frame_end:
+            bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Error",
+                                    message = 'Scene only has ' + str(scene.frame_end) + ' frames.')
             return {'CANCELLED'}
 
         sim_list.append(self.simulation_name)
@@ -229,9 +248,10 @@ class NameSimulationDialogOperator(bpy.types.Operator):
                                                      session_path)
 
         model['simulation_count'] += 1
-        scene = bpy.context.scene
-        bpy.ops.bodysim.track_sensors('EXEC_DEFAULT', frame_start=1, frame_end=100,
-                                      path=path)
+        bpy.ops.bodysim.track_sensors('EXEC_DEFAULT', frame_start=self.start_frame,
+                                      frame_end=self.end_frame, path=path,
+                                      sample_count=self.samples)
+        simulation_ran = True
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -266,6 +286,9 @@ def get_sensor_plugin_mapping(context):
 class LoadSimulationOperator(bpy.types.Operator):
     """Loads a previously run simulation along with corresponding
      sensor data.
+     This will create boolean attributes (one per simulated variable) for each
+     created sensor object. A True value means that the specified variable
+     will be simulated on that sensor.
     """
 
     bl_idname = "bodysim.load_simulation"
