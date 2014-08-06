@@ -4,8 +4,6 @@ import math
 import os
 import mathutils
 import Bodysim.file_operations
-# TODO Stop using this!
-import builtins
 
 class TrackSensorOperator(bpy.types.Operator):
     """Logs location and rotation of sensors along respective paths.
@@ -23,6 +21,7 @@ class TrackSensorOperator(bpy.types.Operator):
     triangles = None
     sample_count = bpy.props.IntProperty()
     sphere_samples = None
+    sim_dict = None
 
     # Stores free space wireless channel model data
     body_interference_data = []
@@ -106,7 +105,7 @@ class TrackSensorOperator(bpy.types.Operator):
                                                   self.path + os.sep + 'DirectLOS')
             # Run the external simulators once all results have been written.
             Bodysim.file_operations.execute_simulators(scene.objects['model']['current_simulation_path'],
-                                                       builtins.sim_dict)
+                                                       sim_dict)
             return {'CANCELLED'}
 
         return {'PASS_THROUGH'}
@@ -119,10 +118,21 @@ class TrackSensorOperator(bpy.types.Operator):
                                                 max(bpy.data.objects["model"].dimensions))
         # Blender can only stop the animation via a frame event handler...
         self.sensor_objects = populate_sensor_list(context)
-        for i in self.sensor_objects:
+        for i in range(len(self.sensor_objects)):
             self.trajectory_data.append([])
             self.body_interference_data.append([])
             self.direct_los_data.append([])
+            # Make the headers
+            self.trajectory_data[i].append("frame,x,y,z,w,rx,ry,rz\n")
+            self.body_interference_data[i].append("frame,no_los-to-total-ratio\n")
+            direct_los_header = "frame"
+            for j in range(len(self.sensor_objects)):
+                if i != j:
+                    direct_los_header = direct_los_header + ',' + self.sensor_objects[j].name
+
+            direct_los_header = direct_los_header + '\n'
+            self.direct_los_data[i].append(direct_los_header)
+
         bpy.app.handlers.frame_change_pre.append(self._stop)
         bpy.context.scene.frame_set(self.frame_start)
         bpy.ops.screen.animation_play()
@@ -132,7 +142,8 @@ class TrackSensorOperator(bpy.types.Operator):
 def has_los(triangle, ray, origin):
     """Clean wrapper for intersect_ray_tri."""
     return (mathutils.geometry.intersect_ray_tri(triangle[0], triangle[1],
-                                                 triangle[2], ray, origin, True) is None)
+                                                 triangle[2], ray, origin, True)
+            is None)
 
 def populate_sensor_list(context):
     """Get all the sensors in the scene."""

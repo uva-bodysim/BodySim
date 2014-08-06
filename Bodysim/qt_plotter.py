@@ -119,7 +119,10 @@ def get_data(filename):
     data = []
     try:
         f = open(filename, 'r').read().strip().split('\n')
-        values = [[float(a) for a in k.split(',')] for k in f]
+        # Skip the header
+        iterF = iter(f)
+        next(iterF)
+        values = [[float(a) for a in k.split(',')] for k in iterF]
         data = zip(*values)
     except:
         print("Bad file format! Each row must have the same number of values.")

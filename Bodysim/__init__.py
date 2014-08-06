@@ -6,8 +6,8 @@ _modules = [
     "message_operators",
     "sensor_addition",
     "sensor_operators",
+    "simtools_panel",
     "trajectory_los_sim",
-    "simtools_panel"
 ]
 
 import bpy

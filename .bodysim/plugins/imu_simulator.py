@@ -74,6 +74,8 @@ def store_outputs(filename, imu_data):
 	Store output to appropriate filename
 	'''
 
+	mydata = imu_data.transpose()
+
 	# create output directory
 	output_dir = dirname(dirname(filename)) + os.sep + 'IMU'
 	try:
@@ -82,7 +84,12 @@ def store_outputs(filename, imu_data):
 	except:
 		pass
 
-	np.savetxt(output_dir + os.sep + filename.split(os.sep)[-1].split('.')[0] + '.csv', imu_data.transpose(), delimiter=',')
+
+	with open (output_dir + os.sep + filename.split(os.sep)[-1].split('.')[0] + '.csv', 'w') as f:
+		# Write the header
+		f.write("time_s," + ",".join(params) + '\n')
+		# Write the data
+		np.savetxt(f, imu_data.transpose(), delimiter=',')
 
 '''
 Main function: assume input is <path-to-sensor-data> <frames-per-second> <parameters>

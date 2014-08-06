@@ -79,6 +79,10 @@ def write_simulation_xml(name, sensor_dict, sim_dict, sim_path, session_path):
 def get_plugins(setTheAttrs):
     """Reads the plugins.xml file for the list of available external
      simulators to run.
+     If setTheAttrs is True, this will create a pair of boolean attribute per
+     simulation variable for each created sensor. The first attribute controls
+     whether or not that variable will be simulated; the second controls whether
+     or not that simulated variable will be graphed.
     """
 
     # TODO Error checking (existance of plugins.xml, duplicate plugins)
