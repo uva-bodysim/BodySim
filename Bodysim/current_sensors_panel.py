@@ -67,4 +67,3 @@ def draw_sensor_list_panel(sensor_dict):
     else:
         bpy.utils.register_class(CurrentSensorsPanel)
 
-

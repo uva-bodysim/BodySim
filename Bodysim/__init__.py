@@ -1,6 +1,6 @@
 _modules = [
-    "file_operations",
     "plugins_info",
+    "file_operations",
     "current_sensors_panel",
     "graph_operator",
     "message_operators",

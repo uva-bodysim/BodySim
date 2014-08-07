@@ -1,5 +1,5 @@
 """
-Contains file writing, reading, and execution methods.
+Contains file writing, reading, and execution methods for simulations and sessions.
 """
 
 import bpy
@@ -8,6 +8,7 @@ import shutil
 from xml.etree.ElementTree import ElementTree as ET
 from xml.etree.ElementTree import *
 import subprocess
+import Bodysim.plugins_info
 NUMBER_OF_BASE_PLUGINS = 1
 session_element = None
 
@@ -31,7 +32,7 @@ def indent(elem, level=0):
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
 
-def write_simulation_xml(name, sensor_dict, sim_dict, sim_path, session_path):
+def write_simulation_xml(name, sensor_dict, sim_path, session_path):
     """Writes the list of sensors and simulated variables to a
      simulation XML file.
     """
@@ -53,6 +54,7 @@ def write_simulation_xml(name, sensor_dict, sim_dict, sim_path, session_path):
         curr_sensor_color_element.text = color_and_name[1]
 
         # Add information about plugins
+        sim_dict = Bodysim.plugins_info.get_sensor_plugin_mapping()
         if len(sim_dict[location]) > NUMBER_OF_BASE_PLUGINS:
             for plugin in sim_dict[location]:
                 if plugin == 'Trajectory':
@@ -76,57 +78,6 @@ def write_simulation_xml(name, sensor_dict, sim_dict, sim_path, session_path):
     with open(sim_path + os.sep + 'sensors.xml', 'wb') as f:
         f.write(tostring(sensors_element))
 
-def get_plugins(setTheAttrs):
-    """Reads the plugins.xml file for the list of available external
-     simulators to run.
-     If setTheAttrs is True, this will create a pair of boolean attribute per
-     simulation variable for each created sensor. The first attribute controls
-     whether or not that variable will be simulated; the second controls whether
-     or not that simulated variable will be graphed.
-    """
-
-    # TODO Error checking (existance of plugins.xml, duplicate plugins)
-    # Hard coded plugin: Trajectory
-    unit_map = {}
-    plugins_dict = {}
-    trajectory_vars = ['x', 'y', 'z', 'w', 'rx', 'ry', 'rz']
-    plugins_dict['Trajectory'] = {'file' : None, 'variables' : trajectory_vars}
-    for var in trajectory_vars:
-        setattr(bpy.types.Object, 'Trajectory' + var, bpy.props.BoolProperty(default=True, name=var))
-        setattr(bpy.types.Object, 'GRAPH_Trajectory' + var,
-                bpy.props.BoolProperty(default=False, name='Trajectory_' + var))
-
-    unit_map[('frame no.', 'location(cm)', 'location')] = ['Trajectoryx', 'Trajectoryy', 'Trajectoryz']
-    unit_map[('frame no.', 'heading (rad)', 'rotation')] = ['Trajectoryw', 'Trajectoryrx', 'Trajectoryry',
-                                                            'Trajectoryrz']
-
-    tree = ET().parse(bodysim_conf_path + os.sep + 'plugins.xml')
-    for simulator in tree.iter('simulator'):
-        simulator_name = simulator.attrib['name']
-        simulator_file = simulator.attrib['file']
-        variables = []
-        for unitGroup in simulator:
-            unitTuple = (simulator.attrib['x'], unitGroup.attrib['y'], unitGroup.attrib['heading'])
-            unitgroup_list = [] if not unitTuple in unit_map else unit_map[unitTuple]
-            for variable in unitGroup:
-                unitgroup_list.append(simulator_name + variable.text)
-
-                variables.append(variable.text)
-                # Append simulator name to allow variables of the same name over different
-                # simulations.
-                if setTheAttrs:
-                    setattr(bpy.types.Object, simulator_name + variable.text,
-                            bpy.props.BoolProperty(default=False, name=variable.text))
-                    setattr(bpy.types.Object, 'GRAPH_' + simulator_name + variable.text,
-                            bpy.props.BoolProperty(default=False, name=simulator_name + variable.text))
-
-            if not unitTuple in unit_map:
-                unit_map[unitTuple] = unitgroup_list 
-
-        plugins_dict[simulator_name] = {'file': simulator_file, 'variables': variables}
-
-    return plugins_dict, unit_map
-
 def update_session_file(session_element, session_path):
     """Updates the session file. Called when a new simulation is added
      to the session.
@@ -136,12 +87,13 @@ def update_session_file(session_element, session_path):
         indent(session_element)
         f.write(tostring(session_element))
 
-def execute_simulators(current_sim_path, sim_dict):
+def execute_simulators(current_sim_path):
     """Run simulators depending sensor and variables selected."""
 
-    plugins = get_plugins(False)[0]
+    plugins = Bodysim.plugins_info.plugins
     # TODO Put fps somewhere else. Should it be set by the user?
     fps = 30
+    sim_dict = Bodysim.plugins_info.get_sensor_plugin_mapping()
     for sensor in sim_dict:
         if len(sim_dict[sensor]) > NUMBER_OF_BASE_PLUGINS:
             for simulator in sim_dict[sensor]:

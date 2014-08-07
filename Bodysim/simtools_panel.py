@@ -8,7 +8,6 @@ import time
 try:
     import Bodysim.file_operations
     import Bodysim.vertex_operations
-    import Bodysim.plugins_info
     import Bodysim.current_sensors_panel
 except ImportError:
     raise ImportError()
@@ -197,7 +196,6 @@ class SimulationDialogOperator(bpy.types.Operator):
         global simulation_ran
         global temp_sim_ran
         global sim_list
-        global sim_dict
         simulation_ran = False
         model = context.scene.objects['model']
         scene = bpy.context.scene
@@ -239,18 +237,15 @@ class SimulationDialogOperator(bpy.types.Operator):
 
         sensor_dict = context.scene.objects['model']['sensor_info']
 
-        sim_dict = get_sensor_plugin_mapping(context)
-
         Bodysim.file_operations.write_simulation_xml(self.simulation_name,
                                                      sensor_dict,
-                                                     sim_dict,
                                                      path,
                                                      session_path)
 
         model['simulation_count'] += 1
         bpy.ops.bodysim.track_sensors('EXEC_DEFAULT', frame_start=self.start_frame,
                                       frame_end=self.end_frame, path=path,
-                                      sample_count=self.samples, sim_dict=sim_dict)
+                                      sample_count=self.samples)
         simulation_ran = True
         return {'FINISHED'}
 
@@ -260,28 +255,6 @@ class SimulationDialogOperator(bpy.types.Operator):
             model['simulation_count'] = 0
         self.simulation_name = "simulation_" + str(model['simulation_count'])
         return context.window_manager.invoke_props_dialog(self)
-
-def get_sensor_plugin_mapping(context):
-    """For each sensor in the current simulation, gets the variables
-     that the user desires to have simulated. Variables are grouped
-     by the plugins that keep track of them.
-    """
-
-    plugins = Bodysim.plugins_info.plugins
-    model = context.scene.objects['model']
-    sim_mapping = {}
-    for sensor in model['sensor_info']:
-        for plugin in plugins:
-            for variable in plugins[plugin]['variables']:
-                if getattr(context.scene.objects['sensor_' + sensor], plugin + variable):
-                    if sensor not in sim_mapping:
-                        sim_mapping[sensor] = {}
-
-                    if plugin not in sim_mapping[sensor]:
-                        sim_mapping[sensor][plugin] = []
-                    sim_mapping[sensor][plugin].append(variable)
-
-    return sim_mapping
 
 class LoadSimulationOperator(bpy.types.Operator):
     """Loads a previously run simulation along with corresponding
@@ -297,7 +270,6 @@ class LoadSimulationOperator(bpy.types.Operator):
     simulation_name = bpy.props.StringProperty()
 
     def execute(self, context):
-        global sim_dict
         # TODO Check if there were any unsaved modifications first.
         bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
         # Navigate to correct folder to load the correct sensors.xml
@@ -319,8 +291,6 @@ class LoadSimulationOperator(bpy.types.Operator):
                 setattr(context.scene.objects['sensor_' + sensor_location], variable, True)
 
             Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'])
-
-        sim_dict = get_sensor_plugin_mapping(context)
 
         return {'FINISHED'}
 
