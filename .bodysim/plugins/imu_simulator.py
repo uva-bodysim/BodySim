@@ -3,15 +3,14 @@ import numpy as np
 import os
 import sys
 
-
 SCALE = 0.01 # conversion scale from Blender
 
 PARAMS = {'x_acc': 0,
-			'y_acc': 1,
-			'z_acc': 2,
-			'x_gyro': 0,
-			'y_gyro': 1,
-			'z_gyro': 2}
+		  'y_acc': 1,
+		  'z_acc': 2,
+		  'x_gyro': 0,
+		  'y_gyro': 1,
+		  'z_gyro': 2}
 
 dirname = os.path.dirname
 
@@ -27,7 +26,10 @@ def read_inputs(filename, fps):
 	Produce trajectory from sensor position and orientation data
 	'''
 	f = open(filename, 'r').read().strip().split('\n')
-	values = np.array([[float(a) for a in k.split(',')] for k in f]).transpose()
+	# Skip the header
+	iterF = iter(f)
+	next(iterF)
+	values = np.array([[float(a) for a in k.split(',')] for k in iterF]).transpose()
 
 	# extract relevant data
 	frames = values[0] # frames
@@ -99,5 +101,3 @@ if __name__ == "__main__":
 	fps = int(sys.argv[2])
 	params = [str(param) for param in sys.argv[3:]] 
 	simulate(sensor_file_path, fps, params)
-	#print('sucsess!')
-	#sys.stdout.flush()
