@@ -18,10 +18,8 @@ class TrackSensorOperator(bpy.types.Operator):
     path = bpy.props.StringProperty()
     sensor_objects = None
     trajectory_data = []
-    triangles = None
     sample_count = bpy.props.IntProperty()
     sphere_samples = None
-    sim_dict = None
 
     # Stores free space wireless channel model data
     body_interference_data = []
@@ -56,15 +54,16 @@ class TrackSensorOperator(bpy.types.Operator):
                 scene.frame_current, x, y, z, w, rx, ry, rz)
             self.trajectory_data[i].append(output)
 
+            triangles = get_triangles()
+
             # Deal with the sphere
             no_los_count = 0
             for sample in self.sphere_samples:
-                ray = translation_vector - mathutils.Vector((x + sample[0],
-                                                            y + sample[1],
-                                                            z + sample[2]))
+                sample_vector = mathutils.Vector((x + sample[0], y + sample[1],
+                                                  z + sample[2]))
                 # Check if any part of the body interferes with this ray
-                for triangle in self.triangles:
-                    if not has_los(triangle, ray, translation_vector):
+                for triangle in triangles:
+                    if not has_los(triangle, translation_vector, sample_vector):
                         no_los_count += 1
                         break
 
@@ -79,10 +78,10 @@ class TrackSensorOperator(bpy.types.Operator):
                 if j == i:
                     continue
 
-                ray = translation_vector - self.sensor_objects[j].matrix_world.to_translation()
                 los = True
-                for triangle in self.triangles:
-                    if not has_los(triangle, ray, translation_vector):
+                for triangle in triangles:
+                    if not has_los(triangle, translation_vector,
+                                   self.sensor_objects[j].matrix_world.to_translation()):
                         los = False
                         break
 
@@ -94,6 +93,8 @@ class TrackSensorOperator(bpy.types.Operator):
         if scene.frame_current == self.frame_end + 1:
             bpy.ops.screen.animation_cancel(restore_frame=True)
             bpy.app.handlers.frame_change_pre.remove(self._stop)
+
+            # Write trajectory and wireless channel data.
             Bodysim.file_operations.write_results(self.trajectory_data, 
                                                   self.sensor_objects,
                                                   self.path + os.sep + 'Trajectory')
@@ -103,9 +104,9 @@ class TrackSensorOperator(bpy.types.Operator):
             Bodysim.file_operations.write_results(self.direct_los_data,
                                                   self.sensor_objects,
                                                   self.path + os.sep + 'DirectLOS')
+
             # Run the external simulators once all results have been written.
-            Bodysim.file_operations.execute_simulators(scene.objects['model']['current_simulation_path'],
-                                                       sim_dict)
+            Bodysim.file_operations.execute_simulators(scene.objects['model']['current_simulation_path'])
             return {'CANCELLED'}
 
         return {'PASS_THROUGH'}
@@ -139,11 +140,35 @@ class TrackSensorOperator(bpy.types.Operator):
 
         return {'RUNNING_MODAL'}
 
-def has_los(triangle, ray, origin):
-    """Clean wrapper for intersect_ray_tri."""
-    return (mathutils.geometry.intersect_ray_tri(triangle[0], triangle[1],
-                                                 triangle[2], ray, origin, True)
-            is None)
+def has_los(triangle, pt1, pt2):
+    """Checks if there is LOS of between two points and a possible intefering
+        triangle.
+        First, see if the RAY (pt1 - pt2) intersects with the triangle.
+        Then, see if that point of intersection lies on the SEGMENT (pt1 - pt2).
+    """
+
+    poss_interf = mathutils.geometry.intersect_ray_tri(triangle[0], triangle[1],
+                                                       triangle[2], pt1 - pt2,
+                                                       pt1, True)
+    if poss_interf:
+        return not isInBetween(poss_interf, pt1, pt2)
+
+    return True
+
+def isInBetween(pt, begin, end, tolerance=0.001):
+    """Checks if pt is on the line segment defined by begin and end vertices.
+
+     The closer tolerance is closer to 0, the more precise the result is.
+
+     Must check 1) cross prod(end - begin) and (pt - begin) = 0
+                2) dot prod (end - begin) and (pt - begin) > 0
+                3) dot prod (end - begin) and (pt - begin) > dist(begin, end)^2
+     for a point to be between the defined line segment.
+    """
+    dot_product = (end - begin).dot(pt - begin)
+    return ((((end - begin).cross(pt - begin)).magnitude < tolerance) and
+            dot_product > 0 and
+            dot_product < (end - begin).length * (end - begin).length)
 
 def populate_sensor_list(context):
     """Get all the sensors in the scene."""
@@ -154,47 +179,35 @@ def populate_sensor_list(context):
         sensor_objects.append(bpy.data.objects['sensor_' + i])
     return sensor_objects
 
-def vert_to_real_world(my_vertex, ob):
-    new_vert = copy.deepcopy(my_vertex.co)
-    new_vert.rotate(ob.rotation_euler)
-    new_vert = new_vert + ob.matrix_world.to_translation()
-    return new_vert
-
 def get_triangles():
     """Converts all vertex groups of the model into triangles if necessary.
        This is needed because some vertex groups have four vertices.
     """
     ob = bpy.data.objects["model"]
 
-    # Dictionary mapping vertex group index to its name
-    group_lookup = {g.index: g.name for g in ob.vertex_groups}
-
-    # Dictionary mapping vertex group names to the indicies of vertices that make
-    # up the group.
-    verts = {name: [] for name in group_lookup.values()}
-
-    # Go through each vertex and see what group it is a part of.
-    for v in ob.data.vertices:
-       for g in v.groups:
-           verts[group_lookup[g.group]].append(v.index)
-           
     triangles = []
-    for vert_group in verts:
-        real_world_vert_group = [vert_to_real_world(ob.data.vertices[verts[vert_group][i]], ob)
-                                 for i in range(len(verts[vert_group]))]
-        triangles.append([real_world_vert_group[i] for i in range(3)])
 
-        # Must split vertex groups that have four vertices into two triangles.
-        # We already have the first triangle, so calculate the second one.
-        if len(verts[vert_group]) > 3:
+    # http://blender.stackexchange.com/questions/3462/vertex-coordinate-after-pose-change
+    # Need to apply modifiers to the object, creating a mesh that will store
+    # coordinate information of all vertices for the current frame.
+    modified_mesh = ob.to_mesh(scene=bpy.context.scene, apply_modifiers=True,
+                               settings='PREVIEW')
+    modified_mesh.transform(ob.matrix_world)
+
+    for polygon in modified_mesh.polygons:
+        polygon_vertex_list = [modified_mesh.vertices[vert_index].co
+                               for vert_index in polygon.vertices]
+        triangles.append([polygon_vertex_list[i] for i in range(3)])
+
+        if len(polygon_vertex_list) > 3:
             # First check distances between first point to the other two.
-            dist_a_b = (real_world_vert_group[0] - real_world_vert_group[1]).length
-            dist_a_c = (real_world_vert_group[0] - real_world_vert_group[2]).length
+            dist_a_b = (polygon_vertex_list[0] - polygon_vertex_list[1]).length
+            dist_a_c = (polygon_vertex_list[0] - polygon_vertex_list[2]).length
 
-            other_half = [real_world_vert_group[0],
-                          real_world_vert_group[3],
-                          real_world_vert_group[2] if dist_a_c > dist_a_b else
-                          real_world_vert_group[1]]
+            other_half = [polygon_vertex_list[0],
+                          polygon_vertex_list[3],
+                          polygon_vertex_list[2] if dist_a_c > dist_a_b else
+                          polygon_vertex_list[1]]
 
             triangles.append(other_half)
 

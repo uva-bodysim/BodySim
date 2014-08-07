@@ -66,8 +66,9 @@ def _bind_to_vertex_group(obj, context):
     obj_const.target = body_obj
     obj_const.subtarget = vg.name
 
-    # Reset the cube's relative location.
-    obj.location = (0.0, 0.0, 0.0)
+    # Reset the cube's relative location. Add extra 0.05 at the end so the sensor
+    # is not half buried in the body.
+    obj.location = (0.0, 0.0, 0.05)
 
     cancel_selection()
 
