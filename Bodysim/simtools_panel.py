@@ -298,14 +298,16 @@ class DeleteSimulationOperator(bpy.types.Operator):
     """Operator that deletes a simulation from the current session."""
 
     bl_idname = "bodysim.delete_simulation"
-    bl_label = "Load a simulation."
+    bl_label = "Deletes a simulation."
 
     simulation_name = bpy.props.StringProperty()
 
     def execute(self, context):
         model = context.scene.objects['model']
         Bodysim.file_operations.remove_simulation(model['session_path'], self.simulation_name)
-        bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
+        if self.simulation_name in model['current_simulation_path']:
+            # Clear the sensor panel if this simulation is currently loaded.
+            bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
         sim_list = Bodysim.file_operations.read_session_file(model['session_path'] + '.xml')
         draw_previous_run_panel(sim_list)
         return {'FINISHED'}

@@ -64,11 +64,12 @@ plugins = plugins_tuple[0]
 # A map of the units corresponding to each variable for each simulation.
 unit_map = plugins_tuple[1]
 
-
 def get_sensor_plugin_mapping():
     """For each sensor in the current simulation, gets the variables
      that the user desires to have simulated. Variables are grouped
      by the plugins that keep track of them.
+     Because this mapping changes everytime a user loads a new simulation,
+     we cannot safely set it once as a variable like the plugins and unit_map.
     """
     context = bpy.context
     model = context.scene.objects['model']

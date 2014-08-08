@@ -12,7 +12,6 @@ import bpy
 from queue import Queue, Empty
 from threading import Thread
 import Bodysim.plugins_info
-import Bodysim.simtools_panel
 q = Queue()
 
 import Bodysim.blender_caller
@@ -65,7 +64,7 @@ class GraphOperator(bpy.types.Operator):
         curr_sim_path = model['current_simulation_path']
         plugins_tuple = Bodysim.plugins_info.plugins_tuple
         graph_var_map = {}
-        sim_dict = Bodysim.simtools_panel.sim_dict
+        sim_dict = Bodysim.plugins_info.get_sensor_plugin_mapping()
         for sensor in model['sensor_info']:
             for plugin in plugins_tuple[0]:
                 for variable in plugins_tuple[0][plugin]['variables']:
