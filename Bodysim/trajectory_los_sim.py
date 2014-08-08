@@ -1,3 +1,5 @@
+"""Tracks sensor loctation, rotation, and LOS info."""
+
 import bpy
 import copy
 import math
@@ -146,7 +148,6 @@ def has_los(triangle, pt1, pt2):
         First, see if the RAY (pt1 - pt2) intersects with the triangle.
         Then, see if that point of intersection lies on the SEGMENT (pt1 - pt2).
     """
-
     poss_interf = mathutils.geometry.intersect_ray_tri(triangle[0], triangle[1],
                                                        triangle[2], pt1 - pt2,
                                                        pt1, True)
@@ -161,13 +162,13 @@ def isInBetween(pt, begin, end, tolerance=0.001):
      The closer tolerance is closer to 0, the more precise the result is.
 
      Must check 1) cross prod(end - begin) and (pt - begin) = 0
-                2) dot prod (end - begin) and (pt - begin) > 0
+                2) dot prod (end - begin) and (pt - begin) is not negative
                 3) dot prod (end - begin) and (pt - begin) > dist(begin, end)^2
      for a point to be between the defined line segment.
     """
     dot_product = (end - begin).dot(pt - begin)
     return ((((end - begin).cross(pt - begin)).magnitude < tolerance) and
-            dot_product > 0 and
+            dot_product >= 0 and
             dot_product < (end - begin).length * (end - begin).length)
 
 def populate_sensor_list(context):
@@ -200,14 +201,25 @@ def get_triangles():
         triangles.append([polygon_vertex_list[i] for i in range(3)])
 
         if len(polygon_vertex_list) > 3:
-            # First check distances between first point to the other two.
             dist_a_b = (polygon_vertex_list[0] - polygon_vertex_list[1]).length
             dist_a_c = (polygon_vertex_list[0] - polygon_vertex_list[2]).length
+            dist_a_d = (polygon_vertex_list[0] - polygon_vertex_list[3]).length
+            other_half = [polygon_vertex_list[3]]
+            max_dist = max(dist_a_b, dist_a_c, dist_a_d)
 
-            other_half = [polygon_vertex_list[0],
-                          polygon_vertex_list[3],
-                          polygon_vertex_list[2] if dist_a_c > dist_a_b else
-                          polygon_vertex_list[1]]
+            if max_dist == dist_a_b:
+                other_half.extend([polygon_vertex_list[0], polygon_vertex_list[1]])
+
+            elif max_dist == dist_a_c:
+                other_half.extend([polygon_vertex_list[0], polygon_vertex_list[2]])
+
+            elif max_dist == dist_a_d:
+                other_half.extend([polygon_vertex_list[1], polygon_vertex_list[2]])
+
+            else:
+                bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Error",
+                                        message = 'LOS determination failed.')
+                raise Exception("Something went wrong with Max function.")
 
             triangles.append(other_half)
 
