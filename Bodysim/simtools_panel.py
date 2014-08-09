@@ -76,7 +76,6 @@ class ReadFileInterface(bpy.types.Operator):
         model['sensor_info'] = {}
         model['session_path'] = self.filepath[:-4]
         sim_list = Bodysim.file_operations.read_session_file(self.filepath)
-
         draw_previous_run_panel(sim_list)
         return {'FINISHED'}
 
@@ -242,7 +241,6 @@ class SimulationDialogOperator(bpy.types.Operator):
                                                      path,
                                                      session_path)
 
-        model['simulation_count'] += 1
         bpy.ops.bodysim.track_sensors('EXEC_DEFAULT', frame_start=self.start_frame,
                                       frame_end=self.end_frame, path=path,
                                       sample_count=self.samples)
@@ -251,9 +249,7 @@ class SimulationDialogOperator(bpy.types.Operator):
 
     def invoke(self, context, event):
         model = context.scene.objects['model']
-        if 'simulation_count' not in model: 
-            model['simulation_count'] = 0
-        self.simulation_name = "simulation_" + str(model['simulation_count'])
+        self.simulation_name = "simulation_" + str(len(sim_list))
         return context.window_manager.invoke_props_dialog(self)
 
 class LoadSimulationOperator(bpy.types.Operator):
@@ -303,6 +299,8 @@ class DeleteSimulationOperator(bpy.types.Operator):
     simulation_name = bpy.props.StringProperty()
 
     def execute(self, context):
+        global sim_list
+
         model = context.scene.objects['model']
         Bodysim.file_operations.remove_simulation(model['session_path'], self.simulation_name)
         if self.simulation_name in model['current_simulation_path']:

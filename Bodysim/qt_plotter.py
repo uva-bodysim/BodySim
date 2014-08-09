@@ -9,7 +9,7 @@ from matplotlib.figure import Figure
 from PySide import QtCore, QtGui
 
 class MainWindow(QtGui.QWidget):
-    def __init__(self):
+    def __init__(self, start_frame, length):
         QtGui.QWidget.__init__(self)
         self.setGeometry(0,0, 650,650)
         self.tab_widget = QtGui.QTabWidget()
@@ -22,6 +22,8 @@ class MainWindow(QtGui.QWidget):
         self.toolbars = {}
         self.lines = []
         self.plots = []
+        self.start_frame = start_frame
+        self.length = length
 
     def add_tab(self, name="plot"):
         qscroll = QtGui.QScrollArea(self)
@@ -65,17 +67,28 @@ class MainWindow(QtGui.QWidget):
                 for figure in self.toolbars:
                     figure.canvas.draw()
 
-                print (event.xdata / float(event.inaxes.get_xlim()[1])) * 100
+                print (self.start_frame + ((event.xdata / float(event.inaxes.get_xlim()[1])) * self.length))
                 sys.stdout.flush()
-
 
         fig.canvas.mpl_connect('button_press_event', onclick)
 
 def plot_file(fps, base_dir, string_graph_map):
     app = QtGui.QApplication('Bodysim')
-    frame = MainWindow()
-
     graph_map = ast.literal_eval(string_graph_map)
+
+    # Find the length of the simulation by looking at trajectory results.
+    start_frame = 1
+    count = 0
+    with open(base_dir + os.sep + 'Trajectory' + os.sep + 'sensor_' +
+              graph_map.keys()[0] + '.csv') as f:
+        iterF = iter(f)
+        # Skip header
+        next(iterF)
+        line = next(iterF)
+        start_frame = float(line.split(',')[0])
+        count = sum(1 for line in iterF)
+
+    frame = MainWindow(start_frame, count)
 
     for sensor in graph_map:
         layout_contents = frame.add_tab(sensor)

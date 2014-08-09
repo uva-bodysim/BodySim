@@ -7,7 +7,7 @@ If you use git and would like to try the bleeding edge version, you can clone th
 ```
 git clone https://github.com/uva-bodysim/BodySim.git
 ```
-otherwise, simply download the latest version (0.2) [here](https://github.com/uva-bodysim/BodySim/archive/v0.2.zip).
+otherwise, simply download the latest stable version (0.3) [here](https://github.com/uva-bodysim/BodySim/archive/v0.3.zip).
 
 BodySim simulation runs on top of [Blender](http://www.blender.org/) using a set of Python scripts and requires several Python libraries to work. Installation on all platforms requries one to first install Blender.
 
