@@ -58,10 +58,11 @@ class Bodysim_EDIT_SENSOR(bpy.types.Operator):
     part = bpy.props.StringProperty()
 
     def execute(self, context):
-        model = context.scene.objects['model']
-        model['current_vg'] = self.part
-        Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._draw_sensor_properties_page)
-        Bodysim.sensor_addition.draw_plugins_subpanels(Bodysim.plugins_info.plugins)
+        if not Bodysim.sensor_addition.editing_sensor:
+            model = context.scene.objects['model']
+            model['current_vg'] = self.part
+            Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._draw_sensor_properties_page)
+            Bodysim.sensor_addition.draw_plugins_subpanels(Bodysim.plugins_info.plugins)
         return {'FINISHED'}
 
 class BodySim_DELETE_SENSOR(bpy.types.Operator):
@@ -93,8 +94,9 @@ class BodySim_CLEAR_SELECTION(bpy.types.Operator):
     bl_label = "Clear selected sensors"
 
     def execute(self, context):
+        bpy.data.objects['model'].select = True
         Bodysim.vertex_operations.cancel_selection()
-        bpy.ops.view3d.view_all()
+        bpy.ops.view3d.view_selected()
         return {'FINISHED'}
 
 class GraphButton(bpy.types.Operator):

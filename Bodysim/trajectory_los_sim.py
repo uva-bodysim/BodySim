@@ -92,7 +92,7 @@ class TrackSensorOperator(bpy.types.Operator):
             # Output the los row
             self.direct_los_data[i].append(direct_los_row + '\n')
 
-        if scene.frame_current == self.frame_end + 1:
+        if scene.frame_current == self.frame_end:
             bpy.ops.screen.animation_cancel(restore_frame=True)
             bpy.app.handlers.frame_change_pre.remove(self._stop)
 
@@ -127,7 +127,7 @@ class TrackSensorOperator(bpy.types.Operator):
             self.direct_los_data.append([])
             # Make the headers
             self.trajectory_data[i].append("frame,x,y,z,w,rx,ry,rz\n")
-            self.body_interference_data[i].append("frame,no_los-to-total-ratio\n")
+            self.body_interference_data[i].append("frame,no-los-ratio\n")
             direct_los_header = "frame"
             for j in range(len(self.sensor_objects)):
                 if i != j:
