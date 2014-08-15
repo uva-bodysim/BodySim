@@ -1,4 +1,5 @@
 #include "vectmath.h"
+#include "utils.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <iostream>
@@ -6,175 +7,151 @@
 #include <fstream>
 #include <string>
 #include <cstdlib>
-#include <math.h>
 
-using namespace std;
+int main(int argc, char **argv) {
+    // We'll be dealing with only one simulation at a time.
+    // ARGUMENTS: frame start, frame end, triangle count, frame path,
+    // Sphere sample count, sphere radius, trajectory sim path, sensor count, and
+    // List of sensors to simulate, separated by white space and starting in "sensor_"
+    // Paths must be absolute and end in appropriate os.sep.
 
-inline bool file_exists (char * c) {
-    if (FILE *file = fopen(c, "r")) {
-        fclose(file);
-        return true;
-    } else {
-        return false;
-    }   
-}
+    int frame_start = atoi(argv[1]);
+    int frame_end = atoi(argv[2]);
+    int anim_length = frame_end - frame_start + 1;
+    int triangle_count = atoi(argv[3]);
+    std::string frame_path = argv[4];
+    int sample_count = atoi(argv[5]);
+    float sphere_radius = atof(argv[6]);
+    std::string trajectory_path = argv[7];
+    int sensor_count = atoi(argv[8]);
 
-float * intersect_ray_tri(vector v1, vector v2, vector v3, vector ray, vector origin) {
-    float det, inv_det, u, v, t, absv;
-    vector dir, e1, e2, tvec, qvec, pvec;
-    NORMV(dir, ray);
-    SUBV(e1, v2, v1);
-    SUBV(e2, v3, v1);
-    CROSSVP(pvec, dir, e2);
-    DOTVP(det, e1, pvec);
-    if (det > -0.000001f && det < 0.000001f) {
-        return 0;
-    }
+    std::string sensor_line;
+    std::string DELIMITER = ",";
 
-    inv_det = 1.0f / det;
-    SUBV(tvec, origin, v1);
-    DOTVP(u, tvec, pvec);
-    u = u * inv_det;
-    if(u < 0.0f || u > 1.0f){
-        return 0;
-    }
-    CROSSVP(qvec, tvec, e1);
 
-    DOTVP(v, dir, qvec);
-    v = v * inv_det;
-
-    if (v < 0.0f || u + v > 1.0f) {
-        return 0;
-    }
-
-    DOTVP(t, e2, qvec);
-    t = t * inv_det;
-    MULVS(dir, dir, t);
-    ADDV(pvec, origin, dir);
-    float *result = new float[3];
-    result[0] = pvec[0];
-    result[1] = pvec[1];
-    result[2] = pvec[2];
-    return result;
-}
-
-bool isInBetw(vector pt, vector begin, vector end) {
-    float dot, crossLength, eBLength;
-    vector eB, pB, cross;
-    SUBV(eB, end, begin);
-    SUBV(pB, pt, begin);
-    DOTVP(dot, eB, pB);
-    CROSSVP(cross, eB, pB);
-    ABSV(eBLength, eB);
-    ABSV(crossLength, cross);
-    return (crossLength < 0.0001f && dot >= 0.0000f && dot < eBLength * eBLength);
-}
-
-void sphere_samples(vector * result, int num_points, float radius) {
-    float dlong, dz, longitude, z, r;
-    dlong = M_PI * (3.0f - sqrt(5.0f));
-    dz = 2.0f / ((float)num_points);
-    longitude = 0.0f;
-    z = 1.0f - dz / 2.0f;
-    for(int i = 0; i < num_points; i++) {
-        r = sqrt(1.0f - z * z);
-        result[i][0] = cos(longitude) * r * radius;
-        result[i][1] = sin(longitude) * r * radius;
-        result[i][2] = z * radius;
-        z = z - dz;
-        longitude = longitude + dlong;
-    }
-}
-
-int main() {
-    // Let's read in the file.
-    int frame_count = 100;
-    vector * sensor_locs = new vector[100];
-    ifstream sensor_file("sensor_RightForeArm-1.csv");
-    string sensor_line;
-    string DELIMITER = ",";
-    int count = 0;
-    // Skip Header
-    getline(sensor_file, sensor_line);
-    while(getline(sensor_file, sensor_line)) {
-        int delim_pos = sensor_line.find(DELIMITER);
-        sensor_line = sensor_line.substr(delim_pos + 1);
-        delim_pos = sensor_line.find(DELIMITER);
-        for(int i = 0; i < 3; i++) {
-            sensor_locs[count][i] = atof(sensor_line.substr(0, delim_pos).c_str());
-            delim_pos = sensor_line.find(DELIMITER);
+    // Load all the sensor trajectory data.
+    vector ** sensor_locs = new vector*[sensor_count];
+    for(int i = 9; i < 9 + sensor_count; i++) {
+        sensor_locs[i - 9] = new vector[anim_length];
+        // Read in the file. Make sure os.sep is supplied because C++ can't tell
+        std::string sensor_file_path = trajectory_path + argv[i] + ".csv";
+        std::ifstream sensor_file(sensor_file_path.c_str());
+        // Skip Header
+        getline(sensor_file, sensor_line);
+        int count = 0;
+        while(getline(sensor_file, sensor_line)) {
+            int delim_pos = sensor_line.find(DELIMITER);
             sensor_line = sensor_line.substr(delim_pos + 1);
-        }
-        count++;
-    }
-
-    int triangle_count = 1498;
-    // TODO Set this as an argument to the program.
-    vector *** triangles = new vector**[100];
-    for (int i = 0; i < 100; i++) {
-        triangles[i] = new vector*[1498];
-        for(int j = 0; j < 1498; j++){
-            triangles[i][j] = new vector[3];
-        }
-    }
-    // vector triangles[100][1498][3];
-
-    for(int i = 0; i < 100; i++) {
-        int i_plus_one = i + 1;
-        stringstream ss;
-        ss << i_plus_one;
-        string frame_string;
-        ss >>  frame_string;
-        string input_file_str;
-        input_file_str = "frame" + frame_string + ".csv";
-        ifstream input_file(input_file_str.c_str());
-        string line;
-        string DELIMITER = ",";
-        int tri_count = 0;
-        while(getline(input_file, line)) {
-            int delim_pos = line.find(DELIMITER);
+            delim_pos = sensor_line.find(DELIMITER);
             for(int j = 0; j < 3; j++) {
-                for(int k = 0; k < 3; k++) {
-                    triangles[i][tri_count][j][k] = atof(line.substr(0, delim_pos).c_str());
-                    line = line.substr(delim_pos + 1);
-                    delim_pos = line.find(DELIMITER);
+                sensor_locs[i - 9][count][j] = atof(sensor_line.substr(0, delim_pos).c_str());
+                delim_pos = sensor_line.find(DELIMITER);
+                sensor_line = sensor_line.substr(delim_pos + 1);
+            }
+            count ++;
+        }
+    }
+
+
+    // Read in the frames.
+    vector *** triangles = new vector**[anim_length];
+    for(int i = 0; i < anim_length; i++) {
+        std::stringstream ss;
+        std::string frame_number_str;
+        ss << (i + 1);
+        ss >> frame_number_str;
+        std::string frame_line;
+        std::string frame_file_str = frame_path + "frame" + frame_number_str + ".csv";
+        std::ifstream frame_file(frame_file_str.c_str());
+        triangles[i] = new vector*[triangle_count];
+        for(int j = 0; j < triangle_count; j++) {
+            triangles[i][j] = new vector[3];
+            getline(frame_file, frame_line);
+            int delim_pos = frame_line.find(DELIMITER);
+            for(int k = 0; k < 3; k++) {
+                for(int l = 0; l < 3; l++) {
+                    triangles[i][j][k][l] = atof(frame_line.substr(0, delim_pos).c_str());
+                    frame_line = frame_line.substr(delim_pos + 1);
+                    delim_pos = frame_line.find(DELIMITER);
                 }
             }
-            tri_count ++;
         }
     }
 
-    int samples = 300;
+    // Create sphere.
     vector * spheres_sample_points = new vector[300];
-    sphere_samples(spheres_sample_points, samples, 6.0);
+    sphere_samples(spheres_sample_points, sample_count, sphere_radius);
 
-    for (int i = 0; i < frame_count; i++) {
-        // Check for interference
-        int count = 0;
-        for(int j = 0; j < samples; j++) {
-            float * result;
-            vector res_vect;
-            vector ray;
-            vector offsetSphere;
-            ADDV(offsetSphere, spheres_sample_points[j], sensor_locs[i]);
-            SUBV(ray, offsetSphere, sensor_locs[i]);
-            for(int k = 0; k < triangle_count; k++) {
-                result= intersect_ray_tri(triangles[i][k][0], triangles[i][k][1],
-                                  triangles[i][k][2], ray, sensor_locs[i]);
-                if(result != 0) {
-                    res_vect[0] = result[0]; res_vect[1] = result[1]; res_vect[2] = result[2];
-                    if(isInBetw(res_vect, sensor_locs[i], offsetSphere))  {
-                        count ++;
-                        break;
+    // Prepare results storage.
+    float ** body_interference = new float *[sensor_count];
+    for(int i = 0; i < sensor_count; i++) {
+        body_interference[i] = new float[anim_length];
+    }
+
+    bool *** direct_interference = new bool **[sensor_count];
+    for(int i = 0; i < sensor_count; i++) {
+        direct_interference[i] = new bool *[anim_length];
+        for(int j = 0; j < anim_length; j++) {
+            direct_interference[i][j] = new bool[sensor_count - 1];
+        }
+    }
+
+    float sample_count_flt = (float) sample_count;
+
+    // LOS Calcs.
+    // TODO Parallelize this section.
+    for(int i = 0; i < sensor_count; i++) {
+        for(int j = 0; j < anim_length; j++) {
+            // Check for body interference
+            int count = 0;
+            for(int k = 0; k < sample_count; k++) {
+                float * result;
+                vector res_vect;
+                vector ray;
+                vector offsetSphere;
+                ADDV(offsetSphere, spheres_sample_points[k], sensor_locs[i][j]);
+                SUBV(ray, offsetSphere, sensor_locs[i][j]);
+                for(int l = 0; l < triangle_count; l++) {
+                    result = intersect_ray_tri(triangles[j][l][0], triangles[j][l][1],
+                                      triangles[j][l][2], ray, sensor_locs[i][j]);
+                    if(result != 0) {
+                        res_vect[0] = result[0]; res_vect[1] = result[1]; res_vect[2] = result[2];
+                        if(isInBetw(res_vect, sensor_locs[i][j], offsetSphere))  {
+                            count ++;
+                            break;
+                        }
                     }
                 }
+                delete result;
             }
-            delete result;
+
+            // Check for direct LOS to other sensors.
+            bool skipped = false;
+            for(int k = 0; k < sensor_count; k++) {
+                if(i == k) {
+                    skipped = true;
+                    continue;
+                }
+                vector ray;
+                vector res_vect;
+                float * result;
+                SUBV(ray, sensor_locs[i][k], sensor_locs[i][j]);
+                bool has_los = true;
+                for(int l = 0; l < triangle_count; l++) {
+                    result = intersect_ray_tri(triangles[j][l][0], triangles[j][l][1],
+                                               triangles[j][l][2], ray, sensor_locs[i][j]);
+                    if(result != 0) {
+                        res_vect[0] = result[0]; res_vect[1] = result[1]; res_vect[2] = result[2];
+                        if(isInBetw(res_vect, sensor_locs[i][j], sensor_locs[i][k]))  {
+                            has_los = false;
+                            break;
+                        }
+                    }
+                }
+                delete result;
+                direct_interference[i][j][skipped ? (k+1):k] = has_los;
+            }
+            body_interference[i][j] = (float)count / sample_count_flt;
         }
-        printf("%d\n", count);
     }
-
-    delete sensor_locs;
-
-    return 0;
 }
