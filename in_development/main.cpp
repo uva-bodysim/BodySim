@@ -149,7 +149,7 @@ int main(int argc, char **argv) {
                     }
                 }
                 delete result;
-                direct_interference[i][j][skipped ? (k+1):k] = has_los;
+                direct_interference[i][j][skipped ? (k-1):k] = has_los;
             }
             body_interference[i][j] = (float)count / sample_count_flt;
         }

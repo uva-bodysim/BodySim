@@ -35,8 +35,19 @@ def get_plugins(setTheAttrs):
     for simulator in tree.iter('simulator'):
         simulator_name = simulator.attrib['name']
         simulator_file = simulator.attrib['file']
+        hidden = bool(simulator.attrib['hidden'])
+        will_graph = bool(simulator.attrib['graph'])
         variables = []
-        for unitGroup in simulator:
+        requirements_element = simulator.find("requirements") if simulator.find("requirements") else []
+        extras_element = simulator.find("extras") if simulator.find("extras") else []
+        unitGroups_element = simulator.find("unitGroups") if simulator.find("unitGroups") else []
+        extras = {}
+        for extra_element in extras_element:
+            extras[extra_element.text] = {'description': extra_element.attrib['description'],
+                                         'type': extra_element.attrib['type'],
+                                         'default': extra_element.attrib['default']}
+
+        for unitGroup in unitGroups_element:
             unitTuple = (simulator.attrib['x'], unitGroup.attrib['y'], unitGroup.attrib['heading'])
             unitgroup_list = [] if not unitTuple in unit_map else unit_map[unitTuple]
             for variable in unitGroup:
@@ -45,16 +56,20 @@ def get_plugins(setTheAttrs):
                 variables.append(variable.text)
                 # Append simulator name to allow variables of the same name over different
                 # simulations.
-                if setTheAttrs:
+                if setTheAttrs and not hidden:
                     setattr(bpy.types.Object, simulator_name + variable.text,
                             bpy.props.BoolProperty(default=False, name=variable.text))
-                    setattr(bpy.types.Object, 'GRAPH_' + simulator_name + variable.text,
-                            bpy.props.BoolProperty(default=False, name=simulator_name + variable.text))
+                    if will_graph:
+                        setattr(bpy.types.Object, 'GRAPH_' + simulator_name + variable.text,
+                                bpy.props.BoolProperty(default=False, name=simulator_name + variable.text))
 
             if not unitTuple in unit_map:
                 unit_map[unitTuple] = unitgroup_list
 
-        plugins_dict[simulator_name] = {'file': simulator_file, 'variables': variables}
+        plugins_dict[simulator_name] = {'file': simulator_file,
+                                        'variables': variables,
+                                        'requirements': [requirement for requirement in requirements_element],
+                                        'extras': extras}
 
     return plugins_dict, unit_map
 

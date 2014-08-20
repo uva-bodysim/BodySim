@@ -149,19 +149,20 @@ def draw_plugins_subpanels(plugins):
 
     if not plugin_panel_list:
         for simulator in Bodysim.plugins_info.plugins:
-            subpanel = type("SimulationSubPanel%s" % simulator,
-                (bpy.types.Panel,),
-                {"bl_label": simulator,
-                            "bl_space_type": bl_space_type,
-                            "bl_region_type": bl_region_type,
-                            "bl_context": bl_context,
-                            "bl_options": {"DEFAULT_CLOSED"},
-                            "sim_name": simulator,
-                            "var_list": plugins[simulator]['variables'],
-                            "draw" : _draw_plugin_panels},
-                        )
-            plugin_panel_list.append(subpanel)
-            bpy.utils.register_class(subpanel)
+            if plugins[simulator]['variables']:
+                subpanel = type("SimulationSubPanel%s" % simulator,
+                    (bpy.types.Panel,),
+                    {"bl_label": simulator,
+                                "bl_space_type": bl_space_type,
+                                "bl_region_type": bl_region_type,
+                                "bl_context": bl_context,
+                                "bl_options": {"DEFAULT_CLOSED"},
+                                "sim_name": simulator,
+                                "var_list": plugins[simulator]['variables'],
+                                "draw" : _draw_plugin_panels},
+                            )
+                plugin_panel_list.append(subpanel)
+                bpy.utils.register_class(subpanel)
     else:
         for subpanel in plugin_panel_list:
             bpy.utils.register_class(subpanel)

@@ -1,14 +1,37 @@
 <plugins>
-<simulator name="IMU" file="imu_simulator.py" x="time(s)">
-    <unitGroup heading="Acceleration" y="acceleration (m/s^2)">
-        <variable>x_acc</variable>
-        <variable>y_acc</variable>
-        <variable>z_acc</variable>
-    </unitGroup>
-    <unitGroup heading="Rotation" y="angular velocity (deg/s)">
-        <variable>x_gyro</variable>
-        <variable>y_gyro</variable>
-        <variable>z_gyro</variable>
-    </unitGroup>
+<!-- All hidden sims will simulate all sensors with all variables.
+     Hidden sims must take in all sensors as arguments at once.
+     Note that BodySim will not graph variables of hidden sims -->
+<simulator name="LOS" file="los_simulator_launcher.py" hidden="true" graph="false" x="frame">
+    <requirements>
+        <requirement>frameStart</requirement>
+        <requirement>frameEnd</requirement>
+        <requirement>Trajectory</requirement>
+        <requirement>triangles></requirement>
+        <requirement>height</requirement>
+    </requirements>
+    <extras>
+        <extra description="Number of points on the free-space sphere to sample."
+               type="int"
+               default="300">sample_count</extra>
+    </extras>
+</simulator>
+<simulator name="IMU" file="imu_simulator.py" hidden="false" graph="true" x="time(s)">
+    <requirements>
+        <requirement>Trajectory</requirement>
+        <requirement>fps</requirement>
+    </requirements>
+    <unitGroups>
+        <unitGroup heading="Acceleration" y="acceleration (m/s^2)">
+            <variable>x_acc</variable>
+            <variable>y_acc</variable>
+            <variable>z_acc</variable>
+        </unitGroup>
+        <unitGroup heading="Rotation" y="angular velocity (deg/s)">
+            <variable>x_gyro</variable>
+            <variable>y_gyro</variable>
+            <variable>z_gyro</variable>
+        </unitGroup>
+    </unitGroups>
 </simulator>
 </plugins>
