@@ -1,4 +1,5 @@
 _modules = [
+    "sim_params",
     "plugins_info",
     "file_operations",
     "current_sensors_panel",
@@ -7,7 +8,7 @@ _modules = [
     "sensor_addition",
     "sensor_operators",
     "simtools_panel",
-    "trajectory_los_sim",
+    "trajectory_sim",
 ]
 
 import bpy

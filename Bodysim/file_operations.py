@@ -9,6 +9,7 @@ from xml.etree.ElementTree import ElementTree as ET
 from xml.etree.ElementTree import *
 import subprocess
 import Bodysim.plugins_info
+import Bodysim.sim_params
 NUMBER_OF_BASE_PLUGINS = 1
 session_element = None
 
@@ -99,22 +100,27 @@ def execute_simulators(current_sim_path):
             for simulator in sim_dict[sensor]:
                 # Ignore if BASE plugin
                 if not simulator == 'Trajectory':
-                    args = " ".join(sim_dict[sensor][simulator])
-
                     # Use in case path has spaces
                     dbl_quotes = '"'
+                    command = ("python " + dbl_quotes + bodysim_conf_path
+                               + os.sep + "plugins" + os.sep
+                               + plugins[simulator]['file'] + dbl_quotes)
+
+                    for requirement in plugins[simulator]['requirements']:
+                        command = command + ' ' + Bodysim.sim_params.get_params(requirement, sensor)
+
+                    args = " ".join(sim_dict[sensor][simulator])
 
                     # Run the simulator
                     try:
-                        subprocess.check_call("python " + dbl_quotes + bodysim_conf_path + os.sep + "plugins" + os.sep
-                         + plugins[simulator]['file'] + dbl_quotes + ' ' + dbl_quotes
-                         + current_sim_path + os.sep + 'Trajectory' + os.sep + 'sensor_' + sensor + '.csv'
-                         + dbl_quotes + ' ' + str(fps) + ' ' + args, shell=True)
+                        subprocess.check_call(command + ' ' + args, shell=True)
 
                     except:
                         bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Error",
                                                 message = 'An external simulation encountered an error.')
                         return
+
+    # TODO Execute "hidden" sims.
 
     bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Sucess!",
                             message = 'All simulations finished.')

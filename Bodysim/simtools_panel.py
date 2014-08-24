@@ -9,6 +9,7 @@ try:
     import Bodysim.file_operations
     import Bodysim.vertex_operations
     import Bodysim.current_sensors_panel
+    import Bodysim.sim_params
 except ImportError:
     raise ImportError()
 sim_dict = {}
@@ -195,6 +196,8 @@ class SimulationDialogOperator(bpy.types.Operator):
         global simulation_ran
         global temp_sim_ran
         global sim_list
+        Bodysim.sim_params.start_frame = self.start_frame
+        Bodysim.sim_params.end_frame = self.end_frame
         simulation_ran = False
         model = context.scene.objects['model']
         scene = bpy.context.scene
@@ -231,9 +234,7 @@ class SimulationDialogOperator(bpy.types.Operator):
         draw_previous_run_panel(sim_list)
         os.mkdir(path)
         os.mkdir(path + os.sep + 'Trajectory')
-        os.mkdir(path + os.sep + 'BodyInterference')
-        os.mkdir(path + os.sep + 'DirectLOS')
-
+        Bodysim.sim_params.trajectory_path = path + os.sep + 'Trajectory'
         sensor_dict = context.scene.objects['model']['sensor_info']
 
         Bodysim.file_operations.write_simulation_xml(self.simulation_name,

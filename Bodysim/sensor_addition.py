@@ -13,8 +13,6 @@ panel_list = []
 
 plugin_panel_list = []
 
-editing_sensor = False
-
 class AddSensorPanel(bpy.types.Panel):
     """Panel that guides the user through the stages of adding
      sensors.
@@ -217,9 +215,6 @@ class BodySim_FINALIZE(bpy.types.Operator):
     sensorName = bpy.props.StringProperty()
 
     def execute(self, context):
-        global editing_sensor
-        editing_sensor = False
-
         for subpanel in plugin_panel_list:
             bpy.utils.unregister_class(subpanel)
         sensor = context.active_object
@@ -273,8 +268,7 @@ def _draw_sensor_properties_page(self, context):
      user to choose color and name. Also draws buttons to allow user
      to finalize configuration and simulate the sensor or to cancel.
     """
-    global editing_sensor
-    editing_sensor = True
+
     layout = self.layout
     model = context.scene.objects['model']
     col = layout.column()

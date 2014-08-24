@@ -35,8 +35,8 @@ def get_plugins(setTheAttrs):
     for simulator in tree.iter('simulator'):
         simulator_name = simulator.attrib['name']
         simulator_file = simulator.attrib['file']
-        hidden = bool(simulator.attrib['hidden'])
-        will_graph = bool(simulator.attrib['graph'])
+        hidden = simulator.attrib['hidden']
+        will_graph = simulator.attrib['graph']
         variables = []
         requirements_element = simulator.find("requirements") if simulator.find("requirements") else []
         extras_element = simulator.find("extras") if simulator.find("extras") else []
@@ -56,10 +56,10 @@ def get_plugins(setTheAttrs):
                 variables.append(variable.text)
                 # Append simulator name to allow variables of the same name over different
                 # simulations.
-                if setTheAttrs and not hidden:
+                if setTheAttrs and not hidden == "true":
                     setattr(bpy.types.Object, simulator_name + variable.text,
                             bpy.props.BoolProperty(default=False, name=variable.text))
-                    if will_graph:
+                    if will_graph == "true":
                         setattr(bpy.types.Object, 'GRAPH_' + simulator_name + variable.text,
                                 bpy.props.BoolProperty(default=False, name=simulator_name + variable.text))
 
@@ -68,7 +68,7 @@ def get_plugins(setTheAttrs):
 
         plugins_dict[simulator_name] = {'file': simulator_file,
                                         'variables': variables,
-                                        'requirements': [requirement for requirement in requirements_element],
+                                        'requirements': [requirement.text for requirement in requirements_element],
                                         'extras': extras}
 
     return plugins_dict, unit_map
