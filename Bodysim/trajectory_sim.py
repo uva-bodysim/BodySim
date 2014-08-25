@@ -22,8 +22,6 @@ class TrackSensorOperator(bpy.types.Operator):
     path = bpy.props.StringProperty()
     sensor_objects = None
     trajectory_data = []
-    sample_count = bpy.props.IntProperty()
-    sphere_samples = None
 
     @classmethod
     def poll(cls, context):

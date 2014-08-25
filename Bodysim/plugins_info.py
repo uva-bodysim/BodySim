@@ -21,7 +21,10 @@ def get_plugins(setTheAttrs):
     unit_map = {}
     plugins_dict = {}
     trajectory_vars = ['x', 'y', 'z', 'w', 'rx', 'ry', 'rz']
-    plugins_dict['Trajectory'] = {'file' : None, 'variables' : trajectory_vars}
+    plugins_dict['Trajectory'] = {'file' : None,
+                                  'variables' : trajectory_vars,
+                                  'extras': {},
+                                  'hidden': False}
     for var in trajectory_vars:
         setattr(bpy.types.Object, 'Trajectory' + var, bpy.props.BoolProperty(default=True, name=var))
         setattr(bpy.types.Object, 'GRAPH_Trajectory' + var,
@@ -44,8 +47,8 @@ def get_plugins(setTheAttrs):
         extras = {}
         for extra_element in extras_element:
             extras[extra_element.text] = {'description': extra_element.attrib['description'],
-                                         'type': extra_element.attrib['type'],
-                                         'default': extra_element.attrib['default']}
+                                          'type': extra_element.attrib['type'],
+                                          'default': extra_element.attrib['default']}
 
         for unitGroup in unitGroups_element:
             unitTuple = (simulator.attrib['x'], unitGroup.attrib['y'], unitGroup.attrib['heading'])
@@ -69,7 +72,8 @@ def get_plugins(setTheAttrs):
         plugins_dict[simulator_name] = {'file': simulator_file,
                                         'variables': variables,
                                         'requirements': [requirement.text for requirement in requirements_element],
-                                        'extras': extras}
+                                        'extras': extras,
+                                        'hidden': hidden == "true"}
 
     return plugins_dict, unit_map
 

@@ -10,6 +10,7 @@ try:
     import Bodysim.vertex_operations
     import Bodysim.current_sensors_panel
     import Bodysim.sim_params
+    import Bodysim.plugins_info
 except ImportError:
     raise ImportError()
 sim_dict = {}
@@ -172,21 +173,86 @@ class RunSimulationOperator(bpy.types.Operator):
                 msg_type = "Error", message = 'No sensors were added.')
             return {'CANCELLED'}
 
-        bpy.ops.bodysim.simulation_dialog('INVOKE_DEFAULT')
+        # TODO Check if there are non-hidden extras:
+        plugins =  Bodysim.plugins_info.plugins
+        sim_dict = Bodysim.plugins_info.get_sensor_plugin_mapping()
+        for sensor in sim_dict:
+            for plugin in sim_dict[sensor]:
+                if plugins[plugin]["extras"]:
+                    Bodysim.sim_params.extras_values[plugin] = plugins[plugin]["extras"]
+
+        # Check for hidden extras
+        for plugin in plugins:
+            if plugins[plugin]["hidden"] and plugins[plugin]["extras"]:
+                Bodysim.sim_params.extras_values[plugin] = plugins[plugin]["extras"]
+
+        # Prompt user for extra variables first
+        first = True
+        for plugin in Bodysim.sim_params.extras_values:
+            def _execute(self, context):
+                for extra in self.extras_list:
+                    Bodysim.sim_params.extras_values[self.plugin][extra]["value"] = getattr(self, extra)
+                return {'FINISHED'}
+
+            # Extra dialogs are stacked on top of one another. When user reaches
+            # the last dialog (most bottom, first created), launch the
+            # operator to name the simulation and select frame range.
+            def _executeFirst(self, context):
+                for extra in self.extras_list:
+                    Bodysim.sim_params.extras_values[self.plugin][extra]["value"] = getattr(self, extra)
+
+                bpy.ops.bodysim.simulation_dialog('INVOKE_DEFAULT')
+                return {'FINISHED'}
+
+            def _invoke(self, context, event):
+                return context.window_manager.invoke_props_dialog(self)
+
+
+            extras_list = []
+            dialog_dict = {"bl_label": "Extras for " + plugin,
+                           "execute": _execute if not first else _executeFirst,
+                           "invoke": _invoke,
+                           "extras_list": extras_list,
+                           "plugin": plugin}
+            if first:
+                first = False
+
+            extras_dict = Bodysim.sim_params.extras_values[plugin]
+            for extra in extras_dict:
+                if extras_dict[extra]['type'] == 'float':
+                    dialog_dict[extra] = bpy.props.FloatProperty(name=extra,
+                                                                 default=float(extras_dict[extra]['default']),
+                                                                 description=extras_dict[extra]['description'])
+                elif extras_dict[extra]['type'] == 'int':
+                    dialog_dict[extra] = bpy.props.IntProperty(name=extra,
+                                                               default=int(extras_dict[extra]['default']),
+                                                               description=extras_dict[extra]['description'])
+
+                elif extras_dict[extra]['type'] == 'bool':
+                    dialog_dict[extra] = bpy.props.BoolProperty(name=extra,
+                                                                default=(extras_dict[extra]['default'] == 'True'),
+                                                                description=extras_dict[extra]['description'])
+            extras_list.append(extra)
+
+            dialog_operator = type(plugin.lower() + ".dialog", (bpy.types.Operator,), 
+                                   dialog_dict,
+                                  )
+
+            # TODO Make sure to unregister the class when done with it!
+            bpy.utils.register_class(dialog_operator)
+            exec('bpy.ops.' + plugin.lower() + '.dialog("INVOKE_DEFAULT")')
+
         return {'FINISHED'}
 
 class SimulationDialogOperator(bpy.types.Operator):
-    """Operator that launches popup for naming the simulation, choosing a frame
-     range, and number of samples. After error checking, it finally runs the
+    """Operator that launches popup for naming the simulation andchoosing a frame
+     range. After error checking, it finally runs the
      simulation.
     """
 
     bl_idname = "bodysim.simulation_dialog"
     bl_label = "Enter properties for this simulation."
     simulation_name = bpy.props.StringProperty(name="Name: ", )
-    samples = bpy.props.IntProperty(name="LOS Free Space Samples: ",
-                                    default=300,
-                                    min=1)
     start_frame = bpy.props.IntProperty(name="Start Frame No.: ", default=1,
                                         min=1)
     end_frame = bpy.props.IntProperty(name="End Frame No.: ", default=100,
@@ -243,8 +309,7 @@ class SimulationDialogOperator(bpy.types.Operator):
                                                      session_path)
 
         bpy.ops.bodysim.track_sensors('EXEC_DEFAULT', frame_start=self.start_frame,
-                                      frame_end=self.end_frame, path=path,
-                                      sample_count=self.samples)
+                                      frame_end=self.end_frame, path=path)
         simulation_ran = True
         return {'FINISHED'}
 

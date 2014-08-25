@@ -1,7 +1,7 @@
 """Holds simulation parameters for use with external plugins."""
 
 import os
-
+dbl_quotes = '"'
 start_frame = 0
 end_frame = 100
 # TODO Set this somewhere else.
@@ -12,8 +12,7 @@ trajectory_path = ""
 triangles_path = os.path.expanduser('~') + os.sep + '.bodysim' + os.sep + 'triangles'
 height = 0.0
 
-def get_params(param, sensor_name):
-    dbl_quotes = '"'
+def get_params(param, sensor_name, plugin=None):
     """Return the requested parameter as a string."""
     if param == "frameStart":
         return str(start_frame)
@@ -24,8 +23,11 @@ def get_params(param, sensor_name):
     elif param == "height":
         return str(height)
     elif param == "Trajectory":
-        return dbl_quotes + trajectory_path + os.sep + 'sensor_' + sensor_name + '.csv' + dbl_quotes
+        path = trajectory_path + os.sep
+        if sensor_name is not None:
+            path = path + 'sensor_' + sensor_name + '.csv'
+        return dbl_quotes + path + dbl_quotes
     elif param == "triangles":
-        return triangles_path
+        return dbl_quotes + triangles_path + dbl_quotes
     else:
-        return extras_values
+        return str(extras_values[plugin][param]["value"])

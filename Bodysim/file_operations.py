@@ -92,16 +92,14 @@ def execute_simulators(current_sim_path):
     """Run simulators depending sensor and variables selected."""
 
     plugins = Bodysim.plugins_info.plugins
-    # TODO Put fps somewhere else. Should it be set by the user?
-    fps = 30
+    # Use in case path has spaces
+    dbl_quotes = '"'
     sim_dict = Bodysim.plugins_info.get_sensor_plugin_mapping()
     for sensor in sim_dict:
         if len(sim_dict[sensor]) > NUMBER_OF_BASE_PLUGINS:
             for simulator in sim_dict[sensor]:
                 # Ignore if BASE plugin
                 if not simulator == 'Trajectory':
-                    # Use in case path has spaces
-                    dbl_quotes = '"'
                     command = ("python " + dbl_quotes + bodysim_conf_path
                                + os.sep + "plugins" + os.sep
                                + plugins[simulator]['file'] + dbl_quotes)
@@ -120,7 +118,26 @@ def execute_simulators(current_sim_path):
                                                 message = 'An external simulation encountered an error.')
                         return
 
-    # TODO Execute "hidden" sims.
+    # Execute "hidden" sims.
+    for plugin in plugins:
+        if plugins[plugin]["hidden"]:
+            command = ("python " + dbl_quotes + bodysim_conf_path
+                       + os.sep + "plugins" + os.sep
+                       + plugins[plugin]['file'] + dbl_quotes)
+
+            for requirement in plugins[plugin]['requirements']:
+                command = command + ' ' + Bodysim.sim_params.get_params(requirement, None, plugin)
+
+            sensors = " ".join(sim_dict)
+
+            try:
+                print(command + ' ' + sensors)
+                subprocess.check_call(command + ' ' + sensors, shell=True)
+            except:
+                bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Error",
+                                        message = 'An external simulation encountered an error.')
+                return
+
 
     bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Sucess!",
                             message = 'All simulations finished.')
