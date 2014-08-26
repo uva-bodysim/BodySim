@@ -74,6 +74,7 @@ class TrackSensorOperator(bpy.types.Operator):
         # In blender, the z - "dimension" is strangely at index 1, not 2;
         # The matrix world z is at index 2...
         Bodysim.sim_params.height = max(bpy.data.objects["model"].dimensions)
+        Bodysim.sim_params.triangle_count = len(get_triangles())
 
         self.sensor_objects = populate_sensor_list(context)
         for i in range(len(self.sensor_objects)):

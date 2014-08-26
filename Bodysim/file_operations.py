@@ -107,6 +107,10 @@ def execute_simulators(current_sim_path):
                     for requirement in plugins[simulator]['requirements']:
                         command = command + ' ' + Bodysim.sim_params.get_params(requirement, sensor)
 
+                    # Deal with extras
+                    for extra in plugins[plugin]['extras']:
+                        command = command + ' ' + Bodysim.sim_params.get_params(extra, sensor, plugin)
+
                     args = " ".join(sim_dict[sensor][simulator])
 
                     # Run the simulator
@@ -127,6 +131,10 @@ def execute_simulators(current_sim_path):
 
             for requirement in plugins[plugin]['requirements']:
                 command = command + ' ' + Bodysim.sim_params.get_params(requirement, None, plugin)
+
+            # Deal with extras
+            for extra in plugins[plugin]['extras']:
+                command = command + ' ' + Bodysim.sim_params.get_params(extra, None, plugin)
 
             sensors = " ".join(sim_dict)
 

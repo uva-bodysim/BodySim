@@ -9,7 +9,8 @@ fps = 30
 extras_values = {}
 trajectory_path = ""
 # This will hold temporary tringle data; will be overwritten each run.
-triangles_path = os.path.expanduser('~') + os.sep + '.bodysim' + os.sep + 'triangles'
+triangles_path = os.path.expanduser('~') + os.sep + '.bodysim' + os.sep + 'triangles' + os.sep
+triangle_count = 0
 height = 0.0
 
 def get_params(param, sensor_name, plugin=None):
@@ -29,5 +30,7 @@ def get_params(param, sensor_name, plugin=None):
         return dbl_quotes + path + dbl_quotes
     elif param == "triangles":
         return dbl_quotes + triangles_path + dbl_quotes
+    elif param == "triangleCount":
+        return str(triangle_count)
     else:
         return str(extras_values[plugin][param]["value"])
