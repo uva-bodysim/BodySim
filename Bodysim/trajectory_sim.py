@@ -22,6 +22,8 @@ class TrackSensorOperator(bpy.types.Operator):
     path = bpy.props.StringProperty()
     sensor_objects = None
     trajectory_data = []
+    # Stores triangle data in every frame so we don't write to disk every frame.
+    all_triangle_data = []
 
     @classmethod
     def poll(cls, context):
@@ -50,14 +52,17 @@ class TrackSensorOperator(bpy.types.Operator):
                 scene.frame_current, x, y, z, w, rx, ry, rz)
             self.trajectory_data[i].append(output)
 
-            triangles = get_triangles()
-            with open(Bodysim.sim_params.triangles_path + os.sep + 'frame' + str(scene.frame_current) + '.csv', 'w') as f:
-                for triangle in triangles:
-                    f.write(",".join([str(dim) for point in triangle for dim in point]) + '\n')
+        self.all_triangle_data.append(get_triangles())
 
         if scene.frame_current == self.frame_end:
             bpy.ops.screen.animation_cancel(restore_frame=True)
             bpy.app.handlers.frame_change_pre.remove(self._stop)
+
+            # Write triangle data to files.
+            for i in range(len(self.all_triangle_data)):
+                with open(Bodysim.sim_params.triangles_path + os.sep + 'frame' + str(i + 1) + '.csv', 'w') as f:
+                    for triangle in self.all_triangle_data[i]:
+                        f.write(",".join([str(dim) for point in triangle for dim in point]) + '\n')
 
             # Write trajectory and wireless channel data.
             Bodysim.file_operations.write_results(self.trajectory_data,
