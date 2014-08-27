@@ -1,6 +1,11 @@
 #include "vectmath.h"
 #include <math.h>
 
+// M_PI is not defined when compiled with mingw.
+#ifndef M_PI
+#define M_PI           3.14159265358979323846
+#endif
+
 float * intersect_ray_tri(vector v1, vector v2, vector v3, vector ray, vector origin) {
     float det, inv_det, u, v, t, absv;
     vector dir, e1, e2, tvec, qvec, pvec;
