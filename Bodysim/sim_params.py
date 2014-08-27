@@ -25,11 +25,14 @@ def get_params(param, sensor_name, plugin=None):
         return str(height)
     elif param == "Trajectory":
         path = trajectory_path + os.sep
+        path = path.replace('\\', r'\\')
         if sensor_name is not None:
             path = path + 'sensor_' + sensor_name + '.csv'
         return dbl_quotes + path + dbl_quotes
     elif param == "triangles":
-        return dbl_quotes + triangles_path + dbl_quotes
+        path = triangles_path.replace('\\', r'\\')
+        print(path)
+        return dbl_quotes + path + dbl_quotes
     elif param == "triangleCount":
         return str(triangle_count)
     else:
