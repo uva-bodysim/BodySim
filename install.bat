@@ -58,5 +58,8 @@ python setup.py install
 :: Copy the maths folder into the appdata path; the pyd files were not copied in the previous step.
 XCOPY /e /Y %CD%\imusim\maths %LOCALAPPDATA%\Enthought\Canopy\User\Lib\site-packages\imusim-0.2-py2.7.egg\imusim\maths
 
+:: Copy los.exe to user's plugins directory (built for Win64 only).
+XCOPY /Y %CD%\los\los.exe %USERPROFILE%\.bodysim\plugins\los.exe
+
 ECHO "Installation Done!"
 PAUSE

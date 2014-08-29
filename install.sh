@@ -67,4 +67,9 @@ sudo cp BodySim.desktop /usr/share/applications/
 pip install simpy==2.3.1
 pip install installation/imusim-0.2.tar.gz
 
+# Make LOS
+make -C installation/los
+# Copy to user's plugins directory
+cp installation/los/los ~/.bodysim/plugins/los
+
 echo "Installation Done!"
