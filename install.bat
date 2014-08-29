@@ -9,7 +9,7 @@ IF NOT %ERRORLEVEL% EQU 0 (
 
 :: Remind the user to install Blender and other dependencies first.
 ECHO Before installing BodySim, have you installed:
-ECHO - Blender 2.70,
+ECHO - Blender 2.x (at least 2.60 reccommended),
 ECHO - Enthought Canopy Free, and
 ECHO - Enthought Tool Suite?
 ECHO If not, please install these dependencies first, otherwise the installation will fail.
@@ -28,12 +28,24 @@ IF not %input%==yes (
 :: Install Bodysim
 ECHO "Installing Bodysim..."
 
+:: Determine version
+CD C:\Program Files\Blender Foundation\Blender
+set var="none"
+for /d %%d in (2.*) do (
+    set var=%%d
+)
+echo Detected Blender version %var%.
+if %var% == "none" (
+    echo Error: No blender version detected under C:\Program Files\Blender Foundation\Blender
+    pause
+)
+
 :: Copy Bodysim scripts into startup folder
-MKDIR "C:\Program Files\Blender Foundation\Blender\2.70\scripts\startup\Bodysim"
-XCOPY %~dp0\Bodysim "C:\Program Files\Blender Foundation\Blender\2.70\scripts\startup\Bodysim"
+MKDIR "C:\Program Files\Blender Foundation\Blender\%var%\scripts\startup\Bodysim"
+XCOPY %~dp0\Bodysim "C:\Program Files\Blender Foundation\Blender\%var%\scripts\startup\Bodysim"
 
 :: Remove unnecessary panels
-XCOPY %~dp0\installation\__init__Stripped.py /Y "C:\Program Files\Blender Foundation\Blender\2.70\scripts\startup\bl_ui\__init__.py"
+XCOPY %~dp0\installation\__init__Stripped.py /Y "C:\Program Files\Blender Foundation\Blender\%var%\scripts\startup\bl_ui\__init__.py"
 
 :: Copy Bodysim conf folder
 MKDIR %USERPROFILE%\.bodysim
@@ -59,7 +71,7 @@ python setup.py install
 XCOPY /e /Y %CD%\imusim\maths %LOCALAPPDATA%\Enthought\Canopy\User\Lib\site-packages\imusim-0.2-py2.7.egg\imusim\maths
 
 :: Copy los.exe to user's plugins directory (built for Win64 only).
-XCOPY /Y %CD%\los\los.exe %USERPROFILE%\.bodysim\plugins\los.exe
+XCOPY /F /Y %CD%\los\los.exe %USERPROFILE%\.bodysim\plugins\los.exe
 
 ECHO "Installation Done!"
 PAUSE
