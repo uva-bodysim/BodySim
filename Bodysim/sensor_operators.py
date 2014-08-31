@@ -58,11 +58,10 @@ class Bodysim_EDIT_SENSOR(bpy.types.Operator):
     part = bpy.props.StringProperty()
 
     def execute(self, context):
-        if not Bodysim.sensor_addition.editing_sensor:
-            model = context.scene.objects['model']
-            model['current_vg'] = self.part
-            Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._draw_sensor_properties_page)
-            Bodysim.sensor_addition.draw_plugins_subpanels(Bodysim.plugins_info.plugins)
+        model = context.scene.objects['model']
+        model['current_vg'] = self.part
+        Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._draw_sensor_properties_page)
+        Bodysim.sensor_addition.draw_plugins_subpanels(Bodysim.plugins_info.plugins)
         return {'FINISHED'}
 
 class BodySim_DELETE_SENSOR(bpy.types.Operator):

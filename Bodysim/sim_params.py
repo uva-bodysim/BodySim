@@ -6,6 +6,8 @@ start_frame = 0
 end_frame = 100
 # TODO Set this somewhere else.
 fps = 30
+# NOTE: For now, non-hidden sims cannot define unique extra parameters for each
+# sensor. This functionality may be added if needed in the future.
 extras_values = {}
 trajectory_path = ""
 # This will hold temporary tringle data; will be overwritten each run.

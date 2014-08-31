@@ -17,6 +17,7 @@ sim_dict = {}
 simulation_ran = False
 temp_sim_ran = False
 sim_list = []
+batch_list = []
 
 class WriteSessionToFileInterface(bpy.types.Operator):
     """Operator that first validates the name of the session to save
@@ -48,7 +49,7 @@ class WriteSessionToFileInterface(bpy.types.Operator):
         model['session_path'] = self.filepath[:-4]
 
         # Handle the case when simulations have been run before a session is saved.
-        Bodysim.file_operations.save_session_to_file(temp_sim_ran,self.filepath)
+        Bodysim.file_operations.save_session_to_file(temp_sim_ran, self.filepath)
         
         return {'FINISHED'}
 
@@ -162,6 +163,8 @@ class RunSimulationOperator(bpy.types.Operator):
     bl_idname = "bodysim.run_sim"
     bl_label = "Run Simulation"
 
+    batch_mode = bpy.props.BoolProperty()
+
     @classmethod
     def poll(cls, context):
         return context.active_object is not None
@@ -204,13 +207,22 @@ class RunSimulationOperator(bpy.types.Operator):
                 bpy.ops.bodysim.simulation_dialog('INVOKE_DEFAULT')
                 return {'FINISHED'}
 
+            def _executeFirstBatch(self, context):
+                for extra in self.extras_list:
+                    Bodysim.sim_params.extras_values[self.plugin][extra]["value"] = getattr(self, extra)
+
+                bpy.ops.bodysim.batch_dialog('INVOKE_DEFAULT')
+                return {'FINISHED'}
+
             def _invoke(self, context, event):
                 return context.window_manager.invoke_props_dialog(self)
 
-
             extras_list = []
+            execute_fn = _execute
+            if first:
+                execute_fn = _executeFirst if not self.batch_mode else _executeFirstBatch
             dialog_dict = {"bl_label": "Extras for " + plugin,
-                           "execute": _execute if not first else _executeFirst,
+                           "execute": execute_fn,
                            "invoke": _invoke,
                            "extras_list": extras_list,
                            "plugin": plugin}
@@ -244,9 +256,62 @@ class RunSimulationOperator(bpy.types.Operator):
 
         return {'FINISHED'}
 
+class BatchDialogOperator(bpy.types.Operator):
+    """Operator that prompts user to enter simulation parameters and
+     adds simulation to batch.
+    """
+
+    bl_idname = "bodysim.batch_dialog"
+    bl_label = "Enter properties for this simulation."
+    simulation_name = bpy.props.StringProperty(name="Name: ", )
+    start_frame = bpy.props.IntProperty(name="Start Frame No.: ", default=1,
+                                        min=1)
+    end_frame = bpy.props.IntProperty(name="End Frame No.: ", default=100,
+                                      min=1)
+
+    def execute(self, context):
+        global batch_list
+        model = context.scene.objects['model']
+        if 'session_path' not in model:
+            session_path = Bodysim.file_operations.bodysim_conf_path + os.sep + 'tmp'
+            os.mkdir(Bodysim.file_operations.bodysim_conf_path + os.sep + 'tmp')
+            Bodysim.file_operations.set_session_element(session_path)
+            temp_sim_ran = True
+        else:
+            session_path =  model['session_path']
+
+        path = session_path + os.sep + self.simulation_name
+        model['current_simulation_path'] = path
+        scene = bpy.context.scene
+
+        # Make sure the named simulation does not already exist.
+        if os.path.exists(path):
+            bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Error",
+                                    message = 'A simulation with that name already exists!')
+            return {'CANCELLED'}
+
+        # Frame range error checking
+        if not check_frame_range(self.start_frame, self.end_frame, scene.frame_end):
+            return {'CANCELLED'}
+
+        batch_list.append(self.simulation_name)
+        os.mkdir(path)
+        sensor_dict = context.scene.objects['model']['sensor_info']
+        Bodysim.file_operations.write_simulation_xml(self.simulation_name,
+                                                     sensor_dict,
+                                                     path,
+                                                     session_path, True)
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        model = context.scene.objects['model']
+        self.simulation_name = "simulation_" + str(len(sim_list))
+        return context.window_manager.invoke_props_dialog(self)
+
+
 class SimulationDialogOperator(bpy.types.Operator):
-    """Operator that launches popup for naming the simulation andchoosing a frame
-     range. After error checking, it finally runs the
+    """Operator that launches popup for naming the simulation and choosing a
+     frame range. After error checking, it finally runs the
      simulation.
     """
 
@@ -286,14 +351,7 @@ class SimulationDialogOperator(bpy.types.Operator):
             return {'CANCELLED'}
 
         # Frame range error checking
-        if self.end_frame <= self.start_frame:
-            bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Error",
-                                    message = 'Invalid frame range.')
-            return {'CANCELLED'}
-
-        if self.end_frame > scene.frame_end or self.start_frame > scene.frame_end:
-            bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Error",
-                                    message = 'Scene only has ' + str(scene.frame_end) + ' frames.')
+        if not check_frame_range(self.start_frame, self.end_frame, scene.frame_end):
             return {'CANCELLED'}
 
         sim_list.append(self.simulation_name)
@@ -306,7 +364,7 @@ class SimulationDialogOperator(bpy.types.Operator):
         Bodysim.file_operations.write_simulation_xml(self.simulation_name,
                                                      sensor_dict,
                                                      path,
-                                                     session_path)
+                                                     session_path, False)
 
         bpy.ops.bodysim.track_sensors('EXEC_DEFAULT', frame_start=self.start_frame,
                                       frame_end=self.end_frame, path=path)
@@ -317,6 +375,20 @@ class SimulationDialogOperator(bpy.types.Operator):
         model = context.scene.objects['model']
         self.simulation_name = "simulation_" + str(len(sim_list))
         return context.window_manager.invoke_props_dialog(self)
+
+def check_frame_range(user_start, user_end, scene_end):
+    """ Returns True if the frame range is valid. """
+    if user_end <= user_start:
+        bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Error",
+                                message = 'Invalid frame range.')
+        return False
+
+    if user_end > scene_end or user_start > scene_end:
+        bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Error",
+                                message = 'Scene only has ' + str(scene.frame_end) + ' frames.')
+        return False
+
+    return True
 
 class LoadSimulationOperator(bpy.types.Operator):
     """Loads a previously run simulation along with corresponding
@@ -408,6 +480,23 @@ def draw_previous_run_panel(list_of_simulations):
 
     bpy.utils.register_class(panel)
 
+class AddBatchDialog(bpy.types.Operator):
+    """Operator that adds a sim to batch."""
+
+    bl_idname = "bodysim.add_to_batch"
+    bl_label = "Add sim to batch."
+
+    simulation_name = bpy.props.StringProperty()
+    frame_start = bpy.props.IntProperty()
+
+    def execute(self, context):
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+
+
 class SimTools(bpy.types.Panel):
     """Panel that allows user to save and load sessions, run
      simulations, and graph variables.
@@ -421,9 +510,11 @@ class SimTools(bpy.types.Panel):
         self.layout.operator("bodysim.save_session_to_file", text = "Save Session")
         self.layout.operator("bodysim.read_from_file", text = "Load Session")
         self.layout.operator("bodysim.dry_run", text = "Dry Run")
-        self.layout.operator("bodysim.run_sim", text = "Run Simulation")
+        self.layout.operator("bodysim.run_sim", text = "Run Simulation").batch_mode=False
         self.layout.operator("bodysim.graph", text = "Graph Variables")
         self.layout.operator("bodysim.new_sim", text = "New Simulation")
+        self.layout.operator("bodysim.run_sim", text = "Add to batch").batch_mode=True
+
 
 if __name__ == "__main__":
     bpy.utils.register_module(__name__)

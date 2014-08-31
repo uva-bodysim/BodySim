@@ -33,17 +33,32 @@ def indent(elem, level=0):
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
 
-def write_simulation_xml(name, sensor_dict, sim_path, session_path):
+def write_simulation_xml(name, sensor_dict, sim_path, session_path, batch_mode):
     """Writes the list of sensors and simulated variables to a
      simulation XML file.
     """
 
     global session_element
 
-    curr_simulation_element = Element('simulation')
+    curr_simulation_element = Element('simulation',
+                                      {'in_batch': "true" if batch_mode else "false",
+                                       'frame_start': str(Bodysim.sim_params.start_frame),
+                                       'frame_end': str(Bodysim.sim_params.end_frame)})
     curr_simulation_name_element = Element('name')
     curr_simulation_name_element.text = name
     curr_simulation_element.append(curr_simulation_name_element)
+    # Now append extras to the element
+    extras_values = Bodysim.sim_params.extras_values
+    for plugin in extras_values:
+        curr_extras_element = Element('extras', {'plugin': plugin})
+        for extra in extras_values[plugin]:
+            curr_extra_element = Element('extra', {'param': extra})
+            curr_value_element = Element('value')
+            curr_value_element.text = str(extras_values[plugin][extra]["value"])
+            curr_extra_element.extend([curr_value_element])
+            curr_extras_element.extend([curr_extra_element])
+        curr_simulation_element.extend([curr_extras_element])
+
     session_element.append(curr_simulation_element)
     update_session_file(session_element, session_path)
 
