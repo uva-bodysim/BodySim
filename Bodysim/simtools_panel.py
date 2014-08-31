@@ -308,7 +308,6 @@ class BatchDialogOperator(bpy.types.Operator):
         self.simulation_name = "simulation_" + str(len(sim_list))
         return context.window_manager.invoke_props_dialog(self)
 
-
 class SimulationDialogOperator(bpy.types.Operator):
     """Operator that launches popup for naming the simulation and choosing a
      frame range. After error checking, it finally runs the
@@ -479,23 +478,6 @@ def draw_previous_run_panel(list_of_simulations):
         "draw": _draw_previous_run_buttons},)
 
     bpy.utils.register_class(panel)
-
-class AddBatchDialog(bpy.types.Operator):
-    """Operator that adds a sim to batch."""
-
-    bl_idname = "bodysim.add_to_batch"
-    bl_label = "Add sim to batch."
-
-    simulation_name = bpy.props.StringProperty()
-    frame_start = bpy.props.IntProperty()
-
-    def execute(self, context):
-        return {'FINISHED'}
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
-
-
 
 class SimTools(bpy.types.Panel):
     """Panel that allows user to save and load sessions, run
