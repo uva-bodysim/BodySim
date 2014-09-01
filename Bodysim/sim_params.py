@@ -2,7 +2,7 @@
 
 import os
 dbl_quotes = '"'
-start_frame = 0
+start_frame = 1
 end_frame = 100
 # TODO Set this somewhere else.
 fps = 30
