@@ -165,7 +165,7 @@ def execute_simulators(current_sim_path):
     bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Sucess!",
                             message = 'All simulations finished.')
 
-def read_session_file(path):
+def read_session_file(path, batch_mode):
     """Reads the session file to get a list of simulations."""
 
     global session_element
@@ -175,7 +175,8 @@ def read_session_file(path):
     session_element = tree
 
     for simulation in tree.iter('simulation'):
-        sim_list.append(list(simulation)[0].text)
+        if (batch_mode == (simulation.attrib['in_batch'] == 'true')):
+            sim_list.append(list(simulation)[0].text)
 
     return sim_list
 
@@ -224,14 +225,33 @@ def load_simulation(sensor_xml_path):
 
     return sensor_map
 
-def remove_simulation(session_path, simulation_name):
+def populate_sim_params(simulation_name):
+    """Populates simulation parameters from session.xml file."""
+    # First, clear the extras
+    Bodysim.sim_params.extras_values = {}
+    is_batch = False
+    for simulation in session_element.iter('simulation'):
+        is_batch = simulation.attrib['in_batch'] == "true"
+        if simulation.find('name').text == simulation_name:
+            Bodysim.sim_params.start_frame = simulation.attrib["frame_start"]
+            Bodysim.sim_params.end_frame = simulation.attrib["frame_end"]
+            for extra_plugin in simulation.iter('extras'):
+                Bodysim.sim_params.extras_values[extra_plugin.attrib['plugin']] = {}
+                for extra in extra_plugin.iter('extra'):
+                    Bodysim.sim_params.extras_values[extra_plugin.attrib['plugin']][extra.attrib['param']] = {}
+                    Bodysim.sim_params.extras_values[extra_plugin.attrib['plugin']][extra.attrib['param']]['value'] = extra[0].text
+
+    return is_batch
+
+def remove_simulation(session_path, simulation_name, batch_mode):
     """Removes the simulation from the session file and the session
      folder.
     """
 
     tree = ET().parse(session_path + '.xml')
     for simulation in tree.findall('simulation'):
-        if simulation.find('name').text == simulation_name:
+        if (simulation.find('name').text == simulation_name and
+            batch_mode == (simulation.attrib['in_batch'] == "true")):
             tree.remove(simulation)
 
     indent(tree)

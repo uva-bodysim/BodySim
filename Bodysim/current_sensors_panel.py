@@ -25,7 +25,7 @@ class CurrentSensorsPanel(bpy.types.Panel):
         layout = self.layout
         layout.label("No sensors yet.")
 
-def draw_sensor_list_panel(sensor_dict):
+def draw_sensor_list_panel(sensor_dict, read_only):
     """Draws the list of sensors currently ready for simulation."""
 
     bl_label = "Current Sensors"
@@ -48,11 +48,14 @@ def draw_sensor_list_panel(sensor_dict):
             col.prop(context.scene.objects['sensor_' + sensor], "sensor_name")
             row = layout.row(align = True)
             row.alignment = 'EXPAND'
-            row.operator("bodysim.locate_body_part", text = sensor).part = sensor
             row.prop(context.scene.objects['sensor_' + sensor], "sensor_color")
+            if read_only:
+                row.enabled = False
             row.operator("bodysim.edit_sensor", text = "Edit").part = sensor
             row.operator("bodysim.delete_sensor", text = "Delete").part = sensor
+            row = layout.row(align = True)
             row.operator("bodysim.graph_select", text = "Graph Selection").part = sensor
+            row.operator("bodysim.locate_body_part", text = sensor).part = sensor
 
     global current_sensor_panel
     if sensor_dict:

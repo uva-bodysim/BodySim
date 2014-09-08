@@ -18,6 +18,8 @@ simulation_ran = False
 temp_sim_ran = False
 sim_list = []
 batch_list = []
+batch_panel = None
+running_sims_panel = None
 
 class WriteSessionToFileInterface(bpy.types.Operator):
     """Operator that first validates the name of the session to save
@@ -74,12 +76,15 @@ class ReadFileInterface(bpy.types.Operator):
 
     def execute(self, context):
         global sim_list
+        global batch_list
 
         model = context.scene.objects['model']
         model['sensor_info'] = {}
         model['session_path'] = self.filepath[:-4]
         sim_list = Bodysim.file_operations.read_session_file(self.filepath, False)
         draw_previous_run_panel(sim_list)
+        batch_list = Bodysim.file_operations.read_session_file(self.filepath, True)
+        draw_batch_panel(batch_list)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -424,9 +429,8 @@ class LoadSimulationOperator(bpy.types.Operator):
             for variable in sensor_map[sensor_location]['variables']:
                 setattr(context.scene.objects['sensor_' + sensor_location], variable, True)
 
-            Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'])
-
-        # TODO Populate sim_params
+        is_batch = Bodysim.file_operations.populate_sim_params(self.simulation_name)
+        Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], not is_batch)
 
         return {'FINISHED'}
 
@@ -499,6 +503,36 @@ class RemoveFromBatchOperator(bpy.types.Operator):
         draw_batch_panel(batch_list)
         return {'FINISHED'}
 
+class RunSelectOperator(bpy.types.Operator):
+    """Operator that generates the run select panel."""
+
+    bl_idname = "bodysim.run_selected"
+    bl_label = "Generates the run select panel."
+
+    def execute(self, context):
+        bl_space_type = 'VIEW_3D'
+        bl_region_type = 'TOOLS'
+
+        def _invoke_select(self,  context, event):
+            return context.window_manager.invoke_props_dialog(self)
+
+        def _execute(self, context):
+            return {'FINISHED'}
+
+        dialog_dict = {"bl_label": "Simulations to Run",
+                       "bl_space_type": bl_space_type,
+                       "bl_region_type": bl_region_type,
+                       "invoke": _invoke_select,
+                       "execute": _execute}
+
+        for batch in batch_list:
+                dialog_dict[batch] = bpy.props.BoolProperty(name=batch,default=True)
+
+        dialog = type("simulationrun.dialog", (bpy.types.Operator,),dialog_dict,)
+        bpy.utils.register_class(dialog)
+        bpy.ops.simulationrun.dialog("INVOKE_DEFAULT")
+        return {'FINISHED'}
+
 
 def draw_previous_run_panel(list_of_simulations):
     """Draws the list of previously run simulations; one row of buttons
@@ -537,6 +571,8 @@ def draw_batch_panel(list_of_simulations):
      simulation.
     """
 
+    global batch_panel
+
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
 
@@ -552,14 +588,14 @@ def draw_batch_panel(list_of_simulations):
             row.operator("bodysim.load_simulation", text = _previousRun).simulation_name = _previousRun
             row.operator("bodysim.remove_from_batch", text = "Remove").simulation_name = _previousRun
 
-    panel = type("SimulationBatchSelectPanel", (bpy.types.Panel,),{
+    batch_panel = type("SimulationBatchSelectPanel", (bpy.types.Panel,),{
         "bl_label": "Batch",
         "bl_space_type": bl_space_type,
         "bl_region_type": bl_region_type,
         "sim_runs": list_of_simulations,
         "draw": _draw_previous_run_buttons},)
 
-    bpy.utils.register_class(panel)
+    bpy.utils.register_class(batch_panel)
 
 class SimTools(bpy.types.Panel):
     """Panel that allows user to save and load sessions, run
@@ -578,6 +614,7 @@ class SimTools(bpy.types.Panel):
         self.layout.operator("bodysim.graph", text = "Graph Variables")
         self.layout.operator("bodysim.new_sim", text = "New Simulation")
         self.layout.operator("bodysim.run_sim", text = "Add to batch").batch_mode=True
+        self.layout.operator("bodysim.run_selected", text = "Run Selected")
         self.layout.operator("bodysim.about_sim", text = "About this Simulation")
 
 if __name__ == "__main__":
