@@ -13,6 +13,8 @@ panel_list = []
 
 plugin_panel_list = []
 
+editing = False
+
 class AddSensorPanel(bpy.types.Panel):
     """Panel that guides the user through the stages of adding
      sensors.
@@ -29,6 +31,7 @@ class AddSensorPanel(bpy.types.Panel):
 def _drawAddSensorFirstPage(self, context):
     """Draws introductory page for adding new sensors"""
     layout = self.layout
+    layout.enabled = editing
     layout.operator("bodysim.new_sensor", text="Add Sensor")
     layout.operator("bodysim.reset_sensors", text="Reset Sensors")
     layout.operator("bodysim.clear_selection", text="Clear Selection")
@@ -232,7 +235,7 @@ class BodySim_FINALIZE(bpy.types.Operator):
         if 'last_bound_sensor' in model:
             del model['last_bound_sensor']
         redraw_addSensorPanel(_drawAddSensorFirstPage)
-        Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'])
+        Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], False)
         return {'FINISHED'}
 
 def redraw_addSensorPanel(draw_function):

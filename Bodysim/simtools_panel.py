@@ -11,10 +11,15 @@ try:
     import Bodysim.current_sensors_panel
     import Bodysim.sim_params
     import Bodysim.plugins_info
+    import Bodysim.sensor_addition
 except ImportError:
     raise ImportError()
 sim_dict = {}
 simulation_ran = False
+# This variable is kept in the model since sensor_addition needs to
+# change this when a sensor is added. Ugly circular dependency
+# betw. sensor_addition and simtools_panel.
+# model['simulation_saved'] = False
 temp_sim_ran = False
 sim_list = []
 batch_list = []
@@ -103,13 +108,43 @@ class NewSimulationOperator(bpy.types.Operator):
         global simulation_ran
         model = context.scene.objects['model']
 
-        if 'sensor_info' not in model:
-            return {'FINISHED'}
+        if 'simulation_saved' not in model:
+            model['simulation_saved'] = False
 
-        if model['sensor_info'] and not simulation_ran:
-            bpy.ops.bodysim.not_ran_sim_dialog('INVOKE_DEFAULT')
-        else:
-            bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
+        if 'sensor_info' in model:
+            if model['sensor_info'] and not model['simulation_saved']:
+                bpy.ops.bodysim.not_ran_sim_dialog('INVOKE_DEFAULT')
+            else:
+                # Ask user if he/she wants to make a new blank sim
+                # Or make a new sim based on the currently loaded one
+                # TODO: Need to make sure this sim is saved first
+                # If user wants to make a copy of this sim.
+                def _execute(self, context):
+                    if not self.template:
+                        simulation_ran = False
+                        model['simulation_saved'] = False
+                        bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
+                    return {'FINISHED'}
+
+                def _invoke(self, context, event):
+                    return context.window_manager.invoke_props_dialog(self, width=300)
+
+                new_dialog_dict = {"bl_label": "New Simulation",
+                           "execute": _execute,
+                           "invoke": _invoke,
+                           "template": bpy.props.BoolProperty(name="Copy current sim.",
+                                                              default=False,
+                                                              description="Use current sim as template.")}
+
+                dialog_operator = type('copysim.dialog', (bpy.types.Operator,),
+                                       new_dialog_dict,
+                )
+                bpy.utils.register_class(dialog_operator)
+                bpy.ops.copysim.dialog("INVOKE_DEFAULT")
+
+
+        Bodysim.sensor_addition.editing = True
+        Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._drawAddSensorFirstPage)
         return {'FINISHED'}
 
 class NotRanSimDialogOperator(bpy.types.Operator):
@@ -307,6 +342,7 @@ class BatchDialogOperator(bpy.types.Operator):
                                                      sensor_dict,
                                                      path,
                                                      session_path, True)
+        model['simulation_saved'] = True
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -374,6 +410,11 @@ class SimulationDialogOperator(bpy.types.Operator):
         bpy.ops.bodysim.track_sensors('EXEC_DEFAULT', frame_start=self.start_frame,
                                       frame_end=self.end_frame, path=path)
         simulation_ran = True
+        Bodysim.sensor_addition.editing = False
+        model['simulation_saved'] = True
+        Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._drawAddSensorFirstPage)
+        Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], True)
+
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -409,6 +450,7 @@ class LoadSimulationOperator(bpy.types.Operator):
     simulation_name = bpy.props.StringProperty()
 
     def execute(self, context):
+        global simulation_ran
         # TODO Check if there were any unsaved modifications first.
         bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
         # Navigate to correct folder to load the correct sensors.xml
@@ -430,7 +472,11 @@ class LoadSimulationOperator(bpy.types.Operator):
                 setattr(context.scene.objects['sensor_' + sensor_location], variable, True)
 
         is_batch = Bodysim.file_operations.populate_sim_params(self.simulation_name)
+        Bodysim.sensor_addition.editing = is_batch
+        Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._drawAddSensorFirstPage)
         Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], not is_batch)
+        simulation_ran = not is_batch
+        model['simulation_saved'] = True
 
         return {'FINISHED'}
 
@@ -616,6 +662,7 @@ class SimTools(bpy.types.Panel):
         self.layout.operator("bodysim.run_sim", text = "Add to batch").batch_mode=True
         self.layout.operator("bodysim.run_selected", text = "Run Selected")
         self.layout.operator("bodysim.about_sim", text = "About this Simulation")
+        model = context.scene.objects['model']
 
 if __name__ == "__main__":
     bpy.utils.register_module(__name__)
