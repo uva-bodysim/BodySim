@@ -13,6 +13,10 @@ import Bodysim.sim_params
 NUMBER_OF_BASE_PLUGINS = 1
 session_element = None
 
+class SimulationState:
+    """Acts as an enum to identify the state of the simulation."""
+    Saved, Ran, Batched = range(3)
+
 # Folder containing plugins
 bodysim_conf_path = os.path.expanduser('~') + os.sep + '.bodysim'
 
@@ -33,7 +37,7 @@ def indent(elem, level=0):
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
 
-def write_simulation_xml(name, sensor_dict, sim_path, session_path, batch_mode):
+def write_simulation_xml(name, sensor_dict, sim_path, session_path, sim_state):
     """Writes the list of sensors and simulated variables to a
      simulation XML file.
     """
@@ -41,7 +45,7 @@ def write_simulation_xml(name, sensor_dict, sim_path, session_path, batch_mode):
     global session_element
 
     curr_simulation_element = Element('simulation',
-                                      {'in_batch': "true" if batch_mode else "false",
+                                      {'in_batch': sim_state,
                                        'frame_start': str(Bodysim.sim_params.start_frame),
                                        'frame_end': str(Bodysim.sim_params.end_frame)})
     curr_simulation_name_element = Element('name')
@@ -165,7 +169,7 @@ def execute_simulators(current_sim_path):
     bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Sucess!",
                             message = 'All simulations finished.')
 
-def read_session_file(path, batch_mode):
+def read_session_file(path, simulation_state):
     """Reads the session file to get a list of simulations."""
 
     global session_element
@@ -175,7 +179,7 @@ def read_session_file(path, batch_mode):
     session_element = tree
 
     for simulation in tree.iter('simulation'):
-        if (batch_mode == (simulation.attrib['in_batch'] == 'true')):
+        if (simulation_state == int(simulation.attrib['in_batch'])):
             sim_list.append(list(simulation)[0].text)
 
     return sim_list
@@ -226,12 +230,16 @@ def load_simulation(sensor_xml_path):
     return sensor_map
 
 def populate_sim_params(simulation_name):
-    """Populates simulation parameters from session.xml file."""
+    """Populates simulation parameters from session.xml file.
+     Returns True if the simulation loaded was saved. (Batch simulations
+     have been saved by definition.)
+    """
     # First, clear the extras
     Bodysim.sim_params.extras_values = {}
-    is_batch = False
+    is_saved = False
     for simulation in session_element.iter('simulation'):
-        is_batch = simulation.attrib['in_batch'] == "true"
+        is_saved = (simulation.attrib['in_batch'] == str(SimulationState.Saved) or
+                    simulation.attrib['in_batch'] == str(SimulationState.Batched))
         if simulation.find('name').text == simulation_name:
             Bodysim.sim_params.start_frame = simulation.attrib["frame_start"]
             Bodysim.sim_params.end_frame = simulation.attrib["frame_end"]
@@ -241,17 +249,17 @@ def populate_sim_params(simulation_name):
                     Bodysim.sim_params.extras_values[extra_plugin.attrib['plugin']][extra.attrib['param']] = {}
                     Bodysim.sim_params.extras_values[extra_plugin.attrib['plugin']][extra.attrib['param']]['value'] = extra[0].text
 
-    return is_batch
+    return is_saved
 
-def remove_simulation(session_path, simulation_name, batch_mode):
+def remove_simulation(session_path, simulation_name):
     """Removes the simulation from the session file and the session
-     folder.
+     folder. Returns the state of the deleted simulation.
     """
-
+    deleted_state = SimulationState.Saved
     tree = ET().parse(session_path + '.xml')
     for simulation in tree.findall('simulation'):
-        if (simulation.find('name').text == simulation_name and
-            batch_mode == (simulation.attrib['in_batch'] == "true")):
+        if (simulation.find('name').text == simulation_name):
+            deleted_state = int(simulation.attrib['in_batch'])
             tree.remove(simulation)
 
     indent(tree)
@@ -260,6 +268,8 @@ def remove_simulation(session_path, simulation_name, batch_mode):
         f.write(tostring(tree))
 
     shutil.rmtree(session_path + os.sep + simulation_name)
+
+    return deleted_state
 
 def write_results(data, sensor_objects, sim_path):
     """Writes simulation results to csv file."""

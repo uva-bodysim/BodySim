@@ -23,8 +23,10 @@ simulation_ran = False
 temp_sim_ran = False
 sim_list = []
 batch_list = []
+saved_list = []
 batch_panel = None
 running_sims_panel = None
+saved_panel = None
 
 class WriteSessionToFileInterface(bpy.types.Operator):
     """Operator that first validates the name of the session to save
@@ -82,14 +84,20 @@ class ReadFileInterface(bpy.types.Operator):
     def execute(self, context):
         global sim_list
         global batch_list
+        global saved_list
 
         model = context.scene.objects['model']
         model['sensor_info'] = {}
         model['session_path'] = self.filepath[:-4]
-        sim_list = Bodysim.file_operations.read_session_file(self.filepath, False)
+        sim_list = Bodysim.file_operations.read_session_file(self.filepath,
+                                                             Bodysim.file_operations.SimulationState.Ran)
         draw_previous_run_panel(sim_list)
-        batch_list = Bodysim.file_operations.read_session_file(self.filepath, True)
+        batch_list = Bodysim.file_operations.read_session_file(self.filepath,
+                                                               Bodysim.file_operations.SimulationState.Batched)
         draw_batch_panel(batch_list)
+        saved_list = Bodysim.file_operations.read_session_file(self.filepath,
+                                                               Bodysim.file_operations.SimulationState.Saved)
+        draw_batch_panel(saved_list)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -259,13 +267,15 @@ class RunSimulationOperator(bpy.types.Operator):
 
             extras_list = []
             execute_fn = _execute
+            dialog_dict = {"bl_label": "Extras for " + plugin,
+               "execute": execute_fn,
+               "invoke": _invoke,
+               "extras_list": extras_list,
+               "plugin": plugin}
+
             if first:
                 execute_fn = _executeFirst if not self.batch_mode else _executeFirstBatch
-            dialog_dict = {"bl_label": "Extras for " + plugin,
-                           "execute": execute_fn,
-                           "invoke": _invoke,
-                           "extras_list": extras_list,
-                           "plugin": plugin}
+
             if first:
                 first = False
 
@@ -303,6 +313,9 @@ class BatchDialogOperator(bpy.types.Operator):
 
     bl_idname = "bodysim.batch_dialog"
     bl_label = "Enter properties for this simulation."
+
+    is_batch = bpy.props.BoolProperty(name="is_batch", default=False,
+                                      description="Add to batch?")
     simulation_name = bpy.props.StringProperty(name="Name: ", )
     start_frame = bpy.props.IntProperty(name="Start Frame No.: ", default=1,
                                         min=1)
@@ -311,6 +324,7 @@ class BatchDialogOperator(bpy.types.Operator):
 
     def execute(self, context):
         global batch_list
+        global saved_list
         model = context.scene.objects['model']
         if 'session_path' not in model:
             session_path = Bodysim.file_operations.bodysim_conf_path + os.sep + 'tmp'
@@ -334,14 +348,21 @@ class BatchDialogOperator(bpy.types.Operator):
         if not check_frame_range(self.start_frame, self.end_frame, scene.frame_end):
             return {'CANCELLED'}
 
-        batch_list.append(self.simulation_name)
-        draw_batch_panel(batch_list)
+        simulation_state = Bodysim.file_operations.SimulationState.Saved
+        if self.is_batch:
+            batch_list.append(self.simulation_name)
+            draw_batch_panel(batch_list)
+            simulation_state = Bodysim.file_operations.SimulationState.Batched
+        else:
+            saved_list.append(self.simulation_name)
+            draw_saved_panel(saved_list)
+
         os.mkdir(path)
         sensor_dict = context.scene.objects['model']['sensor_info']
         Bodysim.file_operations.write_simulation_xml(self.simulation_name,
                                                      sensor_dict,
                                                      path,
-                                                     session_path, True)
+                                                     session_path, simulation_state)
         model['simulation_saved'] = True
         return {'FINISHED'}
 
@@ -405,7 +426,8 @@ class SimulationDialogOperator(bpy.types.Operator):
         Bodysim.file_operations.write_simulation_xml(self.simulation_name,
                                                      sensor_dict,
                                                      path,
-                                                     session_path, False)
+                                                     session_path,
+                                                     Bodysim.file_operations.SimulationState.Ran)
 
         bpy.ops.bodysim.track_sensors('EXEC_DEFAULT', frame_start=self.start_frame,
                                       frame_end=self.end_frame, path=path)
@@ -490,14 +512,25 @@ class DeleteSimulationOperator(bpy.types.Operator):
 
     def execute(self, context):
         global sim_list
+        global batch_list
+        global saved_list
 
         model = context.scene.objects['model']
-        Bodysim.file_operations.remove_simulation(model['session_path'], self.simulation_name, False)
+        deleted_state = Bodysim.file_operations.remove_simulation(model['session_path'], self.simulation_name)
         if self.simulation_name in model['current_simulation_path']:
             # Clear the sensor panel if this simulation is currently loaded.
             bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
-        sim_list = Bodysim.file_operations.read_session_file(model['session_path'] + '.xml')
-        draw_previous_run_panel(sim_list)
+
+        # TODO Cleaner way to do this?
+        if deleted_state == Bodysim.file_operations.SimulationState.Ran:
+            sim_list = Bodysim.file_operations.read_session_file(model['session_path'] + '.xml', deleted_state)
+            draw_previous_run_panel(sim_list)
+        elif deleted_state == Bodysim.file_operations.SimulationState.Batched:
+            batch_list = Bodysim.file_operations.read_session_file(model['session_path'] + '.xml', deleted_state)
+            draw_batch_panel(batch_list)
+        else:
+            saved_list = Bodysim.file_operations.read_session_file(model['session_path'] + '.xml', deleted_state)
+            draw_batch_panel(saved_list)
         return {'FINISHED'}
 
 class AboutSimulationOperator(bpy.types.Operator):
@@ -529,56 +562,33 @@ class AboutSimulationOperator(bpy.types.Operator):
         wm = context.window_manager
         return wm.invoke_popup(self)
 
-class RemoveFromBatchOperator(bpy.types.Operator):
-    """Operator that deletes a simulation from the batch."""
+class RunBatchOperator(bpy.types.Operator):
+    """Operator that runs all sims in batch."""
 
-    bl_idname = "bodysim.remove_from_batch"
-    bl_label = "Removes a simulation from batch."
-
-    simulation_name = bpy.props.StringProperty()
+    bl_idname = "bodysim.run_batch"
+    bl_label = "Runs every simulation in the batch."
 
     def execute(self, context):
-        global batch_list
-
-        model = context.scene.objects['model']
-        Bodysim.file_operations.remove_simulation(model['session_path'], self.simulation_name, True)
-        if self.simulation_name in model['current_simulation_path']:
-            # Clear the sensor panel if this simulation is currently loaded.
-            bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
-        batch_list = Bodysim.file_operations.read_session_file(model['session_path'] + '.xml', True)
-        draw_batch_panel(batch_list)
+        bl_space_type = 'VIEW_3D'
+        bl_region_type = 'TOOLS'
+        # TODO Run all the simulations in the batch.
         return {'FINISHED'}
 
-class RunSelectOperator(bpy.types.Operator):
-    """Operator that generates the run select panel."""
+class TransferSimOperator(bpy.types.Operator):
+    """Operator that transfers simultations to and from batch."""
 
-    bl_idname = "bodysim.run_selected"
-    bl_label = "Generates the run select panel."
+    bl_idname = "bodysim.transfer"
+    bl_label = "Moves simulations to and from batch."
+
+    transfer_to_batch = bpy.props.BoolProperty()
 
     def execute(self, context):
         bl_space_type = 'VIEW_3D'
         bl_region_type = 'TOOLS'
 
-        def _invoke_select(self,  context, event):
-            return context.window_manager.invoke_props_dialog(self)
-
-        def _execute(self, context):
-            return {'FINISHED'}
-
-        dialog_dict = {"bl_label": "Simulations to Run",
-                       "bl_space_type": bl_space_type,
-                       "bl_region_type": bl_region_type,
-                       "invoke": _invoke_select,
-                       "execute": _execute}
-
-        for batch in batch_list:
-                dialog_dict[batch] = bpy.props.BoolProperty(name=batch,default=True)
-
-        dialog = type("simulationrun.dialog", (bpy.types.Operator,),dialog_dict,)
-        bpy.utils.register_class(dialog)
-        bpy.ops.simulationrun.dialog("INVOKE_DEFAULT")
+        # TODO Need to modify the XML files here as well to save state.
+        # Need to check if the user has been editing a sim...
         return {'FINISHED'}
-
 
 def draw_previous_run_panel(list_of_simulations):
     """Draws the list of previously run simulations; one row of buttons
@@ -632,7 +642,7 @@ def draw_batch_panel(list_of_simulations):
             row = layout.row(align = True)
             row.alignment = 'EXPAND'
             row.operator("bodysim.load_simulation", text = _previousRun).simulation_name = _previousRun
-            row.operator("bodysim.remove_from_batch", text = "Remove").simulation_name = _previousRun
+            row.operator("bodysim.delete_simulation", text = "Remove").simulation_name = _previousRun
 
     batch_panel = type("SimulationBatchSelectPanel", (bpy.types.Panel,),{
         "bl_label": "Batch",
@@ -642,6 +652,39 @@ def draw_batch_panel(list_of_simulations):
         "draw": _draw_previous_run_buttons},)
 
     bpy.utils.register_class(batch_panel)
+
+# TODO Should put these panels in another file.
+def draw_saved_panel(list_of_simulations):
+    """Draws list of simulations that were saved but not run nor addded to
+     batch; one row of buttons per simulation.
+    """
+
+    global saved_panel
+
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'TOOLS'
+
+    def _draw_previous_run_buttons(self, context):
+        """Function that draws the individual rows of previous
+         simulations.
+        """
+
+        layout = self.layout
+        for _previousRun in self.sim_runs:
+            row = layout.row(align = True)
+            row.alignment = 'EXPAND'
+            row.operator("bodysim.load_simulation", text = _previousRun).simulation_name = _previousRun
+            row.operator("bodysim.remove", text = "Remove").simulation_name = _previousRun
+            row.operator("bodysim.transfer", text = "Move to batch").transfer_to_batch = True
+
+    saved_panel = type("SimulationSavedSelectPanel", (bpy.types.Panel,),{
+        "bl_label": "Batch",
+        "bl_space_type": bl_space_type,
+        "bl_region_type": bl_region_type,
+        "sim_runs": list_of_simulations,
+        "draw": _draw_previous_run_buttons},)
+
+    bpy.utils.register_class(saved_panel)
 
 class SimTools(bpy.types.Panel):
     """Panel that allows user to save and load sessions, run
@@ -659,8 +702,7 @@ class SimTools(bpy.types.Panel):
         self.layout.operator("bodysim.run_sim", text = "Run Simulation").batch_mode=False
         self.layout.operator("bodysim.graph", text = "Graph Variables")
         self.layout.operator("bodysim.new_sim", text = "New Simulation")
-        self.layout.operator("bodysim.run_sim", text = "Add to batch").batch_mode=True
-        self.layout.operator("bodysim.run_selected", text = "Run Selected")
+        self.layout.operator("bodysim.run_sim", text = "Save Simulation").batch_mode=True
         self.layout.operator("bodysim.about_sim", text = "About this Simulation")
         model = context.scene.objects['model']
 
