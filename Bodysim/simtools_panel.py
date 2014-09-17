@@ -224,6 +224,11 @@ class RunSimulationOperator(bpy.types.Operator):
                 msg_type = "Error", message = 'No sensors were added.')
             return {'CANCELLED'}
 
+        if model['simulation_saved']:
+            bpy.ops.bodysim.simulation_execute('EXEC_DEFAULT',
+                                   simulation_state=Bodysim.file_operations.SimulationState.Saved)
+            return {'FINISHED'}
+
         # TODO Check if there are non-hidden extras:
         plugins =  Bodysim.plugins_info.plugins
         sim_dict = Bodysim.plugins_info.get_sensor_plugin_mapping()
@@ -390,6 +395,7 @@ class SimulationDialogOperator(bpy.types.Operator):
         global sim_list
         Bodysim.sim_params.start_frame = self.start_frame
         Bodysim.sim_params.end_frame = self.end_frame
+        Bodysim.sim_params.simulation_name = self.simulation_name
         simulation_ran = False
         model = context.scene.objects['model']
         scene = bpy.context.scene
@@ -415,26 +421,9 @@ class SimulationDialogOperator(bpy.types.Operator):
         if not check_frame_range(self.start_frame, self.end_frame, scene.frame_end):
             return {'CANCELLED'}
 
-        sim_list.append(self.simulation_name)
-        draw_previous_run_panel(sim_list)
-        os.mkdir(path)
-        os.mkdir(path + os.sep + 'Trajectory')
-        Bodysim.sim_params.trajectory_path = path + os.sep + 'Trajectory'
-        sensor_dict = context.scene.objects['model']['sensor_info']
-
-        Bodysim.file_operations.write_simulation_xml(self.simulation_name,
-                                                     sensor_dict,
-                                                     path,
-                                                     session_path,
-                                                     Bodysim.file_operations.SimulationState.Ran)
-
-        bpy.ops.bodysim.track_sensors('EXEC_DEFAULT', frame_start=self.start_frame,
-                                      frame_end=self.end_frame, path=path)
-        simulation_ran = True
-        Bodysim.sensor_addition.editing = False
-        model['simulation_saved'] = True
-        Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._drawAddSensorFirstPage)
-        Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], True)
+        bpy.ops.bodysim.simulation_execute('EXEC_DEFAULT',
+                                           simulation_state=Bodysim.file_operations.SimulationState.Ran,
+                                           simulation_name=self.simulation_name)
 
         return {'FINISHED'}
 
@@ -442,6 +431,55 @@ class SimulationDialogOperator(bpy.types.Operator):
         model = context.scene.objects['model']
         self.simulation_name = "simulation_" + str(len(sim_list))
         return context.window_manager.invoke_props_dialog(self)
+
+class SimulationExecuteOperator(bpy.types.Operator):
+    """Operator that executes simulation based on values in sim_params."""
+    # Only deal with saved sims or sims that will be directly ran.
+    bl_idname = "bodysim.simulation_execute"
+    bl_label = "Executes the simulation."
+
+    simulation_state = bpy.props.IntProperty()
+
+    def execute(self, context):
+        global sim_list
+        global saved_list
+        model = context.scene.objects['model']
+        simulation_name = Bodysim.sim_params.simulation_name
+        path = model['current_simulation_path']
+        session_path = model['session_path']
+        sim_list.append(simulation_name)
+        draw_previous_run_panel(sim_list)
+        sensor_dict = model['sensor_info']
+
+        if self.simulation_state == Bodysim.file_operations.SimulationState.Saved:
+            saved_list.remove(simulation_name)
+            draw_saved_panel(saved_list)
+            Bodysim.file_operations.update_simulation_state(model['session_path'],
+                                                            simulation_name,
+                                                            Bodysim.file_operations.SimulationState.Ran)
+
+        else:
+            os.mkdir(path)
+            Bodysim.file_operations.write_simulation_xml(simulation_name,
+                                                         sensor_dict,
+                                                         path,
+                                                         session_path,
+                                                         self.simulation_state)
+
+        os.mkdir(path + os.sep + 'Trajectory')
+        Bodysim.sim_params.trajectory_path = path + os.sep + 'Trajectory'
+
+        bpy.ops.bodysim.track_sensors('EXEC_DEFAULT',
+                                      frame_start=int(Bodysim.sim_params.start_frame),
+                                      frame_end=int(Bodysim.sim_params.end_frame),
+                                      path=path)
+        simulation_ran = True
+        Bodysim.sensor_addition.editing = False
+        model['simulation_saved'] = True
+        Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._drawAddSensorFirstPage)
+        Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], True)
+        return {'FINISHED'}
+
 
 def check_frame_range(user_start, user_end, scene_end):
     """ Returns True if the frame range is valid. """

@@ -2,6 +2,7 @@
 
 import os
 dbl_quotes = '"'
+simulation_name = ""
 start_frame = 1
 end_frame = 100
 # TODO Set this somewhere else.

@@ -241,6 +241,7 @@ def populate_sim_params(simulation_name):
         is_saved = (simulation.attrib['in_batch'] == str(SimulationState.Saved) or
                     simulation.attrib['in_batch'] == str(SimulationState.Batched))
         if simulation.find('name').text == simulation_name:
+            Bodysim.sim_params.simulation_name = simulation_name
             Bodysim.sim_params.start_frame = simulation.attrib["frame_start"]
             Bodysim.sim_params.end_frame = simulation.attrib["frame_end"]
             for extra_plugin in simulation.iter('extras'):
