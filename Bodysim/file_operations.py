@@ -45,7 +45,7 @@ def write_simulation_xml(name, sensor_dict, sim_path, session_path, sim_state):
     global session_element
 
     curr_simulation_element = Element('simulation',
-                                      {'in_batch': sim_state,
+                                      {'in_batch': str(sim_state),
                                        'frame_start': str(Bodysim.sim_params.start_frame),
                                        'frame_end': str(Bodysim.sim_params.end_frame)})
     curr_simulation_name_element = Element('name')
@@ -270,6 +270,18 @@ def remove_simulation(session_path, simulation_name):
     shutil.rmtree(session_path + os.sep + simulation_name)
 
     return deleted_state
+
+def update_simulation_state(session_path, simulation_name, new_state):
+    """Updates the state of the simulation."""
+    tree = ET().parse(session_path + '.xml')
+    for simulation in tree.findall('simulation'):
+        if (simulation.find('name').text == simulation_name):
+            simulation.attrib['in_batch'] = str(new_state)
+
+    indent(tree)
+
+    with open(session_path + '.xml', 'wb') as f:
+        f.write(tostring(tree))
 
 def write_results(data, sensor_objects, sim_path):
     """Writes simulation results to csv file."""

@@ -97,7 +97,7 @@ class ReadFileInterface(bpy.types.Operator):
         draw_batch_panel(batch_list)
         saved_list = Bodysim.file_operations.read_session_file(self.filepath,
                                                                Bodysim.file_operations.SimulationState.Saved)
-        draw_batch_panel(saved_list)
+        draw_saved_panel(saved_list)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -119,8 +119,8 @@ class NewSimulationOperator(bpy.types.Operator):
         if 'simulation_saved' not in model:
             model['simulation_saved'] = False
 
-        if 'sensor_info' in model:
-            if model['sensor_info'] and not model['simulation_saved']:
+        if 'sensor_info' in model and model['sensor_info']:
+            if not model['simulation_saved']:
                 bpy.ops.bodysim.not_ran_sim_dialog('INVOKE_DEFAULT')
             else:
                 # Ask user if he/she wants to make a new blank sim
@@ -267,17 +267,16 @@ class RunSimulationOperator(bpy.types.Operator):
 
             extras_list = []
             execute_fn = _execute
+
+            if first:
+                execute_fn = _executeFirst if not self.batch_mode else _executeFirstBatch
+                first = False
+
             dialog_dict = {"bl_label": "Extras for " + plugin,
                "execute": execute_fn,
                "invoke": _invoke,
                "extras_list": extras_list,
                "plugin": plugin}
-
-            if first:
-                execute_fn = _executeFirst if not self.batch_mode else _executeFirstBatch
-
-            if first:
-                first = False
 
             extras_dict = Bodysim.sim_params.extras_values[plugin]
             for extra in extras_dict:
@@ -581,13 +580,32 @@ class TransferSimOperator(bpy.types.Operator):
     bl_label = "Moves simulations to and from batch."
 
     transfer_to_batch = bpy.props.BoolProperty()
+    simulation_name = bpy.props.StringProperty()
 
     def execute(self, context):
+        global batch_list
+        global saved_list
         bl_space_type = 'VIEW_3D'
         bl_region_type = 'TOOLS'
 
         # TODO Need to modify the XML files here as well to save state.
-        # Need to check if the user has been editing a sim...
+        # Need to check if the user has been editing a sim (or has opened this one)...
+        new_simulation_state = Bodysim.file_operations.SimulationState.Saved
+        if self.transfer_to_batch:
+            new_simulation_state = Bodysim.file_operations.SimulationState.Batched
+            saved_list.remove(self.simulation_name)
+            batch_list.append(self.simulation_name)
+        else:
+            batch_list.remove(self.simulation_name)
+            saved_list.append(self.simulation_name)
+
+        draw_batch_panel(batch_list)
+        draw_saved_panel(saved_list)
+        model = context.scene.objects['model']
+        Bodysim.file_operations.update_simulation_state(model['session_path'],
+                                                        self.simulation_name,
+                                                        new_simulation_state)
+
         return {'FINISHED'}
 
 def draw_previous_run_panel(list_of_simulations):
@@ -614,7 +632,7 @@ def draw_previous_run_panel(list_of_simulations):
             row.operator("bodysim.delete_simulation", text = "Delete").simulation_name = _previousRun
 
     panel = type("SimulationSelectPanel", (bpy.types.Panel,),{
-        "bl_label": "Previous Simulations",
+        "bl_label": "Previously Ran Simulations",
         "bl_space_type": bl_space_type,
         "bl_region_type": bl_region_type,
         "sim_runs": list_of_simulations,
@@ -643,6 +661,9 @@ def draw_batch_panel(list_of_simulations):
             row.alignment = 'EXPAND'
             row.operator("bodysim.load_simulation", text = _previousRun).simulation_name = _previousRun
             row.operator("bodysim.delete_simulation", text = "Remove").simulation_name = _previousRun
+            transfer_prop = row.operator("bodysim.transfer", text = "Remove from batch")
+            transfer_prop.transfer_to_batch = False
+            transfer_prop.simulation_name = _previousRun
 
     batch_panel = type("SimulationBatchSelectPanel", (bpy.types.Panel,),{
         "bl_label": "Batch",
@@ -674,11 +695,14 @@ def draw_saved_panel(list_of_simulations):
             row = layout.row(align = True)
             row.alignment = 'EXPAND'
             row.operator("bodysim.load_simulation", text = _previousRun).simulation_name = _previousRun
-            row.operator("bodysim.remove", text = "Remove").simulation_name = _previousRun
-            row.operator("bodysim.transfer", text = "Move to batch").transfer_to_batch = True
+            row.operator("bodysim.delete_simulation", text = "Remove").simulation_name = _previousRun
+            transfer_prop = row.operator("bodysim.transfer", text = "Move to batch")
+            transfer_prop.transfer_to_batch = True
+            transfer_prop.simulation_name = _previousRun
+
 
     saved_panel = type("SimulationSavedSelectPanel", (bpy.types.Panel,),{
-        "bl_label": "Batch",
+        "bl_label": "Saved Sims (Not Ran)",
         "bl_space_type": bl_space_type,
         "bl_region_type": bl_region_type,
         "sim_runs": list_of_simulations,
@@ -704,7 +728,7 @@ class SimTools(bpy.types.Panel):
         self.layout.operator("bodysim.new_sim", text = "New Simulation")
         self.layout.operator("bodysim.run_sim", text = "Save Simulation").batch_mode=True
         self.layout.operator("bodysim.about_sim", text = "About this Simulation")
-        model = context.scene.objects['model']
+
 
 if __name__ == "__main__":
     bpy.utils.register_module(__name__)
