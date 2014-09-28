@@ -20,6 +20,7 @@ class TrackSensorOperator(bpy.types.Operator):
     frame_start = bpy.props.IntProperty()
     frame_end = bpy.props.IntProperty()
     path = bpy.props.StringProperty()
+    calc_triangles = bpy.props.BoolProperty()
     sensor_objects = None
     trajectory_data = []
     # Stores triangle data in every frame so we don't write to disk every frame.
@@ -52,6 +53,74 @@ class TrackSensorOperator(bpy.types.Operator):
                 scene.frame_current, x, y, z, w, rx, ry, rz)
             self.trajectory_data[i].append(output)
 
+        if self.calc_triangles:
+            self.all_triangle_data.append(get_triangles())
+
+        if scene.frame_current == self.frame_end:
+            bpy.ops.screen.animation_cancel(restore_frame=True)
+            bpy.app.handlers.frame_change_pre.remove(self._stop)
+
+            if self.calc_triangles:
+                # Write triangle data to files.
+                for i in range(len(self.all_triangle_data)):
+                    with open(Bodysim.sim_params.triangles_path + os.sep + 'frame' + str(self.frame_start + i) + '.csv', 'w') as f:
+                        for triangle in self.all_triangle_data[i]:
+                            f.write(",".join([str(dim) for point in triangle for dim in point]) + '\n')
+
+            # Write trajectory and wireless channel data.
+            Bodysim.file_operations.write_results(self.trajectory_data,
+                                                  self.sensor_objects,
+                                                  self.path + os.sep + 'Trajectory')
+
+            # Run the external simulators once all results have been written.
+            Bodysim.file_operations.execute_simulators(scene.objects['model']['current_simulation_path'], not self.calc_triangles)
+            return {'FINISHED'}
+
+        return {'PASS_THROUGH'}
+
+    def execute(self, context):
+        self.sensor_objects = populate_sensor_list(context)
+        self.trajectory_data = []
+        for i in range(len(self.sensor_objects)):
+            self.trajectory_data.append([])
+            self.trajectory_data[i].append("frame,x,y,z,w,rx,ry,rz\n")
+
+        # Remove all existing triangle data in triangles_path
+        if self.calc_triangles:
+            # In blender, the z - "dimension" is strangely at index 1, not 2;
+            # The matrix world z is at index 2...
+            Bodysim.sim_params.height = max(bpy.data.objects["model"].dimensions)
+            Bodysim.sim_params.triangle_count = len(get_triangles())
+            if os.path.exists(Bodysim.sim_params.triangles_path):
+                shutil.rmtree(Bodysim.sim_params.triangles_path)
+
+            os.mkdir(Bodysim.sim_params.triangles_path)
+
+        # Blender can only stop the animation via a frame event handler...
+        bpy.context.scene.frame_set(self.frame_start)
+        bpy.app.handlers.frame_change_pre.append(self._stop)
+        bpy.ops.screen.animation_play()
+
+        return {'RUNNING_MODAL'}
+
+class GenerateAllTrianglesOperator(bpy.types.Operator):
+    """Generates location of all the triangles of the body for each frame. """
+
+    bl_idname = "bodysim.generate_triangles_and_batch"
+    bl_label = "Track Sensors"
+
+    frame_start = bpy.props.IntProperty()
+    frame_end = bpy.props.IntProperty()
+    # Stores triangle data in every frame so we don't write to disk every frame.
+    all_triangle_data = []
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def _stop(self, context):
+        scene = bpy.context.scene
+
         self.all_triangle_data.append(get_triangles())
 
         if scene.frame_current == self.frame_end:
@@ -60,18 +129,14 @@ class TrackSensorOperator(bpy.types.Operator):
 
             # Write triangle data to files.
             for i in range(len(self.all_triangle_data)):
-                with open(Bodysim.sim_params.triangles_path + os.sep + 'frame' + str(i + 1) + '.csv', 'w') as f:
+                with open(Bodysim.sim_params.triangles_path + os.sep + 'frame' + str(self.frame_start + i) + '.csv', 'w') as f:
                     for triangle in self.all_triangle_data[i]:
                         f.write(",".join([str(dim) for point in triangle for dim in point]) + '\n')
 
-            # Write trajectory and wireless channel data.
-            Bodysim.file_operations.write_results(self.trajectory_data,
-                                                  self.sensor_objects,
-                                                  self.path + os.sep + 'Trajectory')
-
-            # Run the external simulators once all results have been written.
-            Bodysim.file_operations.execute_simulators(scene.objects['model']['current_simulation_path'])
-            return {'CANCELLED'}
+            # Go back to running the batch
+            Bodysim.sim_params.all_frames_recorded = True
+            bpy.ops.bodysim.run_batch('EXEC_DEFAULT')
+            return {'FINISHED'}
 
         return {'PASS_THROUGH'}
 
@@ -81,11 +146,6 @@ class TrackSensorOperator(bpy.types.Operator):
         Bodysim.sim_params.height = max(bpy.data.objects["model"].dimensions)
         Bodysim.sim_params.triangle_count = len(get_triangles())
 
-        self.sensor_objects = populate_sensor_list(context)
-        for i in range(len(self.sensor_objects)):
-            self.trajectory_data.append([])
-            self.trajectory_data[i].append("frame,x,y,z,w,rx,ry,rz\n")
-
         # Remove all existing triangle data in triangles_path
         if os.path.exists(Bodysim.sim_params.triangles_path):
             shutil.rmtree(Bodysim.sim_params.triangles_path)
@@ -93,12 +153,11 @@ class TrackSensorOperator(bpy.types.Operator):
         os.mkdir(Bodysim.sim_params.triangles_path)
 
         # Blender can only stop the animation via a frame event handler...
-        bpy.app.handlers.frame_change_pre.append(self._stop)
         bpy.context.scene.frame_set(self.frame_start)
+        bpy.app.handlers.frame_change_pre.append(self._stop)
         bpy.ops.screen.animation_play()
 
         return {'RUNNING_MODAL'}
-
 
 def populate_sensor_list(context):
     """Get all the sensors in the scene."""

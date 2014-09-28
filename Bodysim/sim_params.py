@@ -1,6 +1,10 @@
 """Holds simulation parameters for use with external plugins."""
 
 import os
+# This is set when a single sim from a batch has been run so we do not keep
+# generating triangles for future runs. Must be reset everytime a new 
+# model is loaded!
+all_frames_recorded = False
 dbl_quotes = '"'
 simulation_name = ""
 start_frame = 1

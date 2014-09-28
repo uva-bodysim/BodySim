@@ -107,7 +107,7 @@ def update_session_file(session_element, session_path):
         indent(session_element)
         f.write(tostring(session_element))
 
-def execute_simulators(current_sim_path):
+def execute_simulators(current_sim_path, batched_mode):
     """Run simulators depending sensor and variables selected."""
 
     plugins = Bodysim.plugins_info.plugins
@@ -165,9 +165,11 @@ def execute_simulators(current_sim_path):
                                         message = 'An external simulation encountered an error.')
                 return
 
-
-    bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Sucess!",
-                            message = 'All simulations finished.')
+    if batched_mode:
+        bpy.ops.bodysim.run_batch('EXEC_DEFAULT')
+    else:
+        bpy.ops.bodysim.message('INVOKE_DEFAULT', msg_type = "Sucess!",
+                                message = 'All simulations finished.')
 
 def read_session_file(path, simulation_state):
     """Reads the session file to get a list of simulations."""

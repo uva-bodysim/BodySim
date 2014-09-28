@@ -1,6 +1,5 @@
-"""Generates the Sim Tools panel to allow saving and loading of a
- session, graphing of variables, creation of new simulations, and
- keeping track of past simulations.
+"""Generates the Sim Tools panel to allow graphing of variables,
+  creation of new simulations, and keeping track of past simulations.
 """
 import bpy
 import os
@@ -211,7 +210,7 @@ class RunSimulationOperator(bpy.types.Operator):
     bl_idname = "bodysim.run_sim"
     bl_label = "Run Simulation"
 
-    batch_mode = bpy.props.BoolProperty()
+    save_only = bpy.props.BoolProperty()
 
     @classmethod
     def poll(cls, context):
@@ -274,7 +273,7 @@ class RunSimulationOperator(bpy.types.Operator):
             execute_fn = _execute
 
             if first:
-                execute_fn = _executeFirst if not self.batch_mode else _executeFirstBatch
+                execute_fn = _executeFirst if not self.save_only else _executeFirstBatch
                 first = False
 
             dialog_dict = {"bl_label": "Extras for " + plugin,
@@ -422,8 +421,7 @@ class SimulationDialogOperator(bpy.types.Operator):
             return {'CANCELLED'}
 
         bpy.ops.bodysim.simulation_execute('EXEC_DEFAULT',
-                                           simulation_state=Bodysim.file_operations.SimulationState.Ran,
-                                           simulation_name=self.simulation_name)
+                                           simulation_state=Bodysim.file_operations.SimulationState.Ran)
 
         return {'FINISHED'}
 
@@ -443,6 +441,7 @@ class SimulationExecuteOperator(bpy.types.Operator):
     def execute(self, context):
         global sim_list
         global saved_list
+        global batch_list
         model = context.scene.objects['model']
         simulation_name = Bodysim.sim_params.simulation_name
         path = model['current_simulation_path']
@@ -451,9 +450,15 @@ class SimulationExecuteOperator(bpy.types.Operator):
         draw_previous_run_panel(sim_list)
         sensor_dict = model['sensor_info']
 
-        if self.simulation_state == Bodysim.file_operations.SimulationState.Saved:
-            saved_list.remove(simulation_name)
-            draw_saved_panel(saved_list)
+        if (self.simulation_state == Bodysim.file_operations.SimulationState.Saved or
+           self.simulation_state == Bodysim.file_operations.SimulationState.Batched):
+            if(self.simulation_state == Bodysim.file_operations.SimulationState.Saved):
+                saved_list.remove(simulation_name)
+                draw_saved_panel(saved_list)
+            else:
+                batch_list.remove(simulation_name)
+                draw_batch_panel(batch_list)
+
             Bodysim.file_operations.update_simulation_state(model['session_path'],
                                                             simulation_name,
                                                             Bodysim.file_operations.SimulationState.Ran)
@@ -472,7 +477,8 @@ class SimulationExecuteOperator(bpy.types.Operator):
         bpy.ops.bodysim.track_sensors('EXEC_DEFAULT',
                                       frame_start=int(Bodysim.sim_params.start_frame),
                                       frame_end=int(Bodysim.sim_params.end_frame),
-                                      path=path)
+                                      path=path,
+                                      calc_triangles=(self.simulation_state != Bodysim.file_operations.SimulationState.Batched))
         simulation_ran = True
         Bodysim.sensor_addition.editing = False
         model['simulation_saved'] = True
@@ -517,6 +523,9 @@ class LoadSimulationOperator(bpy.types.Operator):
         sensor_xml_path = model['session_path'] + os.sep + self.simulation_name + os.sep + 'sensors.xml'
         model['current_simulation_path'] = model['session_path'] + os.sep + self.simulation_name
         sensor_map = Bodysim.file_operations.load_simulation(sensor_xml_path)
+
+        if 'sensor_info' in model:
+            model['sensor_info'] = {}
 
         for sensor_location in sensor_map:
             model['sensor_info'][sensor_location] = (sensor_map[sensor_location]['name'],
@@ -606,9 +615,27 @@ class RunBatchOperator(bpy.types.Operator):
     bl_label = "Runs every simulation in the batch."
 
     def execute(self, context):
+        global batch_list
+        global sim_list
         bl_space_type = 'VIEW_3D'
         bl_region_type = 'TOOLS'
-        # TODO Run all the simulations in the batch.
+
+        # TODO Close all open sims before running, i.e. flush panels.
+        # We only need to calculate the triangles in the first run.
+        scene = bpy.context.scene
+        # This is not blocking!
+        if not Bodysim.sim_params.all_frames_recorded:
+            bpy.ops.bodysim.generate_triangles_and_batch('EXEC_DEFAULT', frame_start=1, frame_end=scene.frame_end)
+            return {'FINISHED'}
+
+
+        if batch_list:
+            print(batch_list[0])
+            bpy.ops.bodysim.load_simulation('EXEC_DEFAULT', simulation_name=batch_list[0])
+            # This is not blocking.
+            bpy.ops.bodysim.simulation_execute('EXEC_DEFAULT',
+                                        simulation_state=Bodysim.file_operations.SimulationState.Batched)
+
         return {'FINISHED'}
 
 class TransferSimOperator(bpy.types.Operator):
@@ -761,10 +788,11 @@ class SimTools(bpy.types.Panel):
         self.layout.operator("bodysim.save_session_to_file", text = "Save Session")
         self.layout.operator("bodysim.read_from_file", text = "Load Session")
         self.layout.operator("bodysim.dry_run", text = "Dry Run")
-        self.layout.operator("bodysim.run_sim", text = "Run Simulation").batch_mode=False
+        self.layout.operator("bodysim.run_sim", text = "Run Simulation").save_only=False
         self.layout.operator("bodysim.graph", text = "Graph Variables")
         self.layout.operator("bodysim.new_sim", text = "New Simulation")
-        self.layout.operator("bodysim.run_sim", text = "Save Simulation").batch_mode=True
+        self.layout.operator("bodysim.run_sim", text = "Save Simulation").save_only=True
+        self.layout.operator("bodysim.run_batch", text = "Run Batch")
         self.layout.operator("bodysim.about_sim", text = "About this Simulation")
 
 
