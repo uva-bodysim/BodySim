@@ -57,7 +57,6 @@ def draw_sensor_list_panel(sensor_dict, read_only):
             row.operator("bodysim.graph_select", text = "Graph Selection").part = sensor
             row.operator("bodysim.locate_body_part", text = sensor).part = sensor
 
-    global current_sensor_panel
     if sensor_dict:
         current_sensor_panel = type("CurrentSensorsPanel", (bpy.types.Panel,),{
             "bl_label": bl_label,
@@ -68,5 +67,6 @@ def draw_sensor_list_panel(sensor_dict, read_only):
         bpy.utils.register_class(current_sensor_panel)
 
     else:
+        bpy.utils.unregister_class(CurrentSensorsPanel)
         bpy.utils.register_class(CurrentSensorsPanel)
 

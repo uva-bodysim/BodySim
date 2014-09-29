@@ -9,6 +9,7 @@ _modules = [
     "sensor_operators",
     "simtools_panel",
     "trajectory_sim",
+    "session_tools"
 ]
 
 import bpy

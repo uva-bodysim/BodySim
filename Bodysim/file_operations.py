@@ -192,23 +192,13 @@ def set_session_element(path):
     global session_element
     session_element = Element('session', {'directory' : path})
 
-def save_session_to_file(temp_sim_ran, path):
-    """Saves the session file and creates the session directory.
-     Saves data in tmp folder if a simulation was ran without first saving the
-     session file.
-     When user saves, any data in tmp will be moved to the specifed location.
-    """
+def save_session_to_file(path):
+    """Saves the session file and creates the session directory."""
 
     global session_element
 
-    if temp_sim_ran:
-        session_element.set('directory', path.split(os.sep)[-1][:-4])
-        os.remove(bodysim_conf_path + os.sep + 'tmp.xml')
-        shutil.move(bodysim_conf_path + os.sep + 'tmp', path[:-4])
-    else:
-        set_session_element(path.split(os.sep)[-1][:-4])
-        os.mkdir(path[:-4])
-
+    set_session_element(path.split(os.sep)[-1][:-4])
+    os.mkdir(path[:-4])
     update_session_file(session_element, path[:-4])
 
 def load_simulation(sensor_xml_path):

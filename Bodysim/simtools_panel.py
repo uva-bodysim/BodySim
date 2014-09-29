@@ -3,7 +3,6 @@
 """
 import bpy
 import os
-import time
 try:
     import Bodysim.file_operations
     import Bodysim.vertex_operations
@@ -19,7 +18,6 @@ simulation_ran = False
 # change this when a sensor is added. Ugly circular dependency
 # betw. sensor_addition and simtools_panel.
 # model['simulation_saved'] = False
-temp_sim_ran = False
 sim_list = []
 batch_list = []
 saved_list = []
@@ -27,81 +25,6 @@ batch_panel = None
 running_sims_panel = None
 saved_panel = None
 
-class WriteSessionToFileInterface(bpy.types.Operator):
-    """Operator that first validates the name of the session to save
-     and then saves the session file.
-    """
-
-    bl_idname = "bodysim.save_session_to_file"
-    bl_label = "Save to file"
-
-    filepath = bpy.props.StringProperty(subtype="FILE_PATH")
-
-    @classmethod
-    def poll(cls, context):
-        return context.object is not None
-
-    def execute(self, context):
-
-        if not self.filepath[-4:] == '.xml':
-            bpy.ops.bodysim.message('INVOKE_DEFAULT',
-             msg_type = "Error", message = 'The session file must be saved with an xml extension.')
-            return {'FINISHED'}
-
-        if os.path.exists(self.filepath):
-            bpy.ops.bodysim.error_message('INVOKE_DEFAULT',
-             msg_type = "Error", message = 'A folder already exists with the desired session name.')
-            return {'FINISHED'}            
-
-        model = context.scene.objects['model']
-        model['session_path'] = self.filepath[:-4]
-
-        # Handle the case when simulations have been run before a session is saved.
-        Bodysim.file_operations.save_session_to_file(temp_sim_ran, self.filepath)
-        
-        return {'FINISHED'}
-
-    def invoke(self, context, event):
-        context.window_manager.fileselect_add(self)
-        self.filepath = 'session' + time.strftime('-%Y%m%d%H%M%S') + '.xml'
-        return {'RUNNING_MODAL'}
-
-class ReadFileInterface(bpy.types.Operator):
-    """Operator that launches interface to load a saved session
-     file.
-    """
-
-    bl_idname = "bodysim.read_from_file"
-    bl_label = "Read from file"
-
-    filepath = bpy.props.StringProperty(subtype="FILE_PATH")
-
-    @classmethod
-    def poll(cls, context):
-        return context.object is not None
-
-    def execute(self, context):
-        global sim_list
-        global batch_list
-        global saved_list
-
-        model = context.scene.objects['model']
-        model['sensor_info'] = {}
-        model['session_path'] = self.filepath[:-4]
-        sim_list = Bodysim.file_operations.read_session_file(self.filepath,
-                                                             Bodysim.file_operations.SimulationState.Ran)
-        draw_previous_run_panel(sim_list)
-        batch_list = Bodysim.file_operations.read_session_file(self.filepath,
-                                                               Bodysim.file_operations.SimulationState.Batched)
-        draw_batch_panel(batch_list)
-        saved_list = Bodysim.file_operations.read_session_file(self.filepath,
-                                                               Bodysim.file_operations.SimulationState.Saved)
-        draw_saved_panel(saved_list)
-        return {'FINISHED'}
-
-    def invoke(self, context, event):
-        context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
 
 class NewSimulationOperator(bpy.types.Operator):
     """Operator that clears all existing sensors to allow user to
@@ -127,9 +50,9 @@ class NewSimulationOperator(bpy.types.Operator):
                 # TODO: Need to make sure this sim is saved first
                 # If user wants to make a copy of this sim.
                 def _execute(self, context):
+                    simulation_ran = False
+                    model['simulation_saved'] = False
                     if not self.template:
-                        simulation_ran = False
-                        model['simulation_saved'] = False
                         bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
                     return {'FINISHED'}
 
@@ -152,6 +75,7 @@ class NewSimulationOperator(bpy.types.Operator):
 
         Bodysim.sensor_addition.editing = True
         Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._drawAddSensorFirstPage)
+        Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], False)
         return {'FINISHED'}
 
 class NotRanSimDialogOperator(bpy.types.Operator):
@@ -333,7 +257,6 @@ class BatchDialogOperator(bpy.types.Operator):
             session_path = Bodysim.file_operations.bodysim_conf_path + os.sep + 'tmp'
             os.mkdir(Bodysim.file_operations.bodysim_conf_path + os.sep + 'tmp')
             Bodysim.file_operations.set_session_element(session_path)
-            temp_sim_ran = True
         else:
             session_path =  model['session_path']
 
@@ -390,7 +313,6 @@ class SimulationDialogOperator(bpy.types.Operator):
 
     def execute(self, context):
         global simulation_ran
-        global temp_sim_ran
         global sim_list
         Bodysim.sim_params.start_frame = self.start_frame
         Bodysim.sim_params.end_frame = self.end_frame
@@ -399,13 +321,7 @@ class SimulationDialogOperator(bpy.types.Operator):
         model = context.scene.objects['model']
         scene = bpy.context.scene
 
-        if 'session_path' not in model:
-            session_path = Bodysim.file_operations.bodysim_conf_path + os.sep + 'tmp'
-            os.mkdir(Bodysim.file_operations.bodysim_conf_path + os.sep + 'tmp')
-            Bodysim.file_operations.set_session_element(session_path)
-            temp_sim_ran = True
-        else:
-            session_path =  model['session_path']
+        session_path =  model['session_path']
 
         path = session_path + os.sep + self.simulation_name
         model['current_simulation_path'] = path
@@ -620,6 +536,12 @@ class RunBatchOperator(bpy.types.Operator):
         bl_space_type = 'VIEW_3D'
         bl_region_type = 'TOOLS'
 
+        if not batch_list:
+            bpy.ops.bodysim.message('INVOKE_DEFAULT',
+             msg_type = "Notification", message = 'Batch done.')
+            return {'FINISHED'}
+
+
         # TODO Close all open sims before running, i.e. flush panels.
         # We only need to calculate the triangles in the first run.
         scene = bpy.context.scene
@@ -628,9 +550,7 @@ class RunBatchOperator(bpy.types.Operator):
             bpy.ops.bodysim.generate_triangles_and_batch('EXEC_DEFAULT', frame_start=1, frame_end=scene.frame_end)
             return {'FINISHED'}
 
-
         if batch_list:
-            print(batch_list[0])
             bpy.ops.bodysim.load_simulation('EXEC_DEFAULT', simulation_name=batch_list[0])
             # This is not blocking.
             bpy.ops.bodysim.simulation_execute('EXEC_DEFAULT',
@@ -775,18 +695,12 @@ def draw_saved_panel(list_of_simulations):
 
     bpy.utils.register_class(saved_panel)
 
-class SimTools(bpy.types.Panel):
-    """Panel that allows user to save and load sessions, run
-     simulations, and graph variables.
-    """
-
+def drawSimToolsPanel():
     bl_label = "Sim Tools"
     bl_space_type = "VIEW_3D"
     bl_region_type = "TOOLS"
- 
-    def draw(self, context):
-        self.layout.operator("bodysim.save_session_to_file", text = "Save Session")
-        self.layout.operator("bodysim.read_from_file", text = "Load Session")
+
+    def _draw(self, context):
         self.layout.operator("bodysim.dry_run", text = "Dry Run")
         self.layout.operator("bodysim.run_sim", text = "Run Simulation").save_only=False
         self.layout.operator("bodysim.graph", text = "Graph Variables")
@@ -794,6 +708,14 @@ class SimTools(bpy.types.Panel):
         self.layout.operator("bodysim.run_sim", text = "Save Simulation").save_only=True
         self.layout.operator("bodysim.run_batch", text = "Run Batch")
         self.layout.operator("bodysim.about_sim", text = "About this Simulation")
+
+    sim_tools_panel = type("SimTools", (bpy.types.Panel,),{
+        "bl_label" : bl_label,
+        "bl_space_type" : bl_space_type,
+        "bl_region_type": bl_region_type,
+        "draw" : _draw},)
+
+    bpy.utils.register_class(sim_tools_panel)
 
 
 if __name__ == "__main__":
