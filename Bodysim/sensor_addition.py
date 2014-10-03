@@ -201,7 +201,7 @@ class BodySim_CANCEL_ADD_SENSOR(bpy.types.Operator):
             return {'FINISHED'}
 
         if 'sensor_info' in model:
-            Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'])
+            Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], False)
 
         return {'FINISHED'}
 

@@ -21,7 +21,10 @@ class CurrentSensorsPanel(bpy.types.Panel):
     bl_region_type = 'UI'
     bl_context = "objectmode"
 
+    global current_sensor_panel
+
     def draw(self, context):
+        current_sensor_panel = self
         layout = self.layout
         layout.label("No sensors yet.")
 
@@ -32,6 +35,8 @@ def draw_sensor_list_panel(sensor_dict, read_only):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_context = "objectmode"
+
+    global current_sensor_panel
 
     def _draw_single_sensor_buttons(self, context):
         """Draws the individual entries for each simulation.
