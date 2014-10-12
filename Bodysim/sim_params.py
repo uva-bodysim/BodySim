@@ -34,7 +34,7 @@ def get_params(param, sensor_name, plugin=None):
         path = trajectory_path + os.sep
         path = path.replace('\\', r'\\')
         if sensor_name is not None:
-            path = path + 'sensor_' + sensor_name + '.csv'
+            path = path + sensor_name + '.csv'
         return dbl_quotes + path + dbl_quotes
     elif param == "triangles":
         path = triangles_path.replace('\\', r'\\')

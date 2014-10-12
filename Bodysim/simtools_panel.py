@@ -154,7 +154,7 @@ class RunSimulationOperator(bpy.types.Operator):
 
         # TODO Check if there are non-hidden extras:
         plugins =  Bodysim.plugins_info.plugins
-        sim_dict = Bodysim.plugins_info.get_sensor_plugin_mapping()
+        sim_dict = Bodysim.plugins_info.get_sensor_plugin_mapping()[0]
         for sensor in sim_dict:
             for plugin in sim_dict[sensor]:
                 if plugins[plugin]["extras"]:

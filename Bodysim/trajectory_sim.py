@@ -35,14 +35,14 @@ class TrackSensorOperator(bpy.types.Operator):
         for i in range(len(self.sensor_objects)):
             # World space coordinates
             translation_vector = self.sensor_objects[
-                i].matrix_world.to_translation()
+                i][0].matrix_world.to_translation()
             x = translation_vector[0]
             y = translation_vector[1]
             z = translation_vector[2]
 
             # Rotation
             rotation_vector = self.sensor_objects[
-                i].matrix_world.to_quaternion()
+                i][0].matrix_world.to_quaternion()
             w = rotation_vector[0]
             rx = rotation_vector[1]
             ry = rotation_vector[2]
@@ -164,8 +164,9 @@ def populate_sensor_list(context):
 
     print(bpy.data.objects)
     sensor_objects = []
-    for i in context.scene.objects['model']['sensor_info']:
-        sensor_objects.append(bpy.data.objects['sensor_' + i])
+    model = context.scene.objects['model']
+    for i in model['sensor_info']:
+        sensor_objects.append((bpy.data.objects['sensor_' + i], model['sensor_info'][i][0]))
     return sensor_objects
 
 def get_triangles():

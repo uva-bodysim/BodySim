@@ -74,7 +74,7 @@ def write_simulation_xml(name, sensor_dict, sim_path, session_path, sim_state):
         curr_sensor_color_element.text = color_and_name[1]
 
         # Add information about plugins
-        sim_dict = Bodysim.plugins_info.get_sensor_plugin_mapping()
+        sim_dict = Bodysim.plugins_info.get_sensor_plugin_mapping()[0]
         if len(sim_dict[location]) > NUMBER_OF_BASE_PLUGINS:
             for plugin in sim_dict[location]:
                 if plugin == 'Trajectory':
@@ -113,7 +113,7 @@ def execute_simulators(current_sim_path, batched_mode):
     plugins = Bodysim.plugins_info.plugins
     # Use in case path has spaces
     dbl_quotes = '"'
-    sim_dict = Bodysim.plugins_info.get_sensor_plugin_mapping()
+    sim_dict, location_map = Bodysim.plugins_info.get_sensor_plugin_mapping()
     for sensor in sim_dict:
         if len(sim_dict[sensor]) > NUMBER_OF_BASE_PLUGINS:
             for simulator in sim_dict[sensor]:
@@ -124,11 +124,11 @@ def execute_simulators(current_sim_path, batched_mode):
                                + plugins[simulator]['file'] + dbl_quotes)
 
                     for requirement in plugins[simulator]['requirements']:
-                        command = command + ' ' + Bodysim.sim_params.get_params(requirement, sensor)
+                        command = command + ' ' + Bodysim.sim_params.get_params(requirement, location_map[sensor])
 
                     # Deal with extras
                     for extra in plugins[simulator]['extras']:
-                        command = command + ' ' + Bodysim.sim_params.get_params(extra, sensor, plugin)
+                        command = command + ' ' + Bodysim.sim_params.get_params(extra, location_map[sensor], plugin)
 
                     args = " ".join(sim_dict[sensor][simulator])
 
@@ -279,6 +279,6 @@ def update_simulation_state(session_path, simulation_name, new_state):
 def write_results(data, sensor_objects, sim_path):
     """Writes simulation results to csv file."""
     for i in range(len(sensor_objects)):
-        with open(sim_path + os.sep + sensor_objects[i].name + '.csv', 'w') as f:
+        with open(sim_path + os.sep + sensor_objects[i][1] + '.csv', 'w') as f:
             for output_line in data[i]:
                 f.write(output_line);

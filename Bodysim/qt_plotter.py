@@ -79,8 +79,7 @@ def plot_file(fps, base_dir, string_graph_map):
     # Find the length of the simulation by looking at trajectory results.
     start_frame = 1
     count = 0
-    with open(base_dir + os.sep + 'Trajectory' + os.sep + 'sensor_' +
-              graph_map.keys()[0] + '.csv') as f:
+    with open(base_dir + os.sep + 'Trajectory' + os.sep + graph_map.keys()[0] + '.csv') as f:
         iterF = iter(f)
         # Skip header
         next(iterF)
@@ -93,7 +92,7 @@ def plot_file(fps, base_dir, string_graph_map):
     for sensor in graph_map:
         layout_contents = frame.add_tab(sensor)
         for plugin in graph_map[sensor]:
-            data = get_data(base_dir + os.sep + plugin + os.sep +'sensor_' + sensor + '.csv')
+            data = get_data(base_dir + os.sep + plugin + os.sep + sensor + '.csv')
             for variable_group in graph_map[sensor][plugin]:
                 qfigWidget = QtGui.QWidget(layout_contents[1])
                 fig = Figure((5.0, 4.0), dpi=100)

@@ -64,16 +64,17 @@ class GraphOperator(bpy.types.Operator):
         curr_sim_path = model['current_simulation_path']
         plugins_tuple = Bodysim.plugins_info.plugins_tuple
         graph_var_map = {}
-        sim_dict = Bodysim.plugins_info.get_sensor_plugin_mapping()
-        for sensor in model['sensor_info']:
+        sim_dict = Bodysim.plugins_info.get_sensor_plugin_mapping()[0]
+        for  sensor in model['sensor_info']:
+            sensor_name = model['sensor_info'][sensor][0]
             for plugin in plugins_tuple[0]:
                 for variable in plugins_tuple[0][plugin]['variables']:
                     if getattr(context.scene.objects['sensor_' + sensor], 'GRAPH_' +  plugin + variable):
-                        if sensor not in graph_var_map:
-                            graph_var_map[sensor] = {}
+                        if sensor_name not in graph_var_map:
+                            graph_var_map[sensor_name] = {}
 
-                        if plugin not in graph_var_map[sensor]:
-                            graph_var_map[sensor][plugin] = {}
+                        if plugin not in graph_var_map[sensor_name]:
+                            graph_var_map[sensor_name][plugin] = {}
 
                         curr_var = plugin + variable
                         curr_pair = None
@@ -82,11 +83,11 @@ class GraphOperator(bpy.types.Operator):
                                 curr_pair = unit_pair
                                 break
 
-                        if curr_pair not in graph_var_map[sensor][plugin]:
-                            graph_var_map[sensor][plugin][curr_pair] = []
+                        if curr_pair not in graph_var_map[sensor_name][plugin]:
+                            graph_var_map[sensor_name][plugin][curr_pair] = []
 
                         # The first column of the log is reserved for the independent variable.
-                        graph_var_map[sensor][plugin][curr_pair].append((variable,
+                        graph_var_map[sensor_name][plugin][curr_pair].append((variable,
                                                                          sim_dict[sensor][plugin].index(variable) + 1))
 
         print(graph_var_map)
