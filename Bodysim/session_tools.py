@@ -3,6 +3,7 @@ import time
 import os
 import Bodysim.file_operations
 import Bodysim.simtools_panel
+import Bodysim.status_panel
 
 class WriteSessionToFileInterface(bpy.types.Operator):
     """Operator that first validates the name of the session to save
@@ -37,6 +38,7 @@ class WriteSessionToFileInterface(bpy.types.Operator):
         Bodysim.file_operations.save_session_to_file(self.filepath)
         model = context.scene.objects['model']
         model['sensor_info'] = {}
+        Bodysim.status_panel.draw_status_panel(session=model['session_path'])
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -75,6 +77,7 @@ class ReadFileInterface(bpy.types.Operator):
         Bodysim.simtools_panel.saved_list = Bodysim.file_operations.read_session_file(self.filepath,
                                                                                       Bodysim.file_operations.SimulationState.Saved)
         Bodysim.simtools_panel.draw_saved_panel(Bodysim.simtools_panel.saved_list)
+        Bodysim.status_panel.draw_status_panel(session=model['session_path'])
         return {'FINISHED'}
 
     def invoke(self, context, event):

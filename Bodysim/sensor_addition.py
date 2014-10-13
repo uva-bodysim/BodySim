@@ -234,6 +234,9 @@ class BodySim_FINALIZE(bpy.types.Operator):
         model['sensor_info'][model['current_vg']] = (self.sensorName , str(r) + ',' + str(g) + ',' + str(b))
         if 'last_bound_sensor' in model:
             del model['last_bound_sensor']
+
+        model = context.scene.objects['model']
+        model['simulation_saved'] = False
         redraw_addSensorPanel(_drawAddSensorFirstPage)
         Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], False)
         return {'FINISHED'}

@@ -1,4 +1,5 @@
 _modules = [
+    "status_panel",
     "sim_params",
     "plugins_info",
     "file_operations",
