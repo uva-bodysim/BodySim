@@ -5,6 +5,7 @@ from bpy.props import FloatVectorProperty, StringProperty
 import Bodysim.vertex_operations
 import Bodysim.current_sensors_panel
 import Bodysim.plugins_info
+import Bodysim.status_panel
 
 # List of vertices for a model.
 # Note that this must be cleared each time a new model is loaded (different
@@ -239,6 +240,8 @@ class BodySim_FINALIZE(bpy.types.Operator):
         model['simulation_saved'] = False
         redraw_addSensorPanel(_drawAddSensorFirstPage)
         Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], False)
+        Bodysim.status_panel.sim_saved = False
+        Bodysim.status_panel.draw_status_panel()
         return {'FINISHED'}
 
 def redraw_addSensorPanel(draw_function):

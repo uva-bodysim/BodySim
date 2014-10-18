@@ -38,7 +38,9 @@ class WriteSessionToFileInterface(bpy.types.Operator):
         Bodysim.file_operations.save_session_to_file(self.filepath)
         model = context.scene.objects['model']
         model['sensor_info'] = {}
-        Bodysim.status_panel.draw_status_panel(session=model['session_path'])
+        Bodysim.status_panel.reset_state()
+        Bodysim.status_panel.session = model['session_path']
+        Bodysim.status_panel.draw_status_panel()
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -77,7 +79,9 @@ class ReadFileInterface(bpy.types.Operator):
         Bodysim.simtools_panel.saved_list = Bodysim.file_operations.read_session_file(self.filepath,
                                                                                       Bodysim.file_operations.SimulationState.Saved)
         Bodysim.simtools_panel.draw_saved_panel(Bodysim.simtools_panel.saved_list)
-        Bodysim.status_panel.draw_status_panel(session=model['session_path'])
+        Bodysim.status_panel.reset_state()
+        Bodysim.status_panel.session = model['session_path']
+        Bodysim.status_panel.draw_status_panel()
         return {'FINISHED'}
 
     def invoke(self, context, event):

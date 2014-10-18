@@ -1,6 +1,12 @@
 import bpy
 
 current_status_panel = None
+session = "NONE"
+sim_loaded = False
+editing = True
+nameless = True
+sim_saved = False
+sim_name = "NONE"
 
 class CurrentStatusPanel(bpy.types.Panel):
     """Panel that displays the sensors of a given simulation."""
@@ -17,7 +23,15 @@ class CurrentStatusPanel(bpy.types.Panel):
         col_layout = self.layout.column()
         wrap(col_layout, "Load a session or create a new one.")
 
-def draw_status_panel(session="NONE"):
+def reset_state():
+    global sim_loaded, editing, nameless, sim_saved, sim_name
+    sim_loaded = False
+    editing = True
+    nameless = True
+    sim_saved = False
+    sim_name = "NONE"
+
+def draw_status_panel():
     bl_label = "Current Status"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
@@ -27,9 +41,37 @@ def draw_status_panel(session="NONE"):
 
     def _draw_status_panel(self, context):
         col_layout = self.layout.column()
-        text = "Loaded Session \n"
+        text = "Loaded Session: "
         text += session
+
         wrap(col_layout, text)
+        text=""
+        if sim_loaded:
+            if editing:
+                col_layout = self.layout.column()
+                text += "Current Simulation (Editable): "
+                if nameless:
+                    text += "nameless_sim."
+                    wrap(col_layout, text)
+                    col_layout = self.layout.column()
+                    text = ""
+                    text += "Either save or run the simulation to save simulation state."
+                    wrap(col_layout, text)
+                else:
+                    text += sim_name
+                    wrap(col_layout, text)
+                    col_layout = self.layout.column()
+                    text = ""
+                    if(sim_saved):
+                        text += "No changes made."
+                    else:
+                        text += "Changes have been made. Make sure to save simulation."
+                    wrap(col_layout, text)
+
+            else:
+                text += "Current Simulation (Readonly): "
+                text += sim_name
+                wrap(col_layout, text)
 
     current_status_panel = type("CurrentStatusPanel", (bpy.types.Panel,),{
         "bl_label": bl_label,

@@ -10,6 +10,7 @@ try:
     import Bodysim.sim_params
     import Bodysim.plugins_info
     import Bodysim.sensor_addition
+    import Bodysim.status_panel
 except ImportError:
     raise ImportError()
 sim_dict = {}
@@ -45,6 +46,14 @@ class NewSimulationOperator(bpy.types.Operator):
             if not model['simulation_saved']:
                 bpy.ops.bodysim.not_ran_sim_dialog('INVOKE_DEFAULT')
             else:
+                Bodysim.status_panel.nameless = True
+                Bodysim.status_panel.sim_loaded = True
+                Bodysim.status_panel.editing = True
+                Bodysim.status_panel.draw_status_panel()
+
+                Bodysim.sensor_addition.editing = True
+                Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._drawAddSensorFirstPage)
+                Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], False)
                 # Ask user if he/she wants to make a new blank sim
                 # Or make a new sim based on the currently loaded one
                 # TODO: Need to make sure this sim is saved first
@@ -72,10 +81,6 @@ class NewSimulationOperator(bpy.types.Operator):
                 bpy.utils.register_class(dialog_operator)
                 bpy.ops.copysim.dialog("INVOKE_DEFAULT")
 
-
-        Bodysim.sensor_addition.editing = True
-        Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._drawAddSensorFirstPage)
-        Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], False)
         return {'FINISHED'}
 
 class NotRanSimDialogOperator(bpy.types.Operator):
@@ -150,6 +155,8 @@ class RunSimulationOperator(bpy.types.Operator):
         if model['simulation_saved']:
             bpy.ops.bodysim.simulation_execute('EXEC_DEFAULT',
                                    simulation_state=Bodysim.file_operations.SimulationState.Saved)
+            Bodysim.status_panel.editing = False
+            Bodysim.status_panel.draw_status_panel()
             return {'FINISHED'}
 
         # TODO Check if there are non-hidden extras:
@@ -283,6 +290,11 @@ class BatchDialogOperator(bpy.types.Operator):
             saved_list.append(self.simulation_name)
             draw_saved_panel(saved_list)
 
+        Bodysim.status_panel.sim_saved = True
+        Bodysim.status_panel.sim_name = self.simulation_name
+        Bodysim.status_panel.nameless = False
+        Bodysim.status_panel.draw_status_panel()
+
         os.mkdir(path)
         sensor_dict = context.scene.objects['model']['sensor_info']
         Bodysim.file_operations.write_simulation_xml(self.simulation_name,
@@ -338,6 +350,10 @@ class SimulationDialogOperator(bpy.types.Operator):
 
         bpy.ops.bodysim.simulation_execute('EXEC_DEFAULT',
                                            simulation_state=Bodysim.file_operations.SimulationState.Ran)
+        Bodysim.status_panel.editing = False
+        Bodysim.status_panel.sim_saved = True
+        Bodysim.status_panel.sim_name = self.simulation_name
+        Bodysim.status_panel.draw_status_panel()
 
         return {'FINISHED'}
 
@@ -461,6 +477,13 @@ class LoadSimulationOperator(bpy.types.Operator):
         Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], not is_batch)
         simulation_ran = not is_batch
         model['simulation_saved'] = True
+        Bodysim.status_panel.session = model['session_path']
+        Bodysim.status_panel.sim_loaded = True
+        Bodysim.status_panel.editing = is_batch
+        Bodysim.status_panel.nameless=False
+        Bodysim.status_panel.sim_saved=True
+        Bodysim.status_panel.sim_name=self.simulation_name
+        Bodysim.status_panel.draw_status_panel()
 
         return {'FINISHED'}
 
@@ -482,6 +505,8 @@ class DeleteSimulationOperator(bpy.types.Operator):
         if self.simulation_name in model['current_simulation_path']:
             # Clear the sensor panel if this simulation is currently loaded.
             bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
+            Bodysim.status_panel.reset_state()
+            Bodysim.status_panel.draw_status_panel()
 
         # TODO Cleaner way to do this?
         if deleted_state == Bodysim.file_operations.SimulationState.Ran:
@@ -492,7 +517,7 @@ class DeleteSimulationOperator(bpy.types.Operator):
             draw_batch_panel(batch_list)
         else:
             saved_list = Bodysim.file_operations.read_session_file(model['session_path'] + '.xml', deleted_state)
-            draw_batch_panel(saved_list)
+            draw_saved_panel(saved_list)
         return {'FINISHED'}
 
 class AboutSimulationOperator(bpy.types.Operator):
@@ -684,7 +709,6 @@ def draw_saved_panel(list_of_simulations):
             transfer_prop = row.operator("bodysim.transfer", text = "Move to batch")
             transfer_prop.transfer_to_batch = True
             transfer_prop.simulation_name = _previousRun
-
 
     saved_panel = type("SimulationSavedSelectPanel", (bpy.types.Panel,),{
         "bl_label": "Saved Sims (Not Ran)",
