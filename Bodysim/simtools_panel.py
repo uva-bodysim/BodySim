@@ -4,6 +4,7 @@
 import bpy
 import os
 try:
+    import Bodysim.model_globals
     import Bodysim.file_operations
     import Bodysim.vertex_operations
     import Bodysim.current_sensors_panel
@@ -37,13 +38,9 @@ class NewSimulationOperator(bpy.types.Operator):
 
     def execute(self, context):
         global simulation_ran
-        model = context.scene.objects['model']
 
-        if 'simulation_saved' not in model:
-            model['simulation_saved'] = False
-
-        if 'sensor_info' in model and model['sensor_info']:
-            if not model['simulation_saved']:
+        if Bodysim.model_globals.sensor_info:
+            if not Bodysim.model_globals.simulation_saved:
                 bpy.ops.bodysim.not_ran_sim_dialog('INVOKE_DEFAULT')
                 return { 'FINISHED' }
             else:
@@ -53,7 +50,7 @@ class NewSimulationOperator(bpy.types.Operator):
                 # If user wants to make a copy of this sim.
                 def _execute(self, context):
                     simulation_ran = False
-                    model['simulation_saved'] = False
+                    Bodysim.model_globals.simulation_saved = False
                     if not self.template:
                         bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
                     return {'FINISHED'}
@@ -81,7 +78,7 @@ class NewSimulationOperator(bpy.types.Operator):
 
         Bodysim.sensor_addition.editing = True
         Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._drawAddSensorFirstPage)
-        Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], False)
+        Bodysim.current_sensors_panel.draw_sensor_list_panel(Bodysim.model_globals.sensor_info, False)
 
         return {'FINISHED'}
 
@@ -148,13 +145,12 @@ class RunSimulationOperator(bpy.types.Operator):
         return context.active_object is not None
 
     def execute(self, context):
-        model = context.scene.objects['model']
-        if 'sensor_info' not in model or not model['sensor_info']:
+        if not Bodysim.model_globals.sensor_info:
             bpy.ops.bodysim.message('INVOKE_DEFAULT', 
                 msg_type = "Error", message = 'No sensors were added.')
             return {'CANCELLED'}
 
-        if model['simulation_saved']:
+        if Bodysim.model_globals.simulation_saved:
             bpy.ops.bodysim.simulation_execute('EXEC_DEFAULT',
                                    simulation_state=Bodysim.file_operations.SimulationState.Saved)
             Bodysim.status_panel.editing = False
@@ -261,16 +257,15 @@ class BatchDialogOperator(bpy.types.Operator):
     def execute(self, context):
         global batch_list
         global saved_list
-        model = context.scene.objects['model']
-        if 'session_path' not in model:
+        if Bodysim.model_globals.session_path == "":
             session_path = Bodysim.file_operations.bodysim_conf_path + os.sep + 'tmp'
             os.mkdir(Bodysim.file_operations.bodysim_conf_path + os.sep + 'tmp')
             Bodysim.file_operations.set_session_element(session_path)
         else:
-            session_path =  model['session_path']
+            session_path =  Bodysim.model_globals.session_path
 
         path = session_path + os.sep + self.simulation_name
-        model['current_simulation_path'] = path
+        Bodysim.model_globals.current_simulation_path = path
         scene = bpy.context.scene
 
         # Make sure the named simulation does not already exist.
@@ -298,16 +293,15 @@ class BatchDialogOperator(bpy.types.Operator):
         Bodysim.status_panel.draw_status_panel()
 
         os.mkdir(path)
-        sensor_dict = context.scene.objects['model']['sensor_info']
+        sensor_dict = Bodysim.model_globals.sensor_info
         Bodysim.file_operations.write_simulation_xml(self.simulation_name,
                                                      sensor_dict,
                                                      path,
                                                      session_path, simulation_state)
-        model['simulation_saved'] = True
+        Bodysim.model_globals.simulation_saved = True
         return {'FINISHED'}
 
     def invoke(self, context, event):
-        model = context.scene.objects['model']
         self.simulation_name = "simulation_" + str(len(batch_list))
         return context.window_manager.invoke_props_dialog(self)
 
@@ -332,13 +326,12 @@ class SimulationDialogOperator(bpy.types.Operator):
         Bodysim.sim_params.end_frame = self.end_frame
         Bodysim.sim_params.simulation_name = self.simulation_name
         simulation_ran = False
-        model = context.scene.objects['model']
         scene = bpy.context.scene
 
-        session_path =  model['session_path']
+        session_path =  Bodysim.model_globals.session_path
 
         path = session_path + os.sep + self.simulation_name
-        model['current_simulation_path'] = path
+        Bodysim.model_globals.current_simulation_path = path
 
         # Make sure the named simulation does not already exist.
         if os.path.exists(path):
@@ -360,7 +353,6 @@ class SimulationDialogOperator(bpy.types.Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
-        model = context.scene.objects['model']
         self.simulation_name = "simulation_" + str(len(sim_list))
         return context.window_manager.invoke_props_dialog(self)
 
@@ -376,13 +368,12 @@ class SimulationExecuteOperator(bpy.types.Operator):
         global sim_list
         global saved_list
         global batch_list
-        model = context.scene.objects['model']
         simulation_name = Bodysim.sim_params.simulation_name
-        path = model['current_simulation_path']
-        session_path = model['session_path']
+        path = Bodysim.model_globals.current_simulation_path
+        session_path = Bodysim.model_globals.session_path
         sim_list.append(simulation_name)
         draw_previous_run_panel(sim_list)
-        sensor_dict = model['sensor_info']
+        sensor_dict = Bodysim.model_globals.sensor_info
 
         if (self.simulation_state == Bodysim.file_operations.SimulationState.Saved or
            self.simulation_state == Bodysim.file_operations.SimulationState.Batched):
@@ -393,7 +384,7 @@ class SimulationExecuteOperator(bpy.types.Operator):
                 batch_list.remove(simulation_name)
                 draw_batch_panel(batch_list)
 
-            Bodysim.file_operations.update_simulation_state(model['session_path'],
+            Bodysim.file_operations.update_simulation_state(Bodysim.model_globals.session_path,
                                                             simulation_name,
                                                             Bodysim.file_operations.SimulationState.Ran)
 
@@ -415,9 +406,9 @@ class SimulationExecuteOperator(bpy.types.Operator):
                                       calc_triangles=(self.simulation_state != Bodysim.file_operations.SimulationState.Batched))
         simulation_ran = True
         Bodysim.sensor_addition.editing = False
-        model['simulation_saved'] = True
+        Bodysim.model_globals.simulation_saved = True
         Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._drawAddSensorFirstPage)
-        Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], True)
+        Bodysim.current_sensors_panel.draw_sensor_list_panel(Bodysim.model_globals.sensor_info, True)
         return {'FINISHED'}
 
 
@@ -453,16 +444,14 @@ class LoadSimulationOperator(bpy.types.Operator):
         # TODO Check if there were any unsaved modifications first.
         bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
         # Navigate to correct folder to load the correct sensors.xml
-        model = context.scene.objects['model']
-        sensor_xml_path = model['session_path'] + os.sep + self.simulation_name + os.sep + 'sensors.xml'
-        model['current_simulation_path'] = model['session_path'] + os.sep + self.simulation_name
+        sensor_xml_path = Bodysim.model_globals.session_path + os.sep + self.simulation_name + os.sep + 'sensors.xml'
+        Bodysim.model_globals.current_simulation_path = Bodysim.model_globals.session_path + os.sep + self.simulation_name
         sensor_map = Bodysim.file_operations.load_simulation(sensor_xml_path)
 
-        if 'sensor_info' in model:
-            model['sensor_info'] = {}
+        Bodysim.model_globals.sensor_info = {}
 
         for sensor_location in sensor_map:
-            model['sensor_info'][sensor_location] = (sensor_map[sensor_location]['name'],
+            Bodysim.model_globals.sensor_info[sensor_location] = (sensor_map[sensor_location]['name'],
                                                      sensor_map[sensor_location]['colors'])
             Bodysim.vertex_operations.select_vertex_group(sensor_location, context)
             Bodysim.vertex_operations.bind_sensor_to_active_vg(context,
@@ -476,10 +465,10 @@ class LoadSimulationOperator(bpy.types.Operator):
         is_batch = Bodysim.file_operations.populate_sim_params(self.simulation_name)
         Bodysim.sensor_addition.editing = is_batch
         Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._drawAddSensorFirstPage)
-        Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], not is_batch)
+        Bodysim.current_sensors_panel.draw_sensor_list_panel(Bodysim.model_globals.sensor_info, not is_batch)
         simulation_ran = not is_batch
-        model['simulation_saved'] = True
-        Bodysim.status_panel.session = model['session_path']
+        Bodysim.model_globals.simulation_saved = True
+        Bodysim.status_panel.session = Bodysim.model_globals.session_path
         Bodysim.status_panel.sim_loaded = True
         Bodysim.status_panel.editing = is_batch
         Bodysim.status_panel.nameless=False
@@ -502,9 +491,8 @@ class DeleteSimulationOperator(bpy.types.Operator):
         global batch_list
         global saved_list
 
-        model = context.scene.objects['model']
-        deleted_state = Bodysim.file_operations.remove_simulation(model['session_path'], self.simulation_name)
-        if self.simulation_name in model['current_simulation_path']:
+        deleted_state = Bodysim.file_operations.remove_simulation(Bodysim.model_globals.session_path, self.simulation_name)
+        if self.simulation_name in Bodysim.model_globals.current_simulation_path:
             # Clear the sensor panel if this simulation is currently loaded.
             bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
             Bodysim.status_panel.reset_state()
@@ -512,13 +500,13 @@ class DeleteSimulationOperator(bpy.types.Operator):
 
         # TODO Cleaner way to do this?
         if deleted_state == Bodysim.file_operations.SimulationState.Ran:
-            sim_list = Bodysim.file_operations.read_session_file(model['session_path'] + '.xml', deleted_state)
+            sim_list = Bodysim.file_operations.read_session_file(Bodysim.model_globals.session_path + '.xml', deleted_state)
             draw_previous_run_panel(sim_list)
         elif deleted_state == Bodysim.file_operations.SimulationState.Batched:
-            batch_list = Bodysim.file_operations.read_session_file(model['session_path'] + '.xml', deleted_state)
+            batch_list = Bodysim.file_operations.read_session_file(Bodysim.model_globals.session_path + '.xml', deleted_state)
             draw_batch_panel(batch_list)
         else:
-            saved_list = Bodysim.file_operations.read_session_file(model['session_path'] + '.xml', deleted_state)
+            saved_list = Bodysim.file_operations.read_session_file(Bodysim.model_globals.session_path + '.xml', deleted_state)
             draw_saved_panel(saved_list)
         return {'FINISHED'}
 
@@ -613,8 +601,7 @@ class TransferSimOperator(bpy.types.Operator):
 
         draw_batch_panel(batch_list)
         draw_saved_panel(saved_list)
-        model = context.scene.objects['model']
-        Bodysim.file_operations.update_simulation_state(model['session_path'],
+        Bodysim.file_operations.update_simulation_state(Bodysim.model_globals.session_path,
                                                         self.simulation_name,
                                                         new_simulation_state)
 

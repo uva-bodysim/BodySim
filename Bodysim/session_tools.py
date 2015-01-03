@@ -1,6 +1,7 @@
 import bpy
 import time
 import os
+import Bodysim.model_globals
 import Bodysim.file_operations
 import Bodysim.simtools_panel
 import Bodysim.status_panel
@@ -20,7 +21,6 @@ class WriteSessionToFileInterface(bpy.types.Operator):
         return context.object is not None
 
     def execute(self, context):
-
         if not self.filepath[-4:] == '.xml':
             bpy.ops.bodysim.message('INVOKE_DEFAULT',
              msg_type = "Error", message = 'The session file must be saved with an xml extension.')
@@ -31,15 +31,13 @@ class WriteSessionToFileInterface(bpy.types.Operator):
              msg_type = "Error", message = 'A folder already exists with the desired session name.')
             return {'FINISHED'}            
         Bodysim.simtools_panel.drawSimToolsPanel()
-        model = context.scene.objects['model']
-        model['session_path'] = self.filepath[:-4]
+        Bodysim.model_globals.session_path = self.filepath[:-4]
 
         # Handle the case when simulations have been run before a session is saved.
         Bodysim.file_operations.save_session_to_file(self.filepath)
-        model = context.scene.objects['model']
-        model['sensor_info'] = {}
+        Bodysim.model_globals.sensor_info = {}
         Bodysim.status_panel.reset_state()
-        Bodysim.status_panel.session = model['session_path']
+        Bodysim.status_panel.session = Bodysim.model_globals.session_path
         Bodysim.status_panel.draw_status_panel()
         return {'FINISHED'}
 
@@ -65,9 +63,8 @@ class ReadFileInterface(bpy.types.Operator):
 
     def execute(self, context):
         Bodysim.simtools_panel.drawSimToolsPanel()
-        model = context.scene.objects['model']
-        model['sensor_info'] = {}
-        model['session_path'] = self.filepath[:-4]
+        Bodysim.model_globals.sensor_info = {}
+        Bodysim.model_globals.session_path = self.filepath[:-4]
         Bodysim.simtools_panel.sim_list = Bodysim.file_operations.read_session_file(self.filepath,
                                                                                     Bodysim.file_operations.SimulationState.Ran)
         Bodysim.simtools_panel.draw_previous_run_panel(Bodysim.simtools_panel.sim_list)
@@ -80,7 +77,7 @@ class ReadFileInterface(bpy.types.Operator):
                                                                                       Bodysim.file_operations.SimulationState.Saved)
         Bodysim.simtools_panel.draw_saved_panel(Bodysim.simtools_panel.saved_list)
         Bodysim.status_panel.reset_state()
-        Bodysim.status_panel.session = model['session_path']
+        Bodysim.status_panel.session = Bodysim.model_globals.session_path
         Bodysim.status_panel.draw_status_panel()
         return {'FINISHED'}
 

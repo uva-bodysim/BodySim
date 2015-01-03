@@ -7,6 +7,7 @@ import os
 import time
 import shutil
 import mathutils
+import Bodysim.model_globals
 import Bodysim.file_operations
 import Bodysim.sim_params
 import Bodysim.plugins_info
@@ -84,7 +85,7 @@ class TrackSensorOperator(bpy.types.Operator):
 
 
             # Run the external simulators once all results have been written.
-            Bodysim.file_operations.execute_simulators(scene.objects['model']['current_simulation_path'], not self.calc_triangles)
+            Bodysim.file_operations.execute_simulators(Bodysim.model_globals.current_simulation_path, not self.calc_triangles)
             return {'FINISHED'}
 
         return {'PASS_THROUGH'}

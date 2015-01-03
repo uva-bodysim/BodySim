@@ -1,6 +1,7 @@
 """Provides operations on vertex groups of the model."""
 
 import bpy
+import Bodysim.model_globals
 from mathutils import *
 
 def list_vertex_group():
@@ -45,7 +46,7 @@ def bind_sensor_to_active_vg(context, color_tuple):
     bpy.context.scene.objects.active = model
     edit_mode()
     sensor.name = 'sensor_' + context.object.vertex_groups.active.name
-    model['current_vg'] = context.object.vertex_groups.active.name
+    Bodysim.model_globals.current_vg = context.object.vertex_groups.active.name
     _bind_to_vertex_group(sensor, context)
     object_mode()
     return sensor.name
@@ -85,7 +86,7 @@ def select_vertex_group(vg_name, context):
     bpy.ops.object.vertex_group_set_active(group=vg_name)
     bpy.ops.object.vertex_group_select()
     model = context.scene.objects['model']
-    model['sensor_selected'] = True
+    Bodysim.model_globals.sensor_selected = True
 
 def object_mode():
     bpy.ops.object.mode_set(mode="OBJECT")

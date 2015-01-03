@@ -11,6 +11,7 @@
 import bpy
 from queue import Queue, Empty
 from threading import Thread
+import Bodysim.model_globals
 import Bodysim.plugins_info
 q = Queue()
 
@@ -20,7 +21,7 @@ class GraphOperator(bpy.types.Operator):
     """Get input from graph."""
     bl_idname = "bodysim.graph"
     bl_label = "Graph Modal Operator"
-    plot_type = bpy.props.StringProperty()    
+    plot_type = bpy.props.StringProperty()
     _timer = None
     _pipe = None
     _thread = None
@@ -60,13 +61,12 @@ class GraphOperator(bpy.types.Operator):
          variables are in the same order as specified in plugins.xml.
          The first column is reserved for the independent variable.
         """
-        model = context.scene.objects['model']
-        curr_sim_path = model['current_simulation_path']
+        curr_sim_path = Bodysim.model_globals.current_simulation_path
         plugins_tuple = Bodysim.plugins_info.plugins_tuple
         graph_var_map = {}
         sim_dict = Bodysim.plugins_info.get_sensor_plugin_mapping()[0]
-        for  sensor in model['sensor_info']:
-            sensor_name = model['sensor_info'][sensor][0]
+        for  sensor in Bodysim.model_globals.sensor_info:
+            sensor_name = Bodysim.model_globals.sensor_info[sensor][0]
             for plugin in plugins_tuple[0]:
                 for variable in plugins_tuple[0][plugin]['variables']:
                     if getattr(context.scene.objects['sensor_' + sensor], 'GRAPH_' +  plugin + variable):

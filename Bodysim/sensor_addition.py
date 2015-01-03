@@ -2,6 +2,7 @@
 
 import bpy
 from bpy.props import FloatVectorProperty, StringProperty
+import Bodysim.model_globals
 import Bodysim.vertex_operations
 import Bodysim.current_sensors_panel
 import Bodysim.plugins_info
@@ -15,6 +16,24 @@ panel_list = []
 plugin_panel_list = []
 
 editing = False
+
+class OpenModelInterface(bpy.types.Operator):
+    bl_idname = "bodysim.open_model"
+    bl_label = "Read from model"
+
+    filepath = bpy.props.StringProperty(subtype="FILE_PATH")
+
+    @classmethod
+    def poll(cls, context):
+        return context.object is not None
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        bpy.ops.wm.open_mainfile(filepath=self.filepath)
+        return {'FINISHED'}
 
 class AddSensorPanel(bpy.types.Panel):
     """Panel that guides the user through the stages of adding
@@ -36,6 +55,7 @@ def _drawAddSensorFirstPage(self, context):
     layout.operator("bodysim.new_sensor", text="Add Sensor")
     layout.operator("bodysim.reset_sensors", text="Reset Sensors")
     layout.operator("bodysim.clear_selection", text="Clear Selection")
+    self.layout.operator("bodysim.open_model", text="Open Model")
 
 class BodySim_NEW_SENSOR(bpy.types.Operator):
     """Operator that initiates the first stage of adding a sensor.
@@ -111,16 +131,16 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
 
     def execute(self, context):
         model = context.scene.objects['model']
-        if 'sensor_selected' not in model or not model['sensor_selected']:
+        if not Bodysim.model_globals.sensor_selected:
             bpy.ops.bodysim.message('INVOKE_DEFAULT',
              msg_type = "Error", message = 'Please first select a location to add sensor.')
             return {'FINISHED'}
-        model['sensor_selected'] = False
+        Bodysim.model_globals.sensor_selected = False
         sensor_name = Bodysim.vertex_operations.bind_sensor_to_active_vg(context, None)
         context.scene.objects.active = context.scene.objects[sensor_name]
 
         # Keep track of the sensor to bind in case user needs to cancel.
-        model['last_bound_sensor'] = sensor_name
+        Bodysim.model_globals.last_bound_sensor = sensor_name
 
         redraw_addSensorPanel(_draw_sensor_properties_page)
         draw_plugins_subpanels(Bodysim.plugins_info.plugins)
@@ -140,14 +160,15 @@ def draw_plugins_subpanels(plugins):
         """Draws the individual plugin panels."""
 
         model = context.scene.objects['model']
+        current_vg = Bodysim.model_globals.current_vg
         layout = self.layout
         for var in self.var_list:
             # Hard coded plugin: Trajectory
             if self.sim_name == 'Trajectory':
                 layout.enabled = False
-                layout.prop(context.scene.objects['sensor_' + model['current_vg']], self.sim_name + var)
+                layout.prop(context.scene.objects['sensor_' + current_vg], self.sim_name + var)
             else:
-                layout.prop(context.scene.objects['sensor_' + model['current_vg']], self.sim_name + var)
+                layout.prop(context.scene.objects['sensor_' + current_vg], self.sim_name + var)
 
     if not plugin_panel_list:
         for simulator in Bodysim.plugins_info.plugins:
@@ -188,7 +209,7 @@ class BodySim_CANCEL_ADD_SENSOR(bpy.types.Operator):
                 bpy.utils.unregister_class(panel)
 
         redraw_addSensorPanel(_drawAddSensorFirstPage)
-        if 'last_bound_sensor' in model and model['last_bound_sensor']:
+        if Bodysim.model_globals.last_bound_sensor != "":
             for subpanel in plugin_panel_list:
                 bpy.utils.unregister_class(subpanel)
 
@@ -196,13 +217,13 @@ class BodySim_CANCEL_ADD_SENSOR(bpy.types.Operator):
             context.scene.objects.active = None
             bpy.context.scene.objects.active = model
             bpy.ops.object.delete()
-            del model['last_bound_sensor']
+            Bodysim.model_globals.last_bound_sensor = ""
             Bodysim.vertex_operations.edit_mode()
             Bodysim.vertex_operations.cancel_selection()
             return {'FINISHED'}
 
-        if 'sensor_info' in model:
-            Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], False)
+        if Bodysim.model_globals.sensor_info:
+            Bodysim.current_sensors_panel.draw_sensor_list_panel(Bodysim.model_globals.sensor_info, False)
 
         return {'FINISHED'}
 
@@ -228,18 +249,13 @@ class BodySim_FINALIZE(bpy.types.Operator):
         material = bpy.data.materials.new("SensorColor")
         material.diffuse_color = r, g, b
         sensor.data.materials.append(material)
-        model = context.scene.objects['model']
-        if 'sensor_info' not in model:
-            model['sensor_info'] = {}
 
-        model['sensor_info'][model['current_vg']] = (self.sensorName , str(r) + ',' + str(g) + ',' + str(b))
-        if 'last_bound_sensor' in model:
-            del model['last_bound_sensor']
+        current_vg = Bodysim.model_globals.current_vg
+        Bodysim.model_globals.sensor_info[current_vg] = (self.sensorName , str(r) + ',' + str(g) + ',' + str(b))
 
-        model = context.scene.objects['model']
-        model['simulation_saved'] = False
+        Bodysim.model_globals.simulation_saved = False
         redraw_addSensorPanel(_drawAddSensorFirstPage)
-        Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], False)
+        Bodysim.current_sensors_panel.draw_sensor_list_panel(Bodysim.model_globals.sensor_info, False)
         Bodysim.status_panel.sim_saved = False
         Bodysim.status_panel.draw_status_panel()
         return {'FINISHED'}
@@ -280,17 +296,18 @@ def _draw_sensor_properties_page(self, context):
 
     layout = self.layout
     model = context.scene.objects['model']
+    current_vg = Bodysim.model_globals.current_vg
     col = layout.column()
     prop = col.operator("bodysim.finalize", text="Finalize")
 
     # Draw cancel button (to cancel sensor addition) if user is adding a sensor, (but not editing the sensor)
-    if 'last_bound_sensor' in model:
+    if Bodysim.model_globals.last_bound_sensor != "":
         col.operator("bodysim.cancel_add", text = "Cancel")
 
-    col.prop(context.scene.objects['sensor_' + model['current_vg']], "sensor_color")
-    col.prop(context.scene.objects['sensor_' + model['current_vg']], "sensor_name")
-    prop.sensorColor = context.scene.objects['sensor_' + model['current_vg']].sensor_color
-    prop.sensorName = context.scene.objects['sensor_' + model['current_vg']].sensor_name
+    col.prop(context.scene.objects['sensor_' + current_vg], "sensor_color")
+    col.prop(context.scene.objects['sensor_' + current_vg], "sensor_name")
+    prop.sensorColor = context.scene.objects['sensor_' + current_vg].sensor_color
+    prop.sensorName = context.scene.objects['sensor_' + current_vg].sensor_name
 
 def register():
     bpy.utils.register_module(__name__)

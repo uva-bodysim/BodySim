@@ -2,6 +2,7 @@
 
 import bpy
 import os
+import Bodysim.model_globals
 from xml.etree.ElementTree import ElementTree as ET
 from xml.etree.ElementTree import *
 
@@ -91,11 +92,10 @@ def get_sensor_plugin_mapping():
      we cannot safely set it once as a variable like the plugins and unit_map.
     """
     context = bpy.context
-    model = context.scene.objects['model']
     sim_mapping = {}
     location_map = {}
-    for sensor in model['sensor_info']:
-        location_map[sensor] = model['sensor_info'][sensor][0]
+    for sensor in Bodysim.model_globals.sensor_info:
+        location_map[sensor] = Bodysim.model_globals.sensor_info[sensor][0]
         for plugin in plugins:
             for variable in plugins[plugin]['variables']:
                 if getattr(context.scene.objects['sensor_' + sensor], plugin + variable):

@@ -3,6 +3,7 @@
 """ 
 
 import bpy
+import Bodysim.model_globals
 import Bodysim.sensor_addition
 import Bodysim.vertex_operations
 import Bodysim.current_sensors_panel
@@ -58,8 +59,7 @@ class Bodysim_EDIT_SENSOR(bpy.types.Operator):
     part = bpy.props.StringProperty()
 
     def execute(self, context):
-        model = context.scene.objects['model']
-        model['current_vg'] = self.part
+        Bodysim.model_globals.current_vg = self.part
         Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._draw_sensor_properties_page)
         Bodysim.sensor_addition.draw_plugins_subpanels(Bodysim.plugins_info.plugins)
         return {'FINISHED'}
@@ -76,14 +76,14 @@ class BodySim_DELETE_SENSOR(bpy.types.Operator):
         context.scene.objects.active = None
         model = context.scene.objects['model']
         bpy.context.scene.objects.active = model
-        for sensor in model['sensor_info']:
+        for sensor in Bodysim.model_globals.sensor_info:
             bpy.data.objects["sensor_" + sensor].select = False
 
         bpy.data.objects["sensor_" + self.part].select = True
         bpy.ops.object.delete()
-        model['sensor_info'].pop(self.part)
-        if model['sensor_info']:
-            Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'])
+        Bodysim.model_globals.sensor_info.pop(self.part)
+        if Bodysim.model_globals.sensor_info:
+            Bodysim.current_sensors_panel.draw_sensor_list_panel(Bodysim.model_globals.sensor_info)
         else:
             Bodysim.current_sensors_panel.draw_sensor_list_panel(None)
         return {'FINISHED'}
@@ -175,9 +175,9 @@ class BodySim_RESET_SENSORS(bpy.types.Operator):
 
     def execute(self, context):
         Bodysim.vertex_operations.object_mode()
-        model = context.scene.objects['model']
         context.scene.objects.active = None
-        model['sensor_info'] = {}
+        Bodysim.model_globals.sensor_info = {}
+        model = context.scene.objects['model']
         bpy.context.scene.objects.active = model
         sensors_to_delete = [item.name for item in bpy.data.objects if item.name.startswith("sensor")]
 
