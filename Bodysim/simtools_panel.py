@@ -45,15 +45,8 @@ class NewSimulationOperator(bpy.types.Operator):
         if 'sensor_info' in model and model['sensor_info']:
             if not model['simulation_saved']:
                 bpy.ops.bodysim.not_ran_sim_dialog('INVOKE_DEFAULT')
+                return { 'FINISHED' }
             else:
-                Bodysim.status_panel.nameless = True
-                Bodysim.status_panel.sim_loaded = True
-                Bodysim.status_panel.editing = True
-                Bodysim.status_panel.draw_status_panel()
-
-                Bodysim.sensor_addition.editing = True
-                Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._drawAddSensorFirstPage)
-                Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], False)
                 # Ask user if he/she wants to make a new blank sim
                 # Or make a new sim based on the currently loaded one
                 # TODO: Need to make sure this sim is saved first
@@ -80,6 +73,15 @@ class NewSimulationOperator(bpy.types.Operator):
                 )
                 bpy.utils.register_class(dialog_operator)
                 bpy.ops.copysim.dialog("INVOKE_DEFAULT")
+
+        Bodysim.status_panel.nameless = True
+        Bodysim.status_panel.sim_loaded = True
+        Bodysim.status_panel.editing = True
+        Bodysim.status_panel.draw_status_panel()
+
+        Bodysim.sensor_addition.editing = True
+        Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._drawAddSensorFirstPage)
+        Bodysim.current_sensors_panel.draw_sensor_list_panel(model['sensor_info'], False)
 
         return {'FINISHED'}
 
