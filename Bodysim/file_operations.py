@@ -44,10 +44,27 @@ def write_simulation_xml(name, sensor_dict, sim_path, session_path, sim_state):
 
     global session_element
 
+    # Now have to copy in the blend file if it is not already in the sim dir.
+    # current_filename = filename.blend
+    current_filename = bpy.path.basename(bpy.context.blend_data.filepath)
+
+    # Search within the session dir for this file name.
+    model_exists = False
+    for file in os.listdir(session_path):
+        if file == current_filename:
+            model_exists = True
+
+    if model_exists == False:
+        # Copy the model into the session folder.
+        shutil.copy2(bpy.context.blend_data.filepath, session_path)
+
+
     curr_simulation_element = Element('simulation',
                                       {'in_batch': str(sim_state),
                                        'frame_start': str(Bodysim.sim_params.start_frame),
-                                       'frame_end': str(Bodysim.sim_params.end_frame)})
+                                       'frame_end': str(Bodysim.sim_params.end_frame),
+                                       'model_name': current_filename})
+
     curr_simulation_name_element = Element('name')
     curr_simulation_name_element.text = name
     curr_simulation_element.append(curr_simulation_name_element)
@@ -68,7 +85,7 @@ def write_simulation_xml(name, sensor_dict, sim_path, session_path, sim_state):
 
     sensors_element = Element('sensors')
 
-    for location, color_and_name in sensor_dict.iteritems():
+    for location, color_and_name in iter(sensor_dict.items()):
         curr_sensor_element = Element('sensor', {'location': location, 'name': color_and_name[0]})
         curr_sensor_color_element = Element('color')
         curr_sensor_color_element.text = color_and_name[1]
@@ -204,10 +221,16 @@ def save_session_to_file(path):
     os.mkdir(path[:-4])
     update_session_file(session_element, path[:-4])
 
-def load_simulation(sensor_xml_path):
+def load_simulation(sensor_xml_path, simulation_name, session_xml_path):
     """Loads a simulation file and returns a dictionary mapping
      sensors to simulated variables.
     """
+
+    session_tree = ET().parse(session_xml_path + ".xml")
+    for simulation in session_tree.findall('simulation'):
+        if simulation.find('name').text == simulation_name:
+            bpy.ops.wm.open_mainfile(filepath=session_xml_path + os.sep + simulation.attrib['model_name'])
+            break
 
     tree = ET().parse(sensor_xml_path)
     sensor_map = {}

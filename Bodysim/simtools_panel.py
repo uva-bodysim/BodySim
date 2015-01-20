@@ -2,6 +2,7 @@
   creation of new simulations, and keeping track of past simulations.
 """
 import bpy
+from bpy.app.handlers import persistent
 import os
 try:
     import Bodysim.model_globals
@@ -26,6 +27,12 @@ saved_list = []
 batch_panel = None
 running_sims_panel = None
 saved_panel = None
+
+# The following variables are only used when loading simulations.
+# This is a work around for the fact that loading new blend files
+# in blender does not preserve context.
+loading_sensor_map = {}
+loading_simulation_name = ""
 
 
 class NewSimulationOperator(bpy.types.Operator):
@@ -426,6 +433,22 @@ def check_frame_range(user_start, user_end, scene_end):
 
     return True
 
+@persistent
+def load_post_callback(dummy):
+    """ Callback to wait for model to load completely."""
+
+    # self-removal, so it isn't called again
+    bpy.app.handlers.load_post.remove(load_post_callback)
+
+    # use a scene update handler to delay execution of code
+    bpy.app.handlers.scene_update_pre.append(scene_update_callback)
+
+
+def scene_update_callback(scene):
+    # self-removal, only run once
+    bpy.app.handlers.scene_update_pre.remove(scene_update_callback)
+    bpy.ops.bodysim.finish_load_simulation('EXEC_DEFAULT')
+
 class LoadSimulationOperator(bpy.types.Operator):
     """Loads a previously run simulation along with corresponding
      sensor data.
@@ -441,28 +464,42 @@ class LoadSimulationOperator(bpy.types.Operator):
 
     def execute(self, context):
         global simulation_ran
+        global loading_sensor_map
+        global loading_simulation_name
         # TODO Check if there were any unsaved modifications first.
         bpy.ops.bodysim.reset_sensors('INVOKE_DEFAULT')
         # Navigate to correct folder to load the correct sensors.xml
         sensor_xml_path = Bodysim.model_globals.session_path + os.sep + self.simulation_name + os.sep + 'sensors.xml'
+
         Bodysim.model_globals.current_simulation_path = Bodysim.model_globals.session_path + os.sep + self.simulation_name
-        sensor_map = Bodysim.file_operations.load_simulation(sensor_xml_path)
-
+        loading_simulation_name = self.simulation_name
         Bodysim.model_globals.sensor_info = {}
+        bpy.app.handlers.load_post.append(load_post_callback)
+        loading_sensor_map = Bodysim.file_operations.load_simulation(sensor_xml_path,
+                                                             self.simulation_name,
+                                                             Bodysim.model_globals.session_path)
+        return {'FINISHED'}
 
+class FinishLoadSimulationOperator(bpy.types.Operator):
+
+    bl_idname = "bodysim.finish_load_simulation"
+    bl_label = "Finish loading a simulation."
+
+    def execute(self, context):
+        sensor_map = loading_sensor_map
+        simulation_name = loading_simulation_name
         for sensor_location in sensor_map:
             Bodysim.model_globals.sensor_info[sensor_location] = (sensor_map[sensor_location]['name'],
                                                      sensor_map[sensor_location]['colors'])
-            Bodysim.vertex_operations.select_vertex_group(sensor_location, context)
-            Bodysim.vertex_operations.bind_sensor_to_active_vg(context,
-                tuple([float(color) for color in sensor_map[sensor_location]['colors'].split(',')]))
+            Bodysim.vertex_operations.select_vertex_group(sensor_location)
+            Bodysim.vertex_operations.bind_sensor_to_active_vg(tuple([float(color) for color in sensor_map[sensor_location]['colors'].split(',')]))
 
-            context.scene.objects['sensor_' + sensor_location].sensor_name = sensor_map[sensor_location]['name']
+            bpy.context.scene.objects['sensor_' + sensor_location].sensor_name = sensor_map[sensor_location]['name']
 
             for variable in sensor_map[sensor_location]['variables']:
-                setattr(context.scene.objects['sensor_' + sensor_location], variable, True)
+                setattr(bpy.context.scene.objects['sensor_' + sensor_location], variable, True)
 
-        is_batch = Bodysim.file_operations.populate_sim_params(self.simulation_name)
+        is_batch = Bodysim.file_operations.populate_sim_params(simulation_name)
         Bodysim.sensor_addition.editing = is_batch
         Bodysim.sensor_addition.redraw_addSensorPanel(Bodysim.sensor_addition._drawAddSensorFirstPage)
         Bodysim.current_sensors_panel.draw_sensor_list_panel(Bodysim.model_globals.sensor_info, not is_batch)
@@ -473,7 +510,7 @@ class LoadSimulationOperator(bpy.types.Operator):
         Bodysim.status_panel.editing = is_batch
         Bodysim.status_panel.nameless=False
         Bodysim.status_panel.sim_saved=True
-        Bodysim.status_panel.sim_name=self.simulation_name
+        Bodysim.status_panel.sim_name=simulation_name
         Bodysim.status_panel.draw_status_panel()
 
         return {'FINISHED'}

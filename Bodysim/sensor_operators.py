@@ -174,19 +174,20 @@ class BodySim_RESET_SENSORS(bpy.types.Operator):
     bl_label = "BodySim Reset All Sensors"
 
     def execute(self, context):
-        Bodysim.vertex_operations.object_mode()
-        context.scene.objects.active = None
         Bodysim.model_globals.sensor_info = {}
-        model = context.scene.objects['model']
-        bpy.context.scene.objects.active = model
-        sensors_to_delete = [item.name for item in bpy.data.objects if item.name.startswith("sensor")]
+        if 'model' in context.scene.objects:
+            model = context.scene.objects['model']
+            Bodysim.vertex_operations.object_mode()
+            context.scene.objects.active = None
+            bpy.context.scene.objects.active = model
+            sensors_to_delete = [item.name for item in bpy.data.objects if item.name.startswith("sensor")]
 
-        for sensor in sensors_to_delete:
-            bpy.data.objects[sensor].select = True
+            for sensor in sensors_to_delete:
+                bpy.data.objects[sensor].select = True
 
-        bpy.ops.object.delete()
-        Bodysim.vertex_operations.edit_mode()
-        Bodysim.vertex_operations.cancel_selection()
+            bpy.ops.object.delete()
+            Bodysim.vertex_operations.edit_mode()
+            Bodysim.vertex_operations.cancel_selection()
         if not hasattr(bpy.types, "CurrentSensorsPanel"):
             bpy.utils.register_class(Bodysim.current_sensors_panel.current_sensor_panel)
         return {'FINISHED'}
