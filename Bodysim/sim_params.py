@@ -38,7 +38,6 @@ def get_params(param, sensor_name, plugin=None):
         return dbl_quotes + path + dbl_quotes
     elif param == "triangles":
         path = triangles_path.replace('\\', r'\\')
-        print(path)
         return dbl_quotes + path + dbl_quotes
     elif param == "triangleCount":
         return str(triangle_count)

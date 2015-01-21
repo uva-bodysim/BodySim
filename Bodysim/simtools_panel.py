@@ -23,6 +23,11 @@ simulation_ran = False
 # model['simulation_saved'] = False
 sim_list = []
 batch_list = []
+batch_is_running = False
+# Stores names of models that were already run in batch mode so we
+# don't need to keep re-calculating the triangles.
+models_ran_in_batch_mode = []
+batch_model_loaded = False
 saved_list = []
 batch_panel = None
 running_sims_panel = None
@@ -405,6 +410,9 @@ class SimulationExecuteOperator(bpy.types.Operator):
 
         os.mkdir(path + os.sep + 'Trajectory')
         Bodysim.sim_params.trajectory_path = path + os.sep + 'Trajectory'
+        Bodysim.sim_params.triangles_path = os.path.join(os.path.expanduser('~'),
+                                                         '.bodysim', 'triangles',
+                                                         Bodysim.model_globals.current_loaded_model)
 
         bpy.ops.bodysim.track_sensors('EXEC_DEFAULT',
                                       frame_start=int(Bodysim.sim_params.start_frame),
@@ -442,7 +450,6 @@ def load_post_callback(dummy):
 
     # use a scene update handler to delay execution of code
     bpy.app.handlers.scene_update_pre.append(scene_update_callback)
-
 
 def scene_update_callback(scene):
     # self-removal, only run once
@@ -486,6 +493,7 @@ class FinishLoadSimulationOperator(bpy.types.Operator):
     bl_label = "Finish loading a simulation."
 
     def execute(self, context):
+        Bodysim.model_globals.current_loaded_model = os.path.splitext(bpy.path.basename(bpy.context.blend_data.filepath))[0]
         sensor_map = loading_sensor_map
         simulation_name = loading_simulation_name
         for sensor_location in sensor_map:
@@ -513,6 +521,8 @@ class FinishLoadSimulationOperator(bpy.types.Operator):
         Bodysim.status_panel.sim_name=simulation_name
         Bodysim.status_panel.draw_status_panel()
 
+        if batch_list and batch_is_running:
+            bpy.ops.bodysim.run_batch('EXEC_DEFAULT')
         return {'FINISHED'}
 
 class DeleteSimulationOperator(bpy.types.Operator):
@@ -585,30 +595,47 @@ class RunBatchOperator(bpy.types.Operator):
     def execute(self, context):
         global batch_list
         global sim_list
+        global models_ran_in_batch_mode
+        global batch_is_running
+        global batch_model_loaded
         bl_space_type = 'VIEW_3D'
         bl_region_type = 'TOOLS'
 
         if not batch_list:
             bpy.ops.bodysim.message('INVOKE_DEFAULT',
              msg_type = "Notification", message = 'Batch done.')
+            models_ran_in_batch_mode = []
             return {'FINISHED'}
 
 
         # TODO Close all open sims before running, i.e. flush panels.
         # We only need to calculate the triangles in the first run.
-        scene = bpy.context.scene
-        # This is not blocking!
-        if not Bodysim.sim_params.all_frames_recorded:
-            bpy.ops.bodysim.generate_triangles_and_batch('EXEC_DEFAULT', frame_start=1, frame_end=scene.frame_end)
-            return {'FINISHED'}
+        batch_is_running = True if batch_list else False
+        if batch_list and not batch_model_loaded:
+            # Not blocking.
+            batch_model_loaded = True
+            bpy.ops.bodysim.load_simulation('EXEC_DEFAULT', simulation_name=batch_list[0])
+            return { 'FINISHED' }
 
         if batch_list:
-            bpy.ops.bodysim.load_simulation('EXEC_DEFAULT', simulation_name=batch_list[0])
-            # This is not blocking.
+            if Bodysim.model_globals.current_loaded_model not in models_ran_in_batch_mode:
+                Bodysim.sim_params.triangles_path = os.path.join(os.path.expanduser('~'),
+                                                                 '.bodysim', 'triangles',
+                                                                  Bodysim.model_globals.current_loaded_model)
+                # Not blocking.
+                models_ran_in_batch_mode.append(Bodysim.model_globals.current_loaded_model)
+                bpy.ops.bodysim.generate_triangles_and_batch('EXEC_DEFAULT', frame_start=1, frame_end=bpy.context.scene.frame_end)
+                return {'FINISHED'}
+
+        if batch_list:
+            # Not blocking.
+            batch_model_loaded = False
+            # batch_list.remove(Bodysim.sim_params.simulation_name)
             bpy.ops.bodysim.simulation_execute('EXEC_DEFAULT',
                                         simulation_state=Bodysim.file_operations.SimulationState.Batched)
+            return {'FINISHED'}
 
-        return {'FINISHED'}
+        return { 'FINISHED' }
 
 class TransferSimOperator(bpy.types.Operator):
     """Operator that transfers simultations to and from batch."""

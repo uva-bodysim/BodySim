@@ -107,7 +107,7 @@ class TrackSensorOperator(bpy.types.Operator):
             if os.path.exists(Bodysim.sim_params.triangles_path):
                 shutil.rmtree(Bodysim.sim_params.triangles_path)
 
-            os.mkdir(Bodysim.sim_params.triangles_path)
+            os.makedirs(Bodysim.sim_params.triangles_path)
 
         # Blender can only stop the animation via a frame event handler...
         bpy.context.scene.frame_set(self.frame_start)
@@ -132,6 +132,7 @@ class GenerateAllTrianglesOperator(bpy.types.Operator):
         return True
 
     def _stop(self, context):
+        print('yolo')
         scene = bpy.context.scene
 
         self.all_triangle_data.append(get_triangles())
@@ -163,13 +164,12 @@ class GenerateAllTrianglesOperator(bpy.types.Operator):
         if os.path.exists(Bodysim.sim_params.triangles_path):
             shutil.rmtree(Bodysim.sim_params.triangles_path)
 
-        os.mkdir(Bodysim.sim_params.triangles_path)
+        os.makedirs(Bodysim.sim_params.triangles_path)
 
         # Blender can only stop the animation via a frame event handler...
         bpy.context.scene.frame_set(self.frame_start)
         bpy.app.handlers.frame_change_pre.append(self._stop)
         bpy.ops.screen.animation_play()
-
         return {'RUNNING_MODAL'}
 
 def get_triangles():

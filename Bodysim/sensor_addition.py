@@ -7,7 +7,6 @@ import Bodysim.vertex_operations
 import Bodysim.current_sensors_panel
 import Bodysim.plugins_info
 import Bodysim.status_panel
-
 # List of vertices for a model.
 # Note that this must be cleared each time a new model is loaded (different
 # vertex groups).
@@ -67,6 +66,9 @@ class BodySim_NEW_SENSOR(bpy.types.Operator):
     bl_label = "Create a new sensor"
     
     def execute(self, context):
+        if 'model' not in context.scene.objects:
+            bpy.ops.bodysim.message('INVOKE_DEFAULT',
+             msg_type = "Error", message = 'Open a model first.')
         redraw_addSensorPanel(_draw_bind_button)
         draw_body_part_panels()
         return {'FINISHED'}
@@ -114,7 +116,7 @@ class BodySim_SELECT_BODY_PART(bpy.types.Operator):
     part = bpy.props.StringProperty()
     
     def execute(self, context):
-        Bodysim.vertex_operations.select_vertex_group(self.part, context)
+        Bodysim.vertex_operations.select_vertex_group(self.part)
         return {'FINISHED'}
 
 class BodySim_BIND_SENSOR(bpy.types.Operator):
@@ -136,7 +138,7 @@ class BodySim_BIND_SENSOR(bpy.types.Operator):
              msg_type = "Error", message = 'Please first select a location to add sensor.')
             return {'FINISHED'}
         Bodysim.model_globals.sensor_selected = False
-        sensor_name = Bodysim.vertex_operations.bind_sensor_to_active_vg(context, None)
+        sensor_name = Bodysim.vertex_operations.bind_sensor_to_active_vg(None)
         context.scene.objects.active = context.scene.objects[sensor_name]
 
         # Keep track of the sensor to bind in case user needs to cancel.
