@@ -155,7 +155,10 @@ def execute_simulators(current_sim_path, batched_mode):
             for extra in plugins[plugin]['extras']:
                 command = command + ' ' + Bodysim.sim_params.get_params(extra, None, plugin)
 
-            sensors = " ".join(sim_dict)
+            # Have to remap sensor locations to sensor names.
+            sensor_loc_to_name = Bodysim.plugins_info.populate_sensor_list()
+            sensor_names = [sensor_loc_to_name[i][1] for i in range(len(sim_dict))]
+            sensors = " ".join(sensor_names)
 
             try:
                 print(command + ' ' + sensors)

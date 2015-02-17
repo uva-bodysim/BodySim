@@ -4,10 +4,12 @@ import bpy
 import copy
 import math
 import os
+import time
 import shutil
 import mathutils
 import Bodysim.file_operations
 import Bodysim.sim_params
+import Bodysim.plugins_info
 
 class TrackSensorOperator(bpy.types.Operator):
     """Logs location and rotation of sensors along respective paths.
@@ -25,12 +27,10 @@ class TrackSensorOperator(bpy.types.Operator):
     trajectory_data = []
     # Stores triangle data in every frame so we don't write to disk every frame.
     all_triangle_data = []
+    start = None
 
-    @classmethod
-    def poll(cls, context):
-        return True
 
-    def _stop(self, context):
+    def store_data(self):
         scene = bpy.context.scene
         for i in range(len(self.sensor_objects)):
             # World space coordinates
@@ -50,13 +50,20 @@ class TrackSensorOperator(bpy.types.Operator):
 
             # Store trajectory data
             output = "{0},{1},{2},{3},{4},{5},{6},{7}\n".format(
-                scene.frame_current, x, y, z, w, rx, ry, rz)
+                scene.frame_current - 1, x, y, z, w, rx, ry, rz)
             self.trajectory_data[i].append(output)
 
         if self.calc_triangles:
             self.all_triangle_data.append(get_triangles())
 
-        if scene.frame_current == self.frame_end:
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def _stop(self, context):
+        scene = bpy.context.scene
+        self.store_data()
+        if scene.frame_current == self.frame_end + 1:
             bpy.ops.screen.animation_cancel(restore_frame=True)
             bpy.app.handlers.frame_change_pre.remove(self._stop)
 
@@ -72,6 +79,10 @@ class TrackSensorOperator(bpy.types.Operator):
                                                   self.sensor_objects,
                                                   self.path + os.sep + 'Trajectory')
 
+            elapsed = (time.clock() - self.start)
+            print ('trajTime ' + str(elapsed))
+
+
             # Run the external simulators once all results have been written.
             Bodysim.file_operations.execute_simulators(scene.objects['model']['current_simulation_path'], not self.calc_triangles)
             return {'FINISHED'}
@@ -79,7 +90,8 @@ class TrackSensorOperator(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        self.sensor_objects = populate_sensor_list(context)
+        self.start = time.clock()
+        self.sensor_objects = Bodysim.plugins_info.populate_sensor_list()
         self.trajectory_data = []
         for i in range(len(self.sensor_objects)):
             self.trajectory_data.append([])
@@ -123,7 +135,7 @@ class GenerateAllTrianglesOperator(bpy.types.Operator):
 
         self.all_triangle_data.append(get_triangles())
 
-        if scene.frame_current == self.frame_end:
+        if scene.frame_current == self.frame_end + 1:
             bpy.ops.screen.animation_cancel(restore_frame=True)
             bpy.app.handlers.frame_change_pre.remove(self._stop)
 
@@ -158,16 +170,6 @@ class GenerateAllTrianglesOperator(bpy.types.Operator):
         bpy.ops.screen.animation_play()
 
         return {'RUNNING_MODAL'}
-
-def populate_sensor_list(context):
-    """Get all the sensors in the scene."""
-
-    print(bpy.data.objects)
-    sensor_objects = []
-    model = context.scene.objects['model']
-    for i in model['sensor_info']:
-        sensor_objects.append((bpy.data.objects['sensor_' + i], model['sensor_info'][i][0]))
-    return sensor_objects
 
 def get_triangles():
     """Converts all vertex groups of the model into triangles if necessary.

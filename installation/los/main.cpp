@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
     // We'll be dealing with only one simulation at a time.
     // ARGUMENTS: frame start, frame end, triangle count, frame path,
     // Sphere sample count, sphere radius, trajectory sim path, sensor count, and
-    // List of sensors to simulate, separated by white space and starting in "sensor_"
+    // List of sensors to simulate, separated by white space.
     // Paths must be absolute and end in appropriate os.sep.
 
     int frame_start = atoi(argv[1]);
@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
     for(int i = 9; i < 9 + sensor_count; i++) {
         sensor_locs[i - 9] = new vector[anim_length];
         // Read in the file. Make sure os.sep is supplied because C++ can't tell
-        std::string sensor_file_path = trajectory_path + "sensor_" + argv[i] + ".csv";
+        std::string sensor_file_path = trajectory_path + argv[i] + ".csv";
         std::ifstream sensor_file(sensor_file_path.c_str());
         // Skip Header
         getline(sensor_file, sensor_line);
@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
     for(int i = 0; i < sensor_count; i++) {
         std::ofstream output_file;
         std::string sensor_name = argv[i + 9];
-        std::string path_to_output = sim_path + "LOS" + os_sep + "sensor_" + sensor_name + ".csv";
+        std::string path_to_output = sim_path + "LOS" + os_sep + sensor_name + ".csv";
         output_file.open(path_to_output.c_str());
         output_file.precision(10);
 
@@ -178,7 +178,7 @@ int main(int argc, char **argv) {
             if (i == j) {
                 continue;
             }
-            output_file << "," << "sensor_" << other_sensor_name;
+            output_file << "," << other_sensor_name;
         }
         output_file << "\n";
 

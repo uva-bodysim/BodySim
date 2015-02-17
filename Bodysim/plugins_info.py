@@ -107,3 +107,15 @@ def get_sensor_plugin_mapping():
                     sim_mapping[sensor][plugin].append(variable)
 
     return sim_mapping, location_map
+
+def populate_sensor_list():
+    """Get all the sensors in the scene. Maps sensor locations to sensor
+     names.
+    """
+
+    context = bpy.context
+    sensor_objects = []
+    model = context.scene.objects['model']
+    for i in model['sensor_info']:
+        sensor_objects.append((bpy.data.objects['sensor_' + i], model['sensor_info'][i][0]))
+    return sensor_objects

@@ -23,7 +23,10 @@ print (current_path + os.sep + 'los ' + frame_start + ' ' + frame_end + ' ' +
                       str(len(sensor_list)) + ' ' + ' '.join(sensor_list))
 
 # Execute the CPP LOS Checker, assuming it is in same directory as this file.
+start = time.clock()
 subprocess.check_call((current_path + os.sep + 'los ' + frame_start + ' ' + frame_end + ' ' +
                       triangle_count + ' ' + triangle_path + ' ' +
                       sample_count + ' ' + height + ' ' + trajectory_path + ' ' +
                       str(len(sensor_list)) + ' ' + ' '.join(sensor_list)), shell=True)
+elapsed = (time.clock() - start)
+print 'verts ' + str(triangle_count) + ' sample_count ' + str(sample_count) + ' sensors ' + str(len(sensor_list)) + ' time ' + str(elapsed)
