@@ -1,0 +1,33 @@
+<!DOCTYPE FilterScript>
+<FilterScript>
+ <filter name="Compute normals for point sets">
+  <Param name="K" tooltip="The number of neighbors used to estimate normals." description="Neighbour num" type="RichInt" value="20"/>
+  <Param name="smoothIter" tooltip="The number of smoothing iteration done on the p used to estimate and propagate normals." description="Smooth Iteration" type="RichInt" value="0"/>
+  <Param name="flipFlag" tooltip="If the 'viewpoint' (i.e. scanner position) is known, it can be used to disambiguate normals orientation, so that all the normals will be oriented in the same direction." description="Flip normals w.r.t. viewpoint" type="RichBool" value="false"/>
+  <Param name="viewPos" tooltip="The viewpoint position can be set by hand (i.e. getting the current viewpoint) or it can be retrieved from mesh camera, if the viewpoint position is stored there." description="Viewpoint Pos." x="0" y="0" z="0" type="RichPoint3f"/>
+ </filter>
+ <filter name="Surface Reconstruction: Poisson">
+  <Param name="OctDepth" tooltip="Set the depth of the Octree used for extracting the final surface. Suggested range 5..10. Higher numbers mean higher precision in the reconstruction but also higher processing times. Be patient.&#xa;" description="Octree Depth" type="RichInt" value="8"/>
+  <Param name="SolverDivide" tooltip="This integer argument specifies the depth at which a block Gauss-Seidel solver is used to solve the Laplacian equation.&#xa;Using this parameter helps reduce the memory overhead at the cost of a small increase in reconstruction time. &#xa;In practice, the authors have found that for reconstructions of depth 9 or higher a subdivide depth of 7 or 8 can reduce the memory usage.&#xa;The default value is 8.&#xa;" description="Solver Divide" type="RichInt" value="6"/>
+  <Param name="SamplesPerNode" tooltip="This floating point value specifies the minimum number of sample points that should fall within an octree node as the octree&#xa;construction is adapted to sampling density. For noise-free samples, small values in the range [1.0 - 5.0] can be used.&#xa;For more noisy samples, larger values in the range [15.0 - 20.0] may be needed to provide a smoother, noise-reduced, reconstruction.&#xa;The default value is 1.0." description="Samples per Node" type="RichFloat" value="1"/>
+  <Param name="Offset" tooltip="This floating point value specifies a correction value for the isosurface threshold that is chosen.&#xa;Values &lt; 1 means internal offsetting, >1 external offsetting.Good values are in the range 0.5 .. 2.&#xa;The default value is 1.0 (no offsetting)." description="Surface offsetting" type="RichFloat" value="1"/>
+ </filter>
+ <filter name="Invert Faces Orientation">
+  <Param name="forceFlip" tooltip="If selected, the normals will always be flipped; otherwise, the filter tries to set them outside" description="Force Flip" type="RichBool" value="true"/>
+  <Param name="onlySelected" tooltip="If selected, only selected faces will be affected" description="Flip only selected faces" type="RichBool" value="false"/>
+ </filter>
+ <filter name="Quadric Edge Collapse Decimation">
+  <Param name="TargetFaceNum" tooltip="The desired final number of faces." description="Target number of faces" type="RichInt" value="2000"/>
+  <Param name="TargetPerc" tooltip="If non zero, this parameter specifies the desired final size of the mesh as a percentage of the initial size." description="Percentage reduction (0..1)" type="RichFloat" value="0"/>
+  <Param name="QualityThr" tooltip="Quality threshold for penalizing bad shaped faces.&lt;br>The value is in the range [0..1]&#xa; 0 accept any kind of face (no penalties),&#xa; 0.5  penalize faces with quality &lt; 0.5, proportionally to their shape&#xa;" description="Quality threshold" type="RichFloat" value="1"/>
+  <Param name="PreserveBoundary" tooltip="The simplification process tries to do not affect mesh boundaries during simplification" description="Preserve Boundary of the mesh" type="RichBool" value="true"/>
+  <Param name="BoundaryWeight" tooltip="The importance of the boundary during simplification. Default (1.0) means that the boundary has the same importance of the rest. Values greater than 1.0 raise boundary importance and has the effect of removing less vertices on the border. Admitted range of values (0,+inf). " description="Boundary Preserving Weight" type="RichFloat" value="1"/>
+  <Param name="PreserveNormal" tooltip="Try to avoid face flipping effects and try to preserve the original orientation of the surface" description="Preserve Normal" type="RichBool" value="true"/>
+  <Param name="PreserveTopology" tooltip="Avoid all the collapses that should cause a topology change in the mesh (like closing holes, squeezing handles, etc). If checked the genus of the mesh should stay unchanged." description="Preserve Topology" type="RichBool" value="true"/>
+  <Param name="OptimalPlacement" tooltip="Each collapsed vertex is placed in the position minimizing the quadric error.&#xa; It can fail (creating bad spikes) in case of very flat areas. &#xa;If disabled edges are collapsed onto one of the two original vertices and the final mesh is composed by a subset of the original vertices. " description="Optimal position of simplified vertices" type="RichBool" value="true"/>
+  <Param name="PlanarQuadric" tooltip="Add additional simplification constraints that improves the quality of the simplification of the planar portion of the mesh." description="Planar Simplification" type="RichBool" value="true"/>
+  <Param name="QualityWeight" tooltip="Use the Per-Vertex quality as a weighting factor for the simplification. The weight is used as a error amplification value, so a vertex with a high quality value will not be simplified and a portion of the mesh with low quality values will be aggressively simplified." description="Weighted Simplification" type="RichBool" value="false"/>
+  <Param name="AutoClean" tooltip="After the simplification an additional set of steps is performed to clean the mesh (unreferenced vertices, bad faces, etc)" description="Post-simplification cleaning" type="RichBool" value="true"/>
+  <Param name="Selected" tooltip="The simplification is applied only to the selected set of faces.&#xa; Take care of the target number of faces!" description="Simplify only selected faces" type="RichBool" value="false"/>
+ </filter>
+</FilterScript>
